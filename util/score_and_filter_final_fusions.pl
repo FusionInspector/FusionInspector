@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp;
 use FindBin;
-use lib ("$FindBin::Bin/../../PerlLib");
+use lib ("$FindBin::Bin/../PerlLib");
 use __GLOBALS__;
 use FusionAnnotator;
 use Data::Dumper;

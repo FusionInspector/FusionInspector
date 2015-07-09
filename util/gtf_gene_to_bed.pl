@@ -5,7 +5,7 @@
 use strict;
 use warnings;
 use FindBin;
-use lib ("$FindBin::Bin/../../PerlLib");
+use lib ("$FindBin::Bin/../PerlLib");
 use Gene_obj;
 use Gene_obj_indexer;
 use GTF_utils;
