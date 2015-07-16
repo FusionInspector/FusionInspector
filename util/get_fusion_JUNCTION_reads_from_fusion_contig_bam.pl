@@ -40,6 +40,9 @@ main: {
 
         my $scaffold = $sam_entry->get_scaffold_name();
         if ($scaffold ne $prev_scaff) {
+            
+            if (! exists $scaffold_to_gene_structs{$scaffold}) { next; } # STAR aligns to the whole genome + fusion contigs.
+
             my @gene_structs = @{$scaffold_to_gene_structs{$scaffold}};
             if (scalar @gene_structs != 2) {
                 die "Error, didn't find only 2 genes in the gtf file: " . Dumper(\@gene_structs);
