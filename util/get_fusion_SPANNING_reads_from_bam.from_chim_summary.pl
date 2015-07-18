@@ -179,42 +179,50 @@ main: {
                     #####################################################################
                     ## assign fragment as fusion support based on breakpoint coordinates.
 
-                    my $frag_assigned_to_breakpoint_flag = 0;
-                    
-                    foreach my $fusion (@{$fusion_junctions{$scaffold}}) {
-                        my ($break_lend, $break_rend) = split(/-/, $fusion);
-                        
-                        if ($left_read_rend < $break_lend && $right_read_lend > $break_rend) {
-                            
-                            $spanning_read_want{"$scaffold|$fragment"}++; # capture for SAM-retreival next.
-                        
-                            push (@{$fusion_to_spanning_reads{"$scaffold|$fusion"}}, $fragment);
-                        
-                            $frag_assigned_to_breakpoint_flag = 1;
-                        }
-                        elsif ($left_read_rend < $break_lend && $break_lend < $right_read_lend
-                               && $right_read_lend < $gene_bound_right) {
 
-                            ## contrary support at left junction
-                            push (@{$fusion_to_contrary_support{"$scaffold|$fusion"}->{left}}, $fragment);
+                    my $is_fusion_spanning_fragment_flag = 0;
+                    if ($left_read_rend < $gene_bound_left && $right_read_lend > $gene_bound_right) {
+                        $is_fusion_spanning_fragment_flag = 1;
+                        $spanning_read_want{"$scaffold|$fragment"}++; # capture for SAM-retreival next.
+                    }
+    
+                    my $candidate_fusion_breakpoints_aref = $fusion_junctions{$scaffold};
+                    if (ref $candidate_fusion_breakpoints_aref) {
+                                        
+                        foreach my $fusion_breakpoint (@{$candidate_fusion_breakpoints_aref}) {
+                            my ($break_lend, $break_rend) = split(/-/, $fusion_breakpoint);
+                        
+                            if ($is_fusion_spanning_fragment_flag) {
+                                
+                                ## assign all spanning frags to all junction reads.  Important for later filtering
+                                push (@{$fusion_to_spanning_reads{"$scaffold|$fusion_breakpoint"}}, $fragment);
+                                                              
+                            }
+                            else {
+                                if ($left_read_rend < $break_lend && $break_lend < $right_read_lend
+                                    && $right_read_lend < $gene_bound_right) {
+                                    
+                                    ## contrary support at left junction
+                                    push (@{$fusion_to_contrary_support{"$scaffold|$fusion_breakpoint"}->{left}}, $fragment);
+                                }
+                                elsif ($left_read_rend < $break_rend && $break_rend < $right_read_lend
+                                       && $left_read_rend > $gene_bound_left) {
+                                    ## contrary support at right junction
+                                    push (@{$fusion_to_contrary_support{"$scaffold|$fusion_breakpoint"}->{right}}, $fragment);
+                                }
+                        
+                            }
                         }
-                        elsif ($left_read_rend < $break_rend && $break_rend < $right_read_lend
-                               && $left_read_rend > $gene_bound_left) {
-                            ## contrary support at right junction
-                            push (@{$fusion_to_contrary_support{"$scaffold|$fusion"}->{right}}, $fragment);
-                        }
+                    }
+                    elsif($is_fusion_spanning_fragment_flag) {
+                        
+                        # still capture it even though there's no junction read to assign it to.
+                        
+                        my $fuzzy_breakpoint = join("-", $gene_bound_left, $gene_bound_right);
+                        push (@{$fusion_to_spanning_reads{"$scaffold|$fuzzy_breakpoint"}}, $fragment);
                         
                     }
                     
-                    unless ($frag_assigned_to_breakpoint_flag) {
-                        if ($left_read_rend < $gene_bound_left && $right_read_lend > $gene_bound_right) {
-                            $spanning_read_want{"$scaffold|$fragment"}++; # capture for SAM-retreival next.
-                            
-                            my $fuzzy_breakpoint = join("-", $gene_bound_left, $gene_bound_right);
-                            push (@{$fusion_to_spanning_reads{"$scaffold|$fuzzy_breakpoint"}}, $fragment);
-                            
-                        }
-                    }
                     
                 }
             }
