@@ -339,7 +339,7 @@ sub exclude_FP_junction_and_spanning_reads {
             }
         }
 
-        if (@adj_junc_reads) {
+        if (@adj_junc_reads || @adj_spanning_frags) {
             
             ## adjust the stats based on the adjusted evidence counts.
             
@@ -368,7 +368,11 @@ sub exclude_FP_junction_and_spanning_reads {
             $x[16] = $TAF_right;
             
 
-            my $pct_filtered_junction = sprintf("%.2f", ($orig_junc_read_count - $num_junction_reads) / $orig_junc_read_count * 100);
+            my $pct_filtered_junction = 0;
+            if ($orig_junc_read_count > 0) {
+                $pct_filtered_junction = sprintf("%.2f", ($orig_junc_read_count - $num_junction_reads) / $orig_junc_read_count * 100);
+            }
+            
             my $pct_filtered_spanning = 0;
             if ($orig_span_frag_count > 0) {
                 $pct_filtered_spanning = sprintf("%.2f", ($orig_span_frag_count - $num_spanning_reads) / $orig_span_frag_count * 100);
