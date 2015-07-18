@@ -24,7 +24,8 @@ main: {
     
 
     my %exon_bounds;
-    my %scaffold_to_gene_structs = &parse_gtf_file($gtf_file, \%exon_bounds);
+    my %orig_coord_info;
+    my %scaffold_to_gene_structs = &parse_gtf_file($gtf_file, \%exon_bounds, \%orig_coord_info);
 
     my %spanning_only_info;
     
@@ -53,8 +54,11 @@ main: {
             }
             $scaffold_to_gene_breaks{$scaffold} = [$gene_bound_left, $gene_bound_right];
 
-            $spanning_only_info{$scaffold} = join("\t", $geneA, $gene_bound_left, ".", $geneB, $gene_bound_right, ".", "NO_JUNCTION_READS_IDENTIFIED");
-
+            $spanning_only_info{$scaffold} = join("\t", 
+                                                  $geneA, $gene_bound_left, $orig_coord_info{$scaffold}->{$gene_bound_left}, 
+                                                  $geneB, $gene_bound_right, $orig_coord_info{$scaffold}->{$gene_bound_right}, 
+                                                  "NO_JUNCTION_READS_IDENTIFIED");
+            
         }
     }
     
@@ -326,7 +330,7 @@ sub overlaps_exon {
 
 ####
 sub parse_gtf_file {
-    my ($gtf_file, $exon_bounds_href) = @_;
+    my ($gtf_file, $exon_bounds_href, $orig_coord_info_href) = @_;
 
     my %scaff_to_gene_to_coords;
 
@@ -347,6 +351,15 @@ sub parse_gtf_file {
         push (@{$scaff_to_gene_to_coords{$scaffold_id}->{$gene_id}}, $lend, $rend);
         $exon_bounds_href->{$scaffold_id}->{"$lend-$rend"} = 1;
         
+        #  orig_coord_info "chr7,34697897,34698171,+";
+        $info =~ /orig_coord_info \"([^\"]+)\"/ or die "Error, cannot parse orig_coord_info from $info";
+        my $orig_coord_info = $1;
+        my ($orig_chr, $orig_lend, $orig_rend, $orig_orient) = split(/,/, $orig_coord_info);
+        $orig_coord_info_href->{$scaffold_id}->{$lend} = join(":", $orig_chr, $orig_lend, $orig_orient);
+        $orig_coord_info_href->{$scaffold_id}->{$rend} = join(":", $orig_chr, $orig_rend, $orig_orient);
+        
+        
+
     }
     close $fh;
 
