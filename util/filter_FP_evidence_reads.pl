@@ -191,11 +191,13 @@ main: {
         my $number_frags_mapped = 0;
         my $sam_reader = new SAM_reader($span_frags_sam);
         while (my $sam_entry = $sam_reader->get_next()) {
-            my $core_read_name = $sam_entry->get_core_read_name();
-            if ( (exists $spanning_frags{$core_read_name}) && $sam_entry->is_proper_pair() ) {
-                
-                $number_frags_mapped++;
-                delete $spanning_frags{$core_read_name} or die "Error, could not delete $core_read_name from spanning_frags";
+            if (! $sam_entry->is_query_unmapped()) {
+                my $core_read_name = $sam_entry->get_core_read_name();
+                if ( (exists $spanning_frags{$core_read_name}) && $sam_entry->is_proper_pair() ) {
+                    
+                    $number_frags_mapped++;
+                    delete $spanning_frags{$core_read_name} or die "Error, could not delete $core_read_name from spanning_frags";
+                }
             }
         }
         &process_cmd("touch $sam_chkpt");
