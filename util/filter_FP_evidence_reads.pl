@@ -239,9 +239,21 @@ sub extract_junction_reads {
 
     my %junc_reads = %$junction_reads_href;
 
-    open (my $ofh, ">$junc_reads_fq") or confess "Error, cannot write to file $junc_reads_fq";
+    my $ofh;
+    my @fq_files;
 
-    foreach my $fq_file ($left_fq, $right_fq) {
+    my $checkpoint = "$junc_reads_fq.ok";
+
+    ## re-use earlier generated output file if available.
+    if (-s $junc_reads_fq && -e $checkpoint) {
+        @fq_files = ($junc_reads_fq);
+    }
+    else {
+        @fq_files = ($left_fq, $right_fq);
+        open ($ofh, ">$junc_reads_fq") or confess "Error, cannot write to file $junc_reads_fq";
+    }
+    
+    foreach my $fq_file (@fq_files) {
         
         my $fastq_reader = new Fastq_reader($fq_file);
         while (my $fq_obj = $fastq_reader->next()) {
@@ -249,13 +261,16 @@ sub extract_junction_reads {
             if (exists $junc_reads{$full_read_name}) {
                 my $fq_record = $fq_obj->get_fastq_record();
                 
-                print $ofh $fq_record;
+                print $ofh $fq_record if $ofh;
                 delete $junc_reads{$full_read_name};
                 
             }
         }
     }
-    close $ofh;
+    if ($ofh) {
+        close $ofh;
+        &process_cmd("touch $checkpoint");
+    }
     
     if (%junc_reads) {
         confess "Error, didn't retrieve all junction reads.  Missing: " . Dumper(\%junc_reads);
@@ -270,18 +285,37 @@ sub extract_spanning_reads {
 
     my %frags = %$spanning_frags_href;
     
-    my $fastq_reader = new Fastq_reader($fastq_input);
-    open (my $ofh, ">$fastq_output") or die "error, cannot write to file $fastq_output";
+    my $ofh;
+
+    # reuse existing output file if available.
+    my $fastq_file_to_read;
+    
+    my $checkpoint = "$fastq_output.ok";
+    if (-s $fastq_output && -e $checkpoint) {
+        $fastq_file_to_read = $fastq_output;
+    }
+    else {
+        $fastq_file_to_read = $fastq_input;
+        open ($ofh, ">$fastq_output") or die "error, cannot write to file $fastq_output";        
+    }
+
+    my $fastq_reader = new Fastq_reader($fastq_file_to_read);
+    
     while (my $fq_obj = $fastq_reader->next()) {
         my $core_read_name = $fq_obj->get_core_read_name();
         if (exists $frags{$core_read_name}) {
-            my $fq_record = $fq_obj->get_fastq_record();
-            print $ofh $fq_record;
+            if ($ofh) {
+                my $fq_record = $fq_obj->get_fastq_record();
+                print $ofh $fq_record;
+            }
             delete($frags{$core_read_name});
         }
     }
-    close $ofh;
-
+    if ($ofh) {
+        close $ofh;
+        &process_cmd("touch $checkpoint");
+    }
+    
     if (%frags) {
         confess "Error, missing reads from file $fastq_input: " . Dumper(\%frags);
     }
@@ -319,6 +353,9 @@ sub parse_junction_and_spanning_reads {
 sub exclude_FP_junction_and_spanning_reads {
     my ($fusion_summary, $junction_reads_href, $spanning_frags_href) = @_;
 
+
+    open (my $ofh, ">$fusion_summary.filt") or die $!;
+    
     open (my $fh, $fusion_summary) or die "Error, cannot open file $fusion_summary";
     while (<$fh>) {
         if (/^\#/) { print; next; }
@@ -341,63 +378,69 @@ sub exclude_FP_junction_and_spanning_reads {
             }
         }
 
-        if (@adj_junc_reads || @adj_spanning_frags) {
-            
-            ## adjust the stats based on the adjusted evidence counts.
-            
-            $x[9] = join(",", @adj_junc_reads);
-            $x[10] = join(",", @adj_spanning_frags);
-
-            my $orig_junc_read_count = $x[7];
-            my $orig_span_frag_count = $x[8];
-
-
-            my $num_junction_reads = $x[7] = scalar(@adj_junc_reads);
-            my $num_spanning_reads = $x[8] = scalar(@adj_spanning_frags);
-            
-            my $PSEUDOCOUNT = 1;
-
-            my $num_left_contrary_reads = $x[11];
-            my $num_right_contrary_reads = $x[13];
-
-            my $TAF_left = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) / ($num_left_contrary_reads + $PSEUDOCOUNT);
-            $TAF_left = sprintf("%.2f", $TAF_left);
+        ## adjust the stats based on the adjusted evidence counts.
         
-            my $TAF_right = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) / ($num_right_contrary_reads + $PSEUDOCOUNT);
-            $TAF_right = sprintf("%.2f", $TAF_right);
+        $x[9] = join(",", @adj_junc_reads);
+        $x[10] = join(",", @adj_spanning_frags);
         
-            $x[15] = $TAF_left;
-            $x[16] = $TAF_right;
-            
-
-            my $pct_filtered_junction = 0;
-            if ($orig_junc_read_count > 0) {
-                $pct_filtered_junction = sprintf("%.2f", ($orig_junc_read_count - $num_junction_reads) / $orig_junc_read_count * 100);
-            }
-            
-            my $pct_filtered_spanning = 0;
-            if ($orig_span_frag_count > 0) {
-                $pct_filtered_spanning = sprintf("%.2f", ($orig_span_frag_count - $num_spanning_reads) / $orig_span_frag_count * 100);
-            }
-            
-            if ($pct_filtered_junction > 0 || $pct_filtered_spanning > 0) {
-                # add to annotations
-                if ($x[17] eq ".") {
-                    $x[17] = "";
-                }
-                else {
-                    $x[17] .= ",";
-                }
-                
-                $x[17] .= "PctFiltJ[$pct_filtered_junction],PctFiltS[$pct_filtered_spanning]";
-            }
-                        
-            print join("\t", @x) . "\n";
+        my $orig_junc_read_count = $x[7];
+        my $orig_span_frag_count = $x[8];
+        
+        
+        my $num_junction_reads = $x[7] = scalar(@adj_junc_reads);
+        my $num_spanning_reads = $x[8] = scalar(@adj_spanning_frags);
+        
+        my $PSEUDOCOUNT = 1;
+        
+        my $num_left_contrary_reads = $x[11];
+        my $num_right_contrary_reads = $x[13];
+        
+        my $TAF_left = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) / ($num_left_contrary_reads + $PSEUDOCOUNT);
+        $TAF_left = sprintf("%.2f", $TAF_left);
+        
+        my $TAF_right = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) / ($num_right_contrary_reads + $PSEUDOCOUNT);
+        $TAF_right = sprintf("%.2f", $TAF_right);
+        
+        $x[15] = $TAF_left;
+        $x[16] = $TAF_right;
+        
+        
+        my $pct_filtered_junction = 0;
+        if ($orig_junc_read_count > 0) {
+            $pct_filtered_junction = sprintf("%.2f", ($orig_junc_read_count - $num_junction_reads) / $orig_junc_read_count * 100);
         }
         
-
+        my $pct_filtered_spanning = 0;
+        if ($orig_span_frag_count > 0) {
+            $pct_filtered_spanning = sprintf("%.2f", ($orig_span_frag_count - $num_spanning_reads) / $orig_span_frag_count * 100);
+        }
+        
+        #add % filtered annotation
+        if ($pct_filtered_junction > 0 || $pct_filtered_spanning > 0) {
+            # add to annotations
+            if ($x[17] eq ".") {
+                $x[17] = "";
+            }
+            else {
+                $x[17] .= ",";
+            }
+            
+            $x[17] .= "PctFiltJ[$pct_filtered_junction],PctFiltS[$pct_filtered_spanning]";
+        }
+        
+        # report entry
+        my $outline = join("\t", @x) . "\n"; 
+        if ($num_junction_reads > 0 || $num_spanning_reads > 0) {
+            print $outline;
+            print $ofh $outline;
+        }
+        else {
+            print $ofh "#" . $outline;
+        }
+        
     }
     close $fh;
+    close $ofh;
 
     return;
 }
