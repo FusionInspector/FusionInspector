@@ -117,6 +117,22 @@ main: {
             
 
             my $scaffold = $sam_entry->get_scaffold_name();
+            my $scaffold_pos = $sam_entry->get_scaffold_position();
+
+            my $mate_scaffold_name = $sam_entry->get_mate_scaffold_name();
+            my $mate_scaffold_pos = $sam_entry->get_mate_scaffold_position();
+            
+            unless ($mate_scaffold_name eq $scaffold || $mate_scaffold_name eq "=") { next; }
+
+            # check if alignments begin in their respective fusion gene areas:
+            my ($scaff_gene_left_rend, $scaff_gene_right_lend) = @{$scaffold_to_gene_breaks{$scaffold}};
+            
+            my ($pos1, $pos2) = sort {$a<=>$b} ($scaffold_pos, $mate_scaffold_pos);
+            
+            unless ($pos1 < $scaff_gene_left_rend && $pos2 > $scaff_gene_right_lend) { next; }
+            
+
+
             my $read_name = $sam_entry->get_read_name();
             my $token = join("$;", $read_name, $scaffold);
 
