@@ -20,6 +20,7 @@ my $bam_file = $ARGV[1] or die $usage;
 main: {
     
     my %scaffold_itree_to_exon_structs;
+    print STDERR "-parsing GTF file: $gtf_file\n";
     my %scaffold_to_gene_structs = &parse_gtf_file($gtf_file, \%scaffold_itree_to_exon_structs);
         
     
@@ -32,9 +33,16 @@ main: {
 
     my %fusion_junctions;
 
+
+    my $counter = 0;
     ## find the reads that matter:
     my $sam_reader = new SAM_reader($bam_file);
     while (my $sam_entry = $sam_reader->get_next()) {
+        
+        $counter++;
+        if ($counter % 10000 == 0) { 
+            print STDERR "\r[$counter]   ";
+        }
         
         my $read_name = $sam_entry->reconstruct_full_read_name();
 

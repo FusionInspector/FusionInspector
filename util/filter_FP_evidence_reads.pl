@@ -247,6 +247,7 @@ sub extract_junction_reads {
     ## re-use earlier generated output file if available.
     if (-s $junc_reads_fq && -e $checkpoint) {
         @fq_files = ($junc_reads_fq);
+        print STDERR "-resuming using $junc_reads_fq file\n";
     }
     else {
         @fq_files = ($left_fq, $right_fq);
@@ -254,6 +255,9 @@ sub extract_junction_reads {
     }
     
     foreach my $fq_file (@fq_files) {
+        
+        print STDERR "\n\n-parsing $fq_file\n";
+        my $counter = 0;
         
         my $fastq_reader = new Fastq_reader($fq_file);
         while (my $fq_obj = $fastq_reader->next()) {
@@ -265,8 +269,14 @@ sub extract_junction_reads {
                 delete $junc_reads{$full_read_name};
                 
             }
+            $counter++;
+            if ($counter % 10000 == 0) {
+                print STDERR "\r[$counter]  ";
+            }
         }
     }
+    print STDERR "\n\n";
+    
     if ($ofh) {
         close $ofh;
         &process_cmd("touch $checkpoint");
@@ -293,15 +303,18 @@ sub extract_spanning_reads {
     my $checkpoint = "$fastq_output.ok";
     if (-s $fastq_output && -e $checkpoint) {
         $fastq_file_to_read = $fastq_output;
+        print STDERR "-resuming using $fastq_output\n";
     }
     else {
         $fastq_file_to_read = $fastq_input;
         open ($ofh, ">$fastq_output") or die "error, cannot write to file $fastq_output";        
     }
 
+    print STDERR "\n-reading $fastq_file_to_read\n\n";
     my $fastq_reader = new Fastq_reader($fastq_file_to_read);
     
     while (my $fq_obj = $fastq_reader->next()) {
+        my $counter = 0;
         my $core_read_name = $fq_obj->get_core_read_name();
         if (exists $frags{$core_read_name}) {
             if ($ofh) {
@@ -310,7 +323,14 @@ sub extract_spanning_reads {
             }
             delete($frags{$core_read_name});
         }
+        $counter++;
+        if ($counter % 10000 == 0) {
+            print "\r[$counter]  ";
+        }
     }
+    print STDERR "\n\n";
+    
+
     if ($ofh) {
         close $ofh;
         &process_cmd("touch $checkpoint");
