@@ -435,6 +435,12 @@ sub exclude_FP_junction_and_spanning_reads {
             $pct_filtered_spanning = sprintf("%.2f", ($orig_span_frag_count - $num_spanning_reads) / $orig_span_frag_count * 100);
         }
         
+
+        if ($num_junction_reads == 0 && $x[6] ne "NO_JUNCTION_READS_IDENTIFIED") {
+            # reset it
+            $x[6] = "NO_JUNCTION_READS_IDENTIFIED";
+        }
+        
         #add % filtered annotation
         if ($pct_filtered_junction > 0 || $pct_filtered_spanning > 0) {
             # add to annotations
@@ -450,6 +456,7 @@ sub exclude_FP_junction_and_spanning_reads {
         
         # report entry
         my $outline = join("\t", @x) . "\n"; 
+        
         if ($num_junction_reads > 0 || $num_spanning_reads > 0) {
             print $outline;
             print $ofh $outline;
