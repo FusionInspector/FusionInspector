@@ -543,7 +543,7 @@ class FusionInspector( ParentScript.ParentScript ):
                                               lstr_cur_dependencies = [ mergedContig_gtf_filename, bam_file ],
                                               lstr_cur_products = [ fusion_junction_reads_sam_file, fusion_junction_info_file ] ) )
 
-        if args_parsed.write_intermidate_results:
+        if args_parsed.write_intermediate_results:
             self.sort_sam_to_bam(fusion_junction_reads_sam_file, mergedContig_fasta_filename, lcmd_commands)
 
             ## convert the fusion JUNCTION reads sam file to bed format
