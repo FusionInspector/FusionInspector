@@ -50,7 +50,9 @@ class FusionInspector( ParentScript.ParentScript ):
         arg_raw.add_argument("--align_utils", dest="align_utils", required=True, help="alignment utilities to use. Comma-delimited selection of: GSNAP,HISAT")
         arg_raw.add_argument("--include_Trinity", dest="include_Trinity", required=False, action = "store_true", default=False, help="include fusion-guided Trinity assembly")
         arg_raw.add_argument("--include_whole_genome", dest="include_whole_genome", required=False, action="store_true", default=False, help="include whole genome in STAR aignment")
-
+        arg_raw.add_argument("--prep_for_IGV", dest="prep_for_IGV", required=False, action="store_true", default=False, help="generate bam, bed, etc., for use with IGV")
+        arg_raw.add_argument("--write_intermediate_results", dest="write_intermediate_results", required=False, action="store_true", default=False, help="generate bam, bed, etc., for intermediate aligner outputs")
+        
         #arg_raw.add_argument("--align_reads", dest="align_reads", default=None, required=False, help="read fasta files to align to the fusion contig. Include multiple files separated by commas (no spaces). Reads must have fusion name encoded as fusion_name|read_name, only those reads aligning to the corresponding fusion contig will be shown.")
         
         
@@ -348,155 +350,165 @@ class FusionInspector( ParentScript.ParentScript ):
         
 
 
-        return(lcmd_commands)
+        if args_parsed.include_Trinity or args_parsed.prep_for_IGV:
 
+            #################################################################
+            ## consolidate the Fusion Inspector reads into a single bam files
+            #################################################################
 
-        ## Stopping Here Temporarily ##
+            ## Junction reads
 
-        
-        #################################################################
-        ## consolidate the Fusion Inspector reads into a single bam files
-        #################################################################
-
-        ## Junction reads
-        
-        summary_junction_reads_list = fusion_summary_file + ".fusion_junction_read_accs"
-        cmdstr = str("cut -f 1,4,10 " + fusion_summary_file + " > " + summary_junction_reads_list)
-
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ fusion_summary_file ],
-                                               lstr_cur_products = [ summary_junction_reads_list ] ) )
-        
-
-
-        ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
-        
-        consolidated_junction_reads_bam =  os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".junction_reads"])
-        cmdstr = str(UTILDIR + "/retrieve_fusion_junction_reads_by_accession.pl " + summary_junction_reads_list
-                     + " " + ",".join(fusion_junction_reads_list) +
-                     " | samtools view -bT " + mergedContig_fasta_filename + " - | samtools sort - " + consolidated_junction_reads_bam +
-                     " || : ") # cant afford for this to fail due to lack of evidence reads
-
-        consolidated_junction_reads_bam += ".bam"
-        
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ fusion_junction_reads_list +
-                                                                         [summary_junction_reads_list]
-                                                                         ],
-                                               lstr_cur_products = [ consolidated_junction_reads_bam ] ) )
-
-        lcmd_commands.append ( Command.Command( str_cur_command = "samtools index " + consolidated_junction_reads_bam,
-                                                lstr_cur_dependencies = [ consolidated_junction_reads_bam ],
-                                                lstr_cur_products = [ consolidated_junction_reads_bam + ".bai" ] ) )
-        
-        self.bam_to_bed(consolidated_junction_reads_bam, lcmd_commands)
-        
-
-        ## Spanning reads
-        
-        summary_spanning_reads_list = fusion_summary_file + ".fusion_spanning_read_accs"
-        cmdstr = str("cut -f 1,4,11 " + fusion_summary_file + " > " + summary_spanning_reads_list)
-
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ fusion_summary_file ],
-                                               lstr_cur_products = [ summary_spanning_reads_list ] ) )
-
-        ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
-        
-        consolidated_spanning_reads_bam =  os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".spanning_reads"])
-        cmdstr = str(UTILDIR + "/retrieve_fusion_spanning_reads_by_accession.pl " + summary_spanning_reads_list
-                     + " " + ",".join(fusion_spanning_reads_list) +
-                     " | samtools view -bT " + mergedContig_fasta_filename + " - | samtools sort - " + consolidated_spanning_reads_bam +
-                     " || : ") # again, cant afford for this to fail due to lack of evidence reads.
-
-        consolidated_spanning_reads_bam += ".bam"
-        
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ fusion_spanning_reads_list +
-                                                                         [summary_spanning_reads_list]
-                                                                         ],
-                                               lstr_cur_products = [ consolidated_spanning_reads_bam ] ) )
-        
-        lcmd_commands.append ( Command.Command( str_cur_command = "samtools index " + consolidated_spanning_reads_bam,
-                                                lstr_cur_dependencies = [ consolidated_spanning_reads_bam ],
-                                                lstr_cur_products = [ consolidated_spanning_reads_bam + ".bai" ] ) )
-        
-
-        self.bam_to_bed(consolidated_spanning_reads_bam, lcmd_commands)
-
-
-
-
-        # consolidate all fusion-contig aligned reads into a single bam file
-        consolidated_bam_file =  os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix  + ".consolidated"])
-        
-        cmdstr = str(UTILDIR + "/consolidate_bams_and_uniq_reads.pl " +
-                     workdir_mergedContig_fasta_filename + " " +
-                     ",".join(bam_files_list) + " " +
-                      consolidated_bam_file)
-
-        consolidated_bam_file += ".cSorted.bam"
-
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ bam_files_list + [workdir_mergedContig_fasta_filename]
-                                                                         ],
-                                               lstr_cur_products = [ consolidated_bam_file ] ) )
-
-
-
-        workdir_consolidated_bam_file = os.sep.join([workdir, args_parsed.out_prefix  + ".consolidated.bam"])
-        lcmd_commands.append( Command.Command( str_cur_command = "ln -s " + consolidated_bam_file +
-                                               " " + workdir_consolidated_bam_file,
-                                               lstr_cur_dependencies = [ consolidated_bam_file ],
-                                               lstr_cur_products = [ workdir_consolidated_bam_file ] ) )
-
-
-
-        if args_parsed.include_Trinity:
-
-
-            ############################
-            # run genome-guided Trinity
-            ############################
-
-
-            trinity_out_dir = os.sep.join([workdir, "trinity_GG"])
-            trinity_fasta_filename = trinity_out_dir + "/Trinity-GG.fasta"
-
-            cmdstr = str(TRINITY_HOME + "/Trinity --genome_guided_bam " + workdir_consolidated_bam_file +
-                         " --max_memory 20G --genome_guided_max_intron 1000000 --CPU 4 --min_glue 1 --min_contig_length 100 " +
-                         " --output " + trinity_out_dir)
+            summary_junction_reads_list = fusion_summary_file + ".fusion_junction_read_accs"
+            cmdstr = str("cut -f 1,4,10 " + fusion_summary_file + " > " + summary_junction_reads_list)
 
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                   lstr_cur_dependencies = [ fusion_summary_file ],
+                                                   lstr_cur_products = [ summary_junction_reads_list ] ) )
+
+
+
+            ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
+
+            consolidated_junction_reads_bam =  os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".junction_reads"])
+            cmdstr = str(UTILDIR + "/retrieve_fusion_junction_reads_by_accession.pl " + summary_junction_reads_list
+                         + " " + ",".join(fusion_junction_reads_list) +
+                         " | samtools view -bT " + mergedContig_fasta_filename + " - | samtools sort - " + consolidated_junction_reads_bam +
+                         " || : ") # cant afford for this to fail due to lack of evidence reads
+
+            consolidated_junction_reads_bam += ".bam"
+
+            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                   lstr_cur_dependencies = [ fusion_junction_reads_list +
+                                                                             [summary_junction_reads_list]
+                                                                             ],
+                                                   lstr_cur_products = [ consolidated_junction_reads_bam ] ) )
+
+            lcmd_commands.append ( Command.Command( str_cur_command = "samtools index " + consolidated_junction_reads_bam,
+                                                    lstr_cur_dependencies = [ consolidated_junction_reads_bam ],
+                                                    lstr_cur_products = [ consolidated_junction_reads_bam + ".bai" ] ) )
+
+            if args_parsed.prep_for_IGV:
+                self.bam_to_bed(consolidated_junction_reads_bam, lcmd_commands)
+
+
+            ## Spanning reads
+
+            summary_spanning_reads_list = fusion_summary_file + ".fusion_spanning_read_accs"
+            cmdstr = str("cut -f 1,4,11 " + fusion_summary_file + " > " + summary_spanning_reads_list)
+
+            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                   lstr_cur_dependencies = [ fusion_summary_file ],
+                                                   lstr_cur_products = [ summary_spanning_reads_list ] ) )
+
+            ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
+
+            consolidated_spanning_reads_bam =  os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".spanning_reads"])
+            cmdstr = str(UTILDIR + "/retrieve_fusion_spanning_reads_by_accession.pl " + summary_spanning_reads_list
+                         + " " + ",".join(fusion_spanning_reads_list) +
+                         " | samtools view -bT " + mergedContig_fasta_filename + " - | samtools sort - " + consolidated_spanning_reads_bam +
+                         " || : ") # again, cant afford for this to fail due to lack of evidence reads.
+
+            consolidated_spanning_reads_bam += ".bam"
+
+            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                   lstr_cur_dependencies = [ fusion_spanning_reads_list +
+                                                                             [summary_spanning_reads_list]
+                                                                             ],
+                                                   lstr_cur_products = [ consolidated_spanning_reads_bam ] ) )
+
+            lcmd_commands.append ( Command.Command( str_cur_command = "samtools index " + consolidated_spanning_reads_bam,
+                                                    lstr_cur_dependencies = [ consolidated_spanning_reads_bam ],
+                                                    lstr_cur_products = [ consolidated_spanning_reads_bam + ".bai" ] ) )
+
+            if args_parsed.prep_for_IGV:
+                self.bam_to_bed(consolidated_spanning_reads_bam, lcmd_commands)
+
+
+            # consolidate all fusion-contig aligned reads into a single bam file
+            consolidated_bam_file =  os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix  + ".consolidated"])
+
+            cmdstr = str(UTILDIR + "/consolidate_bams_and_uniq_reads.pl " +
+                         workdir_mergedContig_fasta_filename + " " +
+                         ",".join(bam_files_list) + " " +
+                          consolidated_bam_file)
+
+            consolidated_bam_file += ".cSorted.bam"
+
+            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                   lstr_cur_dependencies = [ bam_files_list + [workdir_mergedContig_fasta_filename]
+                                                                             ],
+                                                   lstr_cur_products = [ consolidated_bam_file ] ) )
+
+
+
+            workdir_consolidated_bam_file = os.sep.join([workdir, args_parsed.out_prefix  + ".consolidated.bam"])
+            lcmd_commands.append( Command.Command( str_cur_command = "ln -s " + consolidated_bam_file +
+                                                   " " + workdir_consolidated_bam_file,
                                                    lstr_cur_dependencies = [ consolidated_bam_file ],
-                                                   lstr_cur_products = [ trinity_fasta_filename ] ) )
+                                                   lstr_cur_products = [ workdir_consolidated_bam_file ] ) )
 
-            ## Run TrinityGG, reconstruct fusion transcripts locally via de novo assembly
-            trinGG_fusion_gff3 = self.add_trinfusion_gmap_subpipe(args_parsed, workdir_mergedContig_fasta_filename,
-                                                                  workdir_mergedContig_gtf_filename, trinity_fasta_filename, lcmd_commands, workdir)
 
-            # merge de novo assembly fusion results w/ read-based fusion results:
-            fusion_summary_w_trinity = fusion_summary_file + ".wTrinityGG"
-            cmdstr = str(UTILDIR + "/add_TrinityGG_to_fusion_summary.pl " + fusion_summary_file + " " + trinGG_fusion_gff3 +
-                         " > " + fusion_summary_w_trinity)
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ fusion_summary_file, trinGG_fusion_gff3 ],
-                                                   lstr_cur_products = [ fusion_summary_w_trinity ]
-                                                   ) )
-            
-            fusion_summary_file = fusion_summary_w_trinity
 
-        else:
-            ## just make the coords file
+            if args_parsed.include_Trinity:
 
-            cmdstr = str(TRINITY_HOME + "/util/support_scripts/SAM_to_frag_coords.pl --sam " + workdir_consolidated_bam_file +
-                         " --max_insert_size 100000 "); 
 
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ workdir_consolidated_bam_file ],
-                                                   lstr_cur_products = [ workdir_consolidated_bam_file + ".frag_coords" ]
-                                                   ) )
-            
+                ############################
+                # run genome-guided Trinity
+                ############################
+
+
+                trinity_out_dir = os.sep.join([workdir, "trinity_GG"])
+                trinity_fasta_filename = trinity_out_dir + "/Trinity-GG.fasta"
+
+                cmdstr = str(TRINITY_HOME + "/Trinity --genome_guided_bam " + workdir_consolidated_bam_file +
+                             " --max_memory 20G --genome_guided_max_intron 1000000 --CPU 4 --min_glue 1 --min_contig_length 100 " +
+                             " --output " + trinity_out_dir)
+
+                lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                       lstr_cur_dependencies = [ consolidated_bam_file ],
+                                                       lstr_cur_products = [ trinity_fasta_filename ] ) )
+
+                ## Run TrinityGG, reconstruct fusion transcripts locally via de novo assembly
+                trinGG_fusion_gff3 = self.add_trinfusion_gmap_subpipe(args_parsed, workdir_mergedContig_fasta_filename,
+                                                                      workdir_mergedContig_gtf_filename, trinity_fasta_filename, lcmd_commands, workdir)
+
+                # merge de novo assembly fusion results w/ read-based fusion results:
+                fusion_summary_w_trinity = fusion_summary_file + ".wTrinityGG"
+                cmdstr = str(UTILDIR + "/add_TrinityGG_to_fusion_summary.pl " + fusion_summary_file + " " + trinGG_fusion_gff3 +
+                             " > " + fusion_summary_w_trinity)
+                lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                       lstr_cur_dependencies = [ fusion_summary_file, trinGG_fusion_gff3 ],
+                                                       lstr_cur_products = [ fusion_summary_w_trinity ]
+                                                       ) )
+
+                fusion_summary_file = fusion_summary_w_trinity
+
+            elif args_parsed.prep_for_IGV:
+                ## just make the coords file
+
+                cmdstr = str(TRINITY_HOME + "/util/support_scripts/SAM_to_frag_coords.pl --sam " + workdir_consolidated_bam_file +
+                             " --max_insert_size 100000 "); 
+
+                lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                       lstr_cur_dependencies = [ workdir_consolidated_bam_file ],
+                                                       lstr_cur_products = [ workdir_consolidated_bam_file + ".frag_coords" ]
+                                                       ) )
+
+            if args_parsed.prep_for_IGV:
+
+                ## Prep IGV fusion junction view
+
+                frag_coords_file = workdir_consolidated_bam_file + ".frag_coords"
+                igv_junc_view_file = os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".igv.FusionJuncSpan"])
+
+                cmdstr = str(UTILDIR + "/fusion_summary_to_igv_JuncSpan_fmt.pl " + fusion_summary_file + " " +
+                            frag_coords_file + " > " + igv_junc_view_file)
+
+                lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                       lstr_cur_dependencies = [ fusion_summary_file, frag_coords_file ],
+                                                       lstr_cur_products = [ igv_junc_view_file ] ) )
+
+
 
 
         ## Score and filter the final fusion predictions
@@ -512,18 +524,6 @@ class FusionInspector( ParentScript.ParentScript ):
 
 
         
-        ## Prep IGV fusion junction view
-
-        frag_coords_file = workdir_consolidated_bam_file + ".frag_coords"
-        igv_junc_view_file = os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".igv.FusionJuncSpan"])
-
-        cmdstr = str(UTILDIR + "/fusion_summary_to_igv_JuncSpan_fmt.pl " + fusion_summary_file + " " +
-                    frag_coords_file + " > " + igv_junc_view_file)
-
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ fusion_summary_file, frag_coords_file ],
-                                               lstr_cur_products = [ igv_junc_view_file ] ) )
-
                 
         return lcmd_commands
 
@@ -543,20 +543,20 @@ class FusionInspector( ParentScript.ParentScript ):
                                               lstr_cur_dependencies = [ mergedContig_gtf_filename, bam_file ],
                                               lstr_cur_products = [ fusion_junction_reads_sam_file, fusion_junction_info_file ] ) )
 
-        '''
-        self.sort_sam_to_bam(fusion_junction_reads_sam_file, mergedContig_fasta_filename, lcmd_commands)
+        if args_parsed.write_intermidate_results:
+            self.sort_sam_to_bam(fusion_junction_reads_sam_file, mergedContig_fasta_filename, lcmd_commands)
 
-        ## convert the fusion JUNCTION reads sam file to bed format
-        fusion_junction_reads_bed_file = bam_file + ".fusion_junc_reads.bed"
-        cmdstr = str(TRINITY_HOME + "/util/misc/SAM_to_bed.pl " + fusion_junction_reads_sam_file +
-                     " > " + fusion_junction_reads_bed_file)
+            ## convert the fusion JUNCTION reads sam file to bed format
+            fusion_junction_reads_bed_file = bam_file + ".fusion_junc_reads.bed"
+            cmdstr = str(TRINITY_HOME + "/util/misc/SAM_to_bed.pl " + fusion_junction_reads_sam_file +
+                         " > " + fusion_junction_reads_bed_file)
+
+            lcmd_commands.append( Command.Command ( str_cur_command = cmdstr,
+                                                   lstr_cur_dependencies = [ fusion_junction_reads_sam_file ],
+                                                   lstr_cur_products = [ fusion_junction_reads_bed_file ] ) )
+
+            self.sort_and_index_bed(fusion_junction_reads_bed_file, lcmd_commands)
         
-        lcmd_commands.append( Command.Command ( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ fusion_junction_reads_sam_file ],
-                                               lstr_cur_products = [ fusion_junction_reads_bed_file ] ) )
-
-        self.sort_and_index_bed(fusion_junction_reads_bed_file, lcmd_commands)
-        '''
 
 
         ## extract the fusion SPANNING reads
@@ -572,22 +572,22 @@ class FusionInspector( ParentScript.ParentScript ):
                                               lstr_cur_dependencies = [ mergedContig_gtf_filename, bam_file, fusion_junction_info_file ],
                                               lstr_cur_products = [ fusion_spanning_reads_sam_file, fusion_spanning_reads_info_file ] ) )
 
-        '''
-        self.sort_sam_to_bam(fusion_spanning_reads_sam_file, mergedContig_fasta_filename, lcmd_commands)
+        if args_parsed.write_intermediate_results:
+            self.sort_sam_to_bam(fusion_spanning_reads_sam_file, mergedContig_fasta_filename, lcmd_commands)
 
-        ## convert the fusion JUNCTION reads sam file to bed format
-        fusion_spanning_reads_bed_file = bam_file + ".fusion_span_reads.bed"
-        cmdstr = str(TRINITY_HOME + "/util/misc/SAM_pair_to_bed.pl " + fusion_spanning_reads_sam_file +
-                     " > " + fusion_spanning_reads_bed_file)
-        
-        lcmd_commands.append( Command.Command ( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ fusion_spanning_reads_sam_file ],
-                                               lstr_cur_products = [ fusion_spanning_reads_bed_file ] ) )
+            ## convert the fusion JUNCTION reads sam file to bed format
+            fusion_spanning_reads_bed_file = bam_file + ".fusion_span_reads.bed"
+            cmdstr = str(TRINITY_HOME + "/util/misc/SAM_pair_to_bed.pl " + fusion_spanning_reads_sam_file +
+                         " > " + fusion_spanning_reads_bed_file)
+
+            lcmd_commands.append( Command.Command ( str_cur_command = cmdstr,
+                                                   lstr_cur_dependencies = [ fusion_spanning_reads_sam_file ],
+                                                   lstr_cur_products = [ fusion_spanning_reads_bed_file ] ) )
 
 
 
-        self.sort_and_index_bed(fusion_spanning_reads_bed_file, lcmd_commands)
-        '''
+            self.sort_and_index_bed(fusion_spanning_reads_bed_file, lcmd_commands)
+
 
 
 
