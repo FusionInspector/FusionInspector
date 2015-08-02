@@ -52,6 +52,8 @@ my $help_flag;
 my $tmpdir = cwd();
 my $DO_QUALITY_TRIMMING;
 
+my $MAX_KMER_ABUNDANCE = 5;
+
 &GetOptions ( 'h' => \$help_flag,
               
               'left_fq=s' => \$left_fq,
@@ -94,117 +96,127 @@ main: {
     print STDERR "-identified " . scalar(keys %spanning_frags) . " spanning frags.\n";
     
 
-    {
-        ##
-        ## Examine/filter the junction reads
-        ##
-
-        print STDERR "-extracting junction reads from fq file\n";
+    
+    ##
+    ## Examine/filter the junction reads
+    ##
+    
+    print STDERR "-extracting junction reads from fq file\n";
+    
+    my $junc_reads_fq = "$tmpdir/tmp.junc_reads.fq";
+    ## examine junction reads
+    
+    ## get the reads
+    
+    if ($DO_QUALITY_TRIMMING) {
         
-        my $junc_reads_fq = "$tmpdir/tmp.junc_reads.fq";
-        ## examine junction reads
+        my $pre_Qtrimmed_reads = "$junc_reads_fq.pre_Qtrimmed";
         
-        ## get the reads
+        &extract_junction_reads(\%junction_reads, $left_fq, $right_fq, $pre_Qtrimmed_reads);
         
-        if ($DO_QUALITY_TRIMMING) {
+        &quality_trim_junc_reads(\%junction_reads, $pre_Qtrimmed_reads, $junc_reads_fq);
+    }
+    else {
+        &extract_junction_reads(\%junction_reads, $left_fq, $right_fq, $junc_reads_fq);
+    }
+    
+    
+    ## align the reads to the cdna fasta file
+    my $junc_reads_sam = "$junc_reads_fq.sam";
+    my $sam_chkpt = "$junc_reads_sam.ok";
+    my $bowtie_cmd = "bowtie -q -S --sam-nohead --best --chunkmbs 512 $cdna_fa  $junc_reads_fq > $junc_reads_sam";
+    &process_cmd($bowtie_cmd) unless (-e $sam_chkpt);
+    
+    &process_cmd("touch $sam_chkpt");
+    
+    ## eliminate those junction reads that do actually align ok to reference transcripts
+    my $number_reads_mapped = 0;
+    my $sam_reader = new SAM_reader($junc_reads_sam);
+    while (my $sam_entry = $sam_reader->get_next()) {
+        if (! $sam_entry->is_query_unmapped()) {
+            my $full_read_name = $sam_entry->get_read_name();
+            $number_reads_mapped++;
             
-            my $pre_Qtrimmed_reads = "$junc_reads_fq.pre_Qtrimmed";
-            
-            &extract_junction_reads(\%junction_reads, $left_fq, $right_fq, $pre_Qtrimmed_reads);
-            
-            &quality_trim_junc_reads(\%junction_reads, $pre_Qtrimmed_reads, $junc_reads_fq);
-        }
-        else {
-            &extract_junction_reads(\%junction_reads, $left_fq, $right_fq, $junc_reads_fq);
-        }
-        
-        
-        ## align the reads to the cdna fasta file
-        my $junc_reads_sam = "$junc_reads_fq.sam";
-        my $sam_chkpt = "$junc_reads_sam.ok";
-        my $bowtie_cmd = "bowtie -q -S --sam-nohead --best --chunkmbs 512 $cdna_fa  $junc_reads_fq > $junc_reads_sam";
-        &process_cmd($bowtie_cmd) unless (-e $sam_chkpt);
-        
-        &process_cmd("touch $sam_chkpt");
-        
-        ## eliminate those junction reads that do actually align ok to reference transcripts
-        my $number_reads_mapped = 0;
-        my $sam_reader = new SAM_reader($junc_reads_sam);
-        while (my $sam_entry = $sam_reader->get_next()) {
-            if (! $sam_entry->is_query_unmapped()) {
-                my $full_read_name = $sam_entry->get_read_name();
-                $number_reads_mapped++;
-                
-                if (delete $junction_reads{$full_read_name}) {
-                    print STDERR "-deleted junction read: $full_read_name\n";
-                }
-                else {
-                    print STDERR Dumper(\%junction_reads);
-                    die "Error, cannot delete junction read: $full_read_name\n";
-                }
-                
-                
+            if (delete $junction_reads{$full_read_name}) {
+                print STDERR "-deleted junction read: $full_read_name\n";
             }
+            else {
+                print STDERR Dumper(\%junction_reads);
+                die "Error, cannot delete junction read: $full_read_name\n";
+            }
+            
+            
         }
-        print STDERR "- $number_reads_mapped junction reads excluded due to mapping ok to reference transcripts\n";
+    }
+    print STDERR "- $number_reads_mapped junction reads excluded due to mapping ok to reference transcripts\n";
+    
+    
+    
+    ##
+    ## Examine/filter the spanning frags
+    ##
+    
+    print STDERR "-extracting spanning frags from fq files\n";
+    
+    my $span_reads_left_fq = "$tmpdir/tmp.span_reads.left.fq";
+    my $span_reads_right_fq = "$tmpdir/tmp.span_reads.right.fq";
+    
+    
+    if ($DO_QUALITY_TRIMMING) {
+        
+        my $pre_Qtrimmed_left_fq = "$span_reads_left_fq.preQtrimmed.fq";
+        my $pre_Qtrimmed_right_fq = "$span_reads_right_fq.preQtrimmed.fq";
+        
+        &extract_spanning_reads(\%spanning_frags, $left_fq, $pre_Qtrimmed_left_fq);
+        &extract_spanning_reads(\%spanning_frags, $right_fq, $pre_Qtrimmed_right_fq);
+        
+        &quality_trim_spanning_reads(\%spanning_frags, 
+                                     $pre_Qtrimmed_left_fq, $pre_Qtrimmed_right_fq, 
+                                     $span_reads_left_fq, $span_reads_right_fq);
+    }
+    else {
+        
+        &extract_spanning_reads(\%spanning_frags, $left_fq, $span_reads_left_fq);
+        &extract_spanning_reads(\%spanning_frags, $right_fq, $span_reads_right_fq);
         
     }
     
-    {
-        ##
-        ## Examine/filter the spanning frags
-        ##
-
-        print STDERR "-extracting spanning frags from fq files\n";
-        
-        my $span_reads_left_fq = "$tmpdir/tmp.span_reads.left.fq";
-        my $span_reads_right_fq = "$tmpdir/tmp.span_reads.right.fq";
-        
-
-        if ($DO_QUALITY_TRIMMING) {
-            
-            my $pre_Qtrimmed_left_fq = "$span_reads_left_fq.preQtrimmed.fq";
-            my $pre_Qtrimmed_right_fq = "$span_reads_right_fq.preQtrimmed.fq";
-            
-            &extract_spanning_reads(\%spanning_frags, $left_fq, $pre_Qtrimmed_left_fq);
-            &extract_spanning_reads(\%spanning_frags, $right_fq, $pre_Qtrimmed_right_fq);
-            
-            &quality_trim_spanning_reads(\%spanning_frags, 
-                                         $pre_Qtrimmed_left_fq, $pre_Qtrimmed_right_fq, 
-                                         $span_reads_left_fq, $span_reads_right_fq);
-        }
-        else {
-            
-            &extract_spanning_reads(\%spanning_frags, $left_fq, $span_reads_left_fq);
-            &extract_spanning_reads(\%spanning_frags, $right_fq, $span_reads_right_fq);
-            
-        }
-        
-        ## align reads, identify those that actually align as proper pairs.
-        my $span_frags_sam = "$tmpdir/tmp.span_reads.sam";
-        my $sam_chkpt = "$span_frags_sam.ok";
-        
-        my $bowtie_cmd = "bowtie -q -S --sam-nohead --best --chunkmbs 512 $cdna_fa -1 $span_reads_left_fq -2 $span_reads_right_fq > $span_frags_sam";
-        &process_cmd($bowtie_cmd) unless (-e $sam_chkpt);
-        
-        ## eliminate those spanning frags that do actually align ok to reference transcripts
-        my $number_frags_mapped = 0;
-        my $sam_reader = new SAM_reader($span_frags_sam);
-        while (my $sam_entry = $sam_reader->get_next()) {
-            if (! $sam_entry->is_query_unmapped()) {
-                my $core_read_name = $sam_entry->get_core_read_name();
-                if ( (exists $spanning_frags{$core_read_name}) && $sam_entry->is_proper_pair() ) {
-                    
-                    $number_frags_mapped++;
-                    delete $spanning_frags{$core_read_name} or die "Error, could not delete $core_read_name from spanning_frags";
-                }
+    ## align reads, identify those that actually align as proper pairs.
+    my $span_frags_sam = "$tmpdir/tmp.span_reads.sam";
+    my $sam_frags_chkpt = "$span_frags_sam.ok";
+    
+    my $bowtie_span_cmd = "bowtie -q -S --sam-nohead --best --chunkmbs 512 $cdna_fa -1 $span_reads_left_fq -2 $span_reads_right_fq > $span_frags_sam";
+    &process_cmd($bowtie_span_cmd) unless (-e $sam_frags_chkpt);
+    
+    ## eliminate those spanning frags that do actually align ok to reference transcripts
+    my $number_frags_mapped = 0;
+    my $sam_frag_reader = new SAM_reader($span_frags_sam);
+    while (my $sam_entry = $sam_frag_reader->get_next()) {
+        if (! $sam_entry->is_query_unmapped()) {
+            my $core_read_name = $sam_entry->get_core_read_name();
+            if ( (exists $spanning_frags{$core_read_name}) && $sam_entry->is_proper_pair() ) {
+                
+                $number_frags_mapped++;
+                delete $spanning_frags{$core_read_name} or die "Error, could not delete $core_read_name from spanning_frags";
             }
         }
-        &process_cmd("touch $sam_chkpt");
-        
-        print STDERR "- $number_frags_mapped spanning frags excluded due to mapping ok to reference transcripts\n";
-        
     }
+    &process_cmd("touch $sam_frags_chkpt");
+    
+    print STDERR "- $number_frags_mapped spanning frags excluded due to mapping ok to reference transcripts\n";
+    
+    
+
+
+    #########################################
+    ## Filter any reads that are repetitive
+    #########################################
+    
+    ## TODO:  this needs to be parameterized, hardcoding now for testing purposes.
+    
+    &filter_repetitive_reads(\%junction_reads, \%spanning_frags, $junc_reads_fq, $span_reads_left_fq, $span_reads_right_fq);
+    
+
     
     ##
     ## report the adjusted fusion summary, removing the false evidence:
@@ -231,6 +243,68 @@ sub process_cmd {
     }
     return;
 }
+
+
+
+####
+sub filter_repetitive_reads {
+    my ($junction_reads_href, $spanning_frags_href, 
+        @fq_files) = @_;
+
+    my $kmer_repeat_info = "$tmpdir/repeat_kmer_info.dat";
+
+    my $filter_repetitive_checkpoint = "$tmpdir/filter_repetitive.ok";
+    unless (-e $filter_repetitive_checkpoint) {
+
+        
+        my $tmp_fa = "$tmpdir/tmp.reads.fa";
+        if (-e $tmp_fa) {
+            unlink($tmp_fa) or die "error, cannot remove file $tmp_fa";
+        }
+        
+
+        foreach my $fq_file (@fq_files) {
+            my $cmd = "$ENV{TRINITY_HOME}/util/support_scripts/fastQ_to_fastA.pl -I $fq_file >> $tmp_fa";
+            &process_cmd($cmd);
+        }
+
+
+
+        my $cmd = "$ENV{TRINITY_HOME}/Inchworm/bin/fastaToKmerCoverageStats --kmers /seq/regev_genome_portal/RESOURCES/human/Hg19/mer_counts.jf.min5.kmers --reads $tmp_fa --DS --capture_coverage_info > $kmer_repeat_info";
+        &process_cmd($cmd);
+    }
+
+    my $count_removed = 0;
+    
+    open (my $fh, $kmer_repeat_info) or die "Error, cannot open file $kmer_repeat_info";
+    while (<$fh>) {
+        chomp;
+        my @x = split(/\t/);
+        my $median_kmer_abundance = $x[0];
+        my $read_name = $x[4];
+        
+        if ($median_kmer_abundance >= $MAX_KMER_ABUNDANCE) {
+            
+            $count_removed++;
+
+            ## exclude
+            if (exists $junction_reads_href->{$read_name}) {
+                delete $junction_reads_href->{$read_name};
+            }
+            
+            $read_name =~ s|/[12]$||;
+            if (exists $spanning_frags_href->{$read_name}) {
+                delete $spanning_frags_href->{$read_name};
+            }
+        }
+    }
+
+    print STDERR "$count_removed reads removed as repetitive.\n";
+    
+    return;
+}
+
+
 
 
 ####
