@@ -283,7 +283,7 @@ sub filter_repetitive_reads {
         my $median_kmer_abundance = $x[0];
         my $read_name = $x[4];
         
-        if ($median_kmer_abundance >= $MAX_KMER_ABUNDANCE) {
+        if ($median_kmer_abundance > $MAX_KMER_ABUNDANCE) {
             
             $count_removed++;
 
