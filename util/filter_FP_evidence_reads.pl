@@ -52,7 +52,7 @@ my $help_flag;
 my $tmpdir = cwd();
 my $DO_QUALITY_TRIMMING;
 
-my $MAX_KMER_ABUNDANCE = 5;
+my $MAX_KMER_ABUNDANCE = 1;
 
 &GetOptions ( 'h' => \$help_flag,
               
@@ -270,7 +270,7 @@ sub filter_repetitive_reads {
 
 
 
-        my $cmd = "$ENV{TRINITY_HOME}/Inchworm/bin/fastaToKmerCoverageStats --kmers /seq/regev_genome_portal/RESOURCES/human/Hg19/mer_counts.jf.min5.kmers --reads $tmp_fa --DS --capture_coverage_info > $kmer_repeat_info";
+        my $cmd = "$ENV{TRINITY_HOME}/Inchworm/bin/fastaToKmerCoverageStats --kmers /seq/regev_genome_portal/RESOURCES/human/Hg19/mer_counts.jf.min2.kmers --reads $tmp_fa --DS --capture_coverage_info > $kmer_repeat_info";
         &process_cmd($cmd);
     }
 
