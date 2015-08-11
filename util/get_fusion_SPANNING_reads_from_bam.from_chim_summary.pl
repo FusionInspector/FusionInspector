@@ -62,7 +62,7 @@ main: {
         }
     }
     
-    print STDERR "Scaffold to gene breaks: " . Dumper(\%scaffold_to_gene_breaks);
+    #print STDERR "Scaffold to gene breaks: " . Dumper(\%scaffold_to_gene_breaks);
     
 
     
@@ -127,13 +127,23 @@ main: {
             # check if alignments begin in their respective fusion gene areas:
             my ($scaff_gene_left_rend, $scaff_gene_right_lend) = @{$scaffold_to_gene_breaks{$scaffold}};
             
+
+            ## see that the fragment read pair together span both the genes
             my ($pos1, $pos2) = sort {$a<=>$b} ($scaffold_pos, $mate_scaffold_pos);
             
             unless ($pos1 < $scaff_gene_left_rend && $pos2 > $scaff_gene_right_lend) { next; }
             
 
+            my ($span_lend, $span_rend) = sort {$a<=>$b} $sam_entry->get_genome_span();
+            
+            # be sure that each read on its own is entirely encapsulated within a single gene region (not crossing the bounds)
+            unless ($span_rend <= $scaff_gene_left_rend || $span_lend >= $scaff_gene_right_lend) { next; }
+            
 
             my $read_name = $sam_entry->get_read_name();
+            
+            my $strand = $sam_entry->get_query_strand();
+            
             my $token = join("$;", $read_name, $scaffold);
 
             my $full_read_name = $sam_entry->reconstruct_full_read_name();            
@@ -149,7 +159,7 @@ main: {
             
             #print STDERR "got exon overlap: " . Dumper($genome_coords_aref) . Dumper($exon_bounds{$scaffold});
             
-            my ($span_lend, $span_rend) = sort {$a<=>$b} $sam_entry->get_genome_span();
+
 
             
             
@@ -160,7 +170,7 @@ main: {
                 my ($core, $pair_end) = ($1, $2);
                 $core_counter{"$scaffold|$core"}++;  # track how many alignments we have for this rnaseq fragment
                 
-                $scaffold_read_pair_to_read_bounds{$scaffold}->{$core}->[$pair_end-1] = [$span_lend, $span_rend];
+                $scaffold_read_pair_to_read_bounds{$scaffold}->{$core}->[$pair_end-1] = [$span_lend, $span_rend, $strand];
                 
             }
         }
@@ -196,6 +206,11 @@ main: {
                     my $left_read_rend = $pair_coords[0]->[1];
                     my $right_read_lend = $pair_coords[1]->[0];
                     
+                    my $left_read_orient = $pair_coords[0]->[2];
+                    my $right_read_orient = $pair_coords[1]->[2];
+
+                    unless ($left_read_orient eq '+' && $right_read_orient eq '-') { next; }  # not proper pairs after all!!
+
                     #####################################################################
                     ## assign fragment as fusion support based on breakpoint coordinates.
 
