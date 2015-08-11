@@ -12,6 +12,9 @@ use Data::Dumper;
 use Set::IntervalTree;
 
 
+
+my $MIN_JUNCTION_READ_SEGMENT_LENGTH = 12;
+
 my $usage = "\n\n\tusage: $0 genePairContig.gtf read_alignments.bam\n\n\n";
 
 my $gtf_file = $ARGV[0] or die $usage;
@@ -97,14 +100,23 @@ main: {
             my $junction_coord_token = &get_junction_coord_token(@exon_hits);
             if ($junction_coord_token) {
                 
-                # calling it a fusion read.
+                my ($gene_A, $brkpt_A, $gene_B, $brkpt_B, $splice_token) = split(/\t/, $junction_coord_token);
+                my ($left_brkpt_length, $right_brkpt_length) = &divide_junction_read_at_breakpoint($genome_coords_aref, $read_coords_aref, $brkpt_A);
                 
-                push (@{$fusion_junctions{$junction_coord_token}}, $read_name);
-                print $sam_entry->get_original_line() . "\n";
-            }
-            
-        }
+                #print STDERR "LEFT_read_seg: $left_brkpt_length, RIGHT_read_seg: $right_brkpt_length\n";
 
+                if ($left_brkpt_length >= $MIN_JUNCTION_READ_SEGMENT_LENGTH
+                    &&
+                    $right_brkpt_length >= $MIN_JUNCTION_READ_SEGMENT_LENGTH) {
+                    # calling it a fusion read.
+                    
+                    push (@{$fusion_junctions{$junction_coord_token}}, $read_name);
+                    print $sam_entry->get_original_line() . "\n";
+                }
+                
+            }
+        }
+        
     }
 
     {
@@ -367,4 +379,31 @@ sub parse_gtf_file {
     return(%scaffold_to_gene_structs);
 }
 
+####
+sub divide_junction_read_at_breakpoint {
+    my ($genome_coords_aref, $read_coords_aref, $brkpt_A) = @_;
 
+    my $left_read_length = 0;
+    my $right_read_length = 0;
+
+    while (@$genome_coords_aref) {
+        my $g_coords_aref = shift @$genome_coords_aref;
+        my $r_coords_aref = shift @$read_coords_aref;
+        
+        my ($genome_lend, $genome_rend) = @$g_coords_aref;
+        my ($read_lend, $read_rend) = @$r_coords_aref;
+
+        my $read_segment_length = $read_rend - $read_lend + 1;
+        
+        if ($genome_rend <= $brkpt_A) {
+            $left_read_length += $read_segment_length;
+        }
+        else {
+            $right_read_length += $read_segment_length;
+        }
+
+    }
+
+    return($left_read_length, $right_read_length);
+    
+}
