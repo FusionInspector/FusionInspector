@@ -89,12 +89,6 @@ main: {
             $fusion_breakpoint_info{"$fusion_name|$breakpoint"} = join("\t", $geneA, $coordA, $orig_coordA,
                                                                        $geneB, $coordB, $orig_coordB, $splice_info);
             
-            # store a placeholder for spanning support where there's no breakpoint
-            
-            
-            #my ($gene_left_end, $gene_right_begin) = @{$scaffold_to_gene_breaks{$fusion_name}}; #todo, use these coords below
-
-            
         }
         close $fh;
     }
@@ -117,6 +111,9 @@ main: {
             
 
             my $scaffold = $sam_entry->get_scaffold_name();
+            unless (exists $scaffold_to_gene_breaks{$scaffold}) { next; } # StarFI includes the whole genome, not just the fusion scaffs
+
+
             my $scaffold_pos = $sam_entry->get_scaffold_position();
 
             my $mate_scaffold_name = $sam_entry->get_mate_scaffold_name();
@@ -157,14 +154,6 @@ main: {
                 next; 
             } # only examine exon-overlapping entries
             
-            #print STDERR "got exon overlap: " . Dumper($genome_coords_aref) . Dumper($exon_bounds{$scaffold});
-            
-
-
-            
-            
-            
-            #print STDERR "$span_lend to $span_rend\n";
             
             if ($full_read_name =~ /^(\S+)\/([12])$/) {
                 my ($core, $pair_end) = ($1, $2);
@@ -176,9 +165,6 @@ main: {
         }
     }
    
-    #print STDERR "Read pair to read bounds: " . Dumper(\%scaffold_read_pair_to_read_bounds);
-    
-    
     my %fusion_to_spanning_reads;
 
     my %fusion_to_contrary_support;
@@ -263,8 +249,6 @@ main: {
             }
         }
     }
-    
-    #print STDERR "spanning reads want: " . Dumper(\%spanning_read_want);
     
 
     # output the spanning reads we want
