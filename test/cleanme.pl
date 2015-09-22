@@ -26,6 +26,7 @@ test_STAR-fusion.pl
 test_PRADA.pl
 test_SoapFuse.pl
 test_STAR-FGene.pl
+runMe.hisat.pl
                         );
 
 

@@ -129,7 +129,7 @@ main: {
     
     ## now do the homology filter
     
-    my $cmd = "$STAR_FUSION_DIR/util/STAR-Fusion.filter --fusion_preds $star_fusion_fmt_file  --out_prefix $out_prefix";
+    my $cmd = "$STAR_FUSION_DIR/util/blast_and_promiscuity_filter.pl --fusion_preds $star_fusion_fmt_file  --out_prefix $out_prefix";
     &process_cmd($cmd);
 
 }
