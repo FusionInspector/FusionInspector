@@ -64,9 +64,9 @@ main: {
         }
 
         my @x = split(/\t/, $line);
-        my $J = $x[1];
-        my $S = $x[2];
-        my $splice_type = $x[3];
+        my $J = $x[7];
+        my $S = $x[8];
+        my $splice_type = $x[6];
 
         if ($splice_type ne 'ONLY_REF_SPLICE') {
             unless ($J >= $min_novel_junction_support) {

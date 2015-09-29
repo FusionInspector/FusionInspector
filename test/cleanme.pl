@@ -19,14 +19,8 @@ my @files_to_keep = qw (cleanme.pl
                         test_fusions.list2
                         test_fusions.list3
 
-test_FusionInspector.pl
-__runMe_kcopipe.sh
-test_TrinityFusion.pl
-test_STAR-fusion.pl
-test_PRADA.pl
-test_SoapFuse.pl
-test_STAR-FGene.pl
 runMe.hisat.pl
+runMe.ALL.pl
                         );
 
 
@@ -42,6 +36,7 @@ my %keep = map { + $_ => 1 } @files_to_keep;
 `rm -rf ./soapfuse_outdir` if (-d "soapfuse_outdir");
 `rm -rf ./Star_FGene` if (-d "Star_FGene");
 `rm -rf ./_STAR*`;
+`rm -rf ./Fusion_Inspector_ALL`;
 
 
 foreach my $file (<*>) {
