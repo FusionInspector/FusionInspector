@@ -8,10 +8,23 @@ use lib ("$FindBin::Bin/../PerlLib");
 use Pipeliner;
 use __GLOBALS__;
 
+my $usage = "usage: $0 align_method=(STAR|HISAT|GSNAP)\n\n";
+
+my $method = $ARGV[0] or die $usage;
+
+unless ($method =~ /GSNAP|HISAT|STAR/) {
+    die $usage;
+}
+
+
 my $left_fq = "reads.left.simPE.fq.gz";
 my $right_fq = "reads.right.simPE.fq.gz";
 
 my $INSTALL_DIR = "$FindBin::Bin/../";
+
+unless ($ENV{CTAT_GENOME_LIB}) {
+    die "Error, must set env var for CTAT_GENOME_LIB";
+}
 
 main: {
 
@@ -22,7 +35,7 @@ main: {
     ## FusionInspector #
     ####################
     
-    my $cmd = "$INSTALL_DIR/FusionInspector --fusions test_fusions.list,test_fusions.list2,test_fusions.list3 --gtf $FUSION_ANNOTATOR_LIB/gencode.v19.annotation.gtf.exons --genome_fa $FUSION_ANNOTATOR_LIB/Hg19.fa --cdna_fa $FUSION_ANNOTATOR_LIB/gencode.v19.annotation.gtf.gff3.cdna --left_fq $left_fq --right $right_fq --out_dir Fusion_Inspector/ --out_prefix finspector --include_whole_genome --align_utils STAR  ";
+    my $cmd = "$INSTALL_DIR/FusionInspector --fusions test_fusions.list,test_fusions.list2,test_fusions.list3 --genome_lib $ENV{CTAT_GENOME_LIB} --left_fq $left_fq --right $right_fq --out_dir Fusion_Inspector/ --out_prefix finspector --include_whole_genome --align_utils $method ";
     
     if (@ARGV) {
         $cmd .= " --include_Trinity"
