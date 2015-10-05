@@ -1,1 +1,0 @@
-/home/unix/bhaas/GITHUB/trinityrnaseq/util/misc/run_STAR.pl
