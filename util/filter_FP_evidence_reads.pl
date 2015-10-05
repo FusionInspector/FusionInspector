@@ -15,6 +15,10 @@ use SAM_entry;
 use Cwd;
 
 
+unless ($ENV{TRINITY_HOME}) {
+    die "Error, must have Trinity installed and env var TRINITY_HOME set to the Trinity installation directory";
+}
+
 my $CPU = 1;
 
 my $usage = <<__EOUSAGE__;
@@ -28,6 +32,8 @@ my $usage = <<__EOUSAGE__;
 #  --cdna_fa <string>             reference cdna fasta filename
 #
 #  --fusion_summary <string>      fusion summary file (pre-filtering)
+#
+#  --genome_lib_dir <string>      genome lib dir
 #
 #  *Optional
 #
@@ -54,6 +60,8 @@ my $DO_QUALITY_TRIMMING;
 
 my $MAX_KMER_ABUNDANCE = 1;
 
+my $genome_lib_dir;
+
 &GetOptions ( 'h' => \$help_flag,
               
               'left_fq=s' => \$left_fq,
@@ -66,6 +74,8 @@ my $MAX_KMER_ABUNDANCE = 1;
        
               'quality_trim' => \$DO_QUALITY_TRIMMING,
               
+              'genome_lib_dir=s' => \$genome_lib_dir,
+
     );
 
 
@@ -73,7 +83,7 @@ if ($help_flag) {
     die $usage;
 }
 
-unless ($left_fq && $right_fq && $cdna_fa && $fusion_summary) {
+unless ($left_fq && $right_fq && $cdna_fa && $fusion_summary && $genome_lib_dir) {
     die $usage;
 }
 
@@ -267,13 +277,12 @@ sub filter_repetitive_reads {
             my $cmd = "$ENV{TRINITY_HOME}/util/support_scripts/fastQ_to_fastA.pl -I $fq_file >> $tmp_fa";
             &process_cmd($cmd);
         }
-
-
-
-        my $cmd = "$ENV{TRINITY_HOME}/Inchworm/bin/fastaToKmerCoverageStats --kmers /seq/regev_genome_portal/RESOURCES/human/Hg19/mer_counts.jf.min2.kmers --reads $tmp_fa --DS --capture_coverage_info > $kmer_repeat_info";
+        
+        my $kmers_file = "$genome_lib_dir/ref_genome.jf.min2.kmers";
+        my $cmd = "$ENV{TRINITY_HOME}/Inchworm/bin/fastaToKmerCoverageStats --kmers $kmers_file --reads $tmp_fa --DS --capture_coverage_info > $kmer_repeat_info";
         &process_cmd($cmd);
     }
-
+    
     my $count_removed = 0;
     
     open (my $fh, $kmer_repeat_info) or die "Error, cannot open file $kmer_repeat_info";

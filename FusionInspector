@@ -11,8 +11,13 @@ import sciedpiper.ParentScript as ParentScript
 
 UTILDIR = os.sep.join([os.path.dirname(__file__), "util"])
 
-TRINITY_HOME = None #set only if running Trinity 
+## Trinity is required, as we use the kmer counting functionality in the read filter step.
+if not os.environ.has_key('TRINITY_HOME'):
+    print >> sys.stderr, "Error, need TRINITY_HOME environmental variable set and pointing to Trinity installation directory"
+    sys.exit(2)
 
+TRINITY_HOME = os.environ["TRINITY_HOME"]
+    
 
 class FusionInspector( ParentScript.ParentScript ):
     
@@ -63,17 +68,6 @@ class FusionInspector( ParentScript.ParentScript ):
         To know the variables available from command line look in the ParentScript in func_create_arguments.
         """
 
-        if args_parsed.include_Trinity:
-
-            global TRINITY_HOME
-            
-            if not os.environ.has_key('TRINITY_HOME'):
-                print >> sys.stderr, "Error, need TRINITY_HOME environmental variable set and pointing to Trinity installation directory"
-                sys.exit(2)
-            TRINITY_HOME = os.environ["TRINITY_HOME"]
-            
-
-        
         genome_lib_dir = args_parsed.genome_lib_dir
         genome_lib_dir = ensure_full_path(genome_lib_dir)
         
@@ -401,6 +395,7 @@ class FusionInspector( ParentScript.ParentScript ):
                                   " --right_fq " + args_parsed.right_fq_filename +
                                   " --cdna_fa " + args_parsed.cdna_fasta_filename +
                                   " --fusion_summary " + fusion_summary_pre_read_filter +
+                                  " --genome_lib_dir " + genome_lib_dir + 
                                   " --tmpdir " + workdir +
                                   " > " + fusion_summary_file)
 
@@ -427,30 +422,6 @@ class FusionInspector( ParentScript.ParentScript ):
                                                lstr_cur_dependencies = [fusion_summary_file],
                                                lstr_cur_products = [ fusion_summary_min_score_thresh_file] ) )
 
-        
-        ## Score and filter the final fusion predictions
-
-        final_fusions_file = os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".fusion_predictions"])
-
-        cmdstr = str(UTILDIR + "/BLASTN.filter.pl --fusion_preds " + fusion_summary_min_score_thresh_file +
-                     " --out_prefix " + final_fusions_file +
-                     " --ref_cdna " + args_parsed.cdna_fasta_filename +
-                     " --max_promiscuity " + `args_parsed.max_promiscuity` +
-                     " -E " + `args_parsed.Evalue`)
-                
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ fusion_summary_min_score_thresh_file ],
-                                               lstr_cur_products = [ final_fusions_file + ".final"] ) )
-        
-
-        
-        ## make an abridged version that lacks the list of supporting reads.
-
-        cmdstr = str("cut -f1-8,11-12 < " + final_fusions_file + ".final > " + final_fusions_file + ".final.abridged")
-
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ final_fusions_file + ".final" ],
-                                               lstr_cur_products = [ final_fusions_file + ".final.abridged"] ) )
         
         
         
@@ -566,7 +537,7 @@ class FusionInspector( ParentScript.ParentScript ):
                 trinity_fasta_filename = trinity_out_dir + "/Trinity-GG.fasta"
 
                 cmdstr = str(TRINITY_HOME + "/Trinity --genome_guided_bam " + workdir_consolidated_bam_file +
-                             " --max_memory 20G --genome_guided_max_intron 1000000 --CPU 4 --min_glue 1 --min_contig_length 100 " +
+                             " --max_memory 20G --genome_guided_max_intron 1000000 --CPU 4 --min_contig_length 100 " +
                              " --output " + trinity_out_dir)
 
                 lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
@@ -578,15 +549,17 @@ class FusionInspector( ParentScript.ParentScript ):
                                                                       workdir_mergedContig_gtf_filename, trinity_fasta_filename, lcmd_commands, workdir)
 
                 # merge de novo assembly fusion results w/ read-based fusion results:
-                fusion_summary_w_trinity = fusion_summary_file + ".wTrinityGG"
-                cmdstr = str(UTILDIR + "/add_TrinityGG_to_fusion_summary.pl " + fusion_summary_file + " " + trinGG_fusion_gff3 +
+                fusion_summary_w_trinity = fusion_summary_min_score_thresh_file + ".wTrinityGG"
+                cmdstr = str(UTILDIR + "/add_TrinityGG_to_fusion_summary.pl " + fusion_summary_min_score_thresh_file +
+                             " " + trinGG_fusion_gff3 +
                              " > " + fusion_summary_w_trinity)
+
                 lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                       lstr_cur_dependencies = [ fusion_summary_file, trinGG_fusion_gff3 ],
+                                                       lstr_cur_dependencies = [ fusion_summary_min_score_thresh_file, trinGG_fusion_gff3 ],
                                                        lstr_cur_products = [ fusion_summary_w_trinity ]
                                                        ) )
 
-                fusion_summary_file = fusion_summary_w_trinity
+                fusion_summary_min_score_thresh_file = fusion_summary_w_trinity  ## NOTE, VARIABLE REPLACEMENT HERE INCL TRINITY RESULTS
 
             elif args_parsed.prep_for_IGV:
                 ## just make the coords file
@@ -613,8 +586,33 @@ class FusionInspector( ParentScript.ParentScript ):
                                                        lstr_cur_dependencies = [ fusion_summary_file, frag_coords_file ],
                                                        lstr_cur_products = [ igv_junc_view_file ] ) )
 
+                
+        ################################################
+        ## Score and filter the final fusion predictions
+        ################################################
 
+        final_fusions_file = os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".fusion_predictions"])
 
+        cmdstr = str(UTILDIR + "/BLASTN.filter.pl --fusion_preds " + fusion_summary_min_score_thresh_file +
+                     " --out_prefix " + final_fusions_file +
+                     " --ref_cdna " + args_parsed.cdna_fasta_filename +
+                     " --max_promiscuity " + `args_parsed.max_promiscuity` +
+                     " -E " + `args_parsed.Evalue`)
+                
+        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                               lstr_cur_dependencies = [ fusion_summary_min_score_thresh_file ],
+                                               lstr_cur_products = [ final_fusions_file + ".final"] ) )
+        
+
+        
+        ## make an abridged version that lacks the list of supporting reads.
+
+        cmdstr = str("cut -f1-8,11-12 < " + final_fusions_file + ".final > " + final_fusions_file + ".final.abridged")
+
+        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                               lstr_cur_dependencies = [ final_fusions_file + ".final" ],
+                                               lstr_cur_products = [ final_fusions_file + ".final.abridged"] ) )
+        
 
         
                 
