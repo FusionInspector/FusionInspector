@@ -109,16 +109,19 @@ main: {
     
     my $gsnap_use_sarray = ($no_sarray) ? "--use-sarray=0" : "";
 
-    $reads = &add_zcat_fifo($reads);
+    my $gunzip_param = "";
+    if ($reads =~ /\.gz\b/) {
+        $gunzip_param = "--gunzip";
+    }
 
     my $require_proper_pairs = "";
     if ($proper_pairs_only_flag) {
         $require_proper_pairs = " -f 2 ";
     }
 
-    my $cmd = "bash -c \"set -o pipefail && gsnap -D $genomeBaseDir -d $genomeDir -A sam -N 1 -w $max_intron $gsnap_use_sarray -n $num_top_hits -t $CPU $reads $splice_param @ARGV | samtools view -bS -F 4 $require_proper_pairs - | samtools sort -@ $CPU - $out_prefix.cSorted \"";
+    my $cmd = "bash -c \"set -o pipefail && gsnap -D $genomeBaseDir -d $genomeDir -A sam -N 1 -w $max_intron $gsnap_use_sarray -n $num_top_hits -t $CPU $gunzip_param $reads $splice_param @ARGV | samtools view -bS -F 4 $require_proper_pairs - | samtools sort -@ $CPU - $out_prefix.cSorted \"";
     &process_cmd($cmd);
-
+    
     if (-s "$out_prefix.cSorted.bam") {
         $cmd = "samtools index $out_prefix.cSorted.bam";
         &process_cmd($cmd);
