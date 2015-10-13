@@ -119,8 +119,14 @@ main: {
         $require_proper_pairs = " -f 2 ";
     }
 
-    my $cmd = "bash -c \"set -o pipefail && gsnap -D $genomeBaseDir -d $genomeDir -A sam -N 1 -w $max_intron $gsnap_use_sarray -n $num_top_hits -t $CPU $gunzip_param $reads $splice_param @ARGV | samtools view -bS -F 4 $require_proper_pairs - | samtools sort -@ $CPU - $out_prefix.cSorted \"";
-    &process_cmd($cmd);
+    my $cmd = "bash -c \"set -o pipefail && gsnap -D $genomeBaseDir -d $genomeDir -A sam -N 1 -w $max_intron $gsnap_use_sarray -n $num_top_hits -t $CPU $gunzip_param $reads $splice_param @ARGV | samtools view -bS -F 4 $require_proper_pairs - > $out_prefix.gsnap.bam \"";
+        
+    &process_cmd($cmd) unless (-s "$out_prefix.gsnap.bam");
+    
+    $cmd = "samtools sort -@ $CPU $out_prefix.gsnap.bam $out_prefix.cSorted";
+    &process_cmd($cmd) unless (-s "$out_prefix.cSorted.bam");
+    
+    unlink("$out_prefix.gsnap.bam"); # no longer needed now that we have the sorted version.
     
     if (-s "$out_prefix.cSorted.bam") {
         $cmd = "samtools index $out_prefix.cSorted.bam";
