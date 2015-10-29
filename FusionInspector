@@ -1,4 +1,4 @@
-#/usr/bin/env python
+#!/usr/bin/env python
 
 __example__ = "FusionInspector --left_fq ../BT474--ACACA--STAC2.left.fq --right_fq ../BT474--ACACA--STAC2.right.fq \
               --align_utils GSNAP,HISAT --fusions fusion_gene_candidates.dat --out_dir myoutdir --out_prefix ladeda"
