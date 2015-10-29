@@ -9,18 +9,6 @@ use Fasta_reader;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);                                                 
 
 
-
-####
-# All this mainly does is to reformat the fusion inspector predictions output so that we can filter it using the STAR-Fusion.filter script.
-# However, also filtering out those non-consensus splice types having less than 10 junction reads supporting them.
-####
-
-
-######################################################
-
-my $STAR_FUSION_DIR = $ENV{STAR_FUSION_DIR} or die "Error, need env var for STAR_FUSION_DIR";
-
-
 my $usage = <<__EOUSAGE__;
 
 ########################################################################
@@ -28,10 +16,9 @@ my $usage = <<__EOUSAGE__;
 # Required:
 #
 #  --fusion_preds <string>        preliminary fusion prediction (file: finspector.fusion_preds.coalesced.summary)s
-#
+#  --genome_lib_dir <string>      genome lib dir (see FusionFilter.github.io)
 #  --out_prefix <string>          output prefix for STAR-Fusion.filter  (adds .final and .final.abridged as outputs)
 #  --max_promiscuity <int>               maximum number of partners allowed for a given fusion. Default: 3
-#  --ref_cdna <string>            reference cDNA sequences fasta file 
 #  -E <float>                     E-value threshold for blast searches (default: 0.001)
 #
 #
@@ -47,10 +34,11 @@ my $help_flag;
 
 my $fusion_preds_file;
 my $out_prefix;
+my $genome_lib_dir;
 
 my $Evalue = 1e-3;
 my $max_promiscuity = 3;
-my $ref_cdna;
+
 
 &GetOptions ( 'h' => \$help_flag, 
               
@@ -58,7 +46,8 @@ my $ref_cdna;
               'out_prefix=s' => \$out_prefix,
               'E=f' => \$Evalue,
               'max_promiscuity=i' => \$max_promiscuity,
-              'ref_cdna=s' => \$ref_cdna,
+              'genome_lib_dir=s' => \$genome_lib_dir,
+
     );
 
 
@@ -66,7 +55,7 @@ if ($help_flag) {
     die $usage;
 }
 
-unless ($fusion_preds_file && $out_prefix && defined($Evalue) && $max_promiscuity && $ref_cdna) {
+unless ($fusion_preds_file && $out_prefix && defined($Evalue) && $max_promiscuity && $genome_lib_dir) {
     die $usage;
 }
 
@@ -140,12 +129,12 @@ main: {
     
     ## now do the homology filter
     
-    my $cmd = "$STAR_FUSION_DIR/util/blast_and_promiscuity_filter.pl " 
+    my $cmd = "$FindBin::Bin/../FusionFilter/blast_and_promiscuity_filter.pl " 
         . " --fusion_preds $star_fusion_fmt_file  "
         . " --max_promiscuity $max_promiscuity "
         . " --out_prefix $out_prefix "
         . " -E $Evalue "
-        . " --ref_cdna $ref_cdna ";
+        . " --genome_lib_dir $genome_lib_dir ";
     
     
 

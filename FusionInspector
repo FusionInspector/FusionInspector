@@ -597,7 +597,7 @@ class FusionInspector( ParentScript.ParentScript ):
 
         cmdstr = str(UTILDIR + "/BLASTN.filter.pl --fusion_preds " + fusion_summary_min_score_thresh_file +
                      " --out_prefix " + final_fusions_file +
-                     " --ref_cdna " + args_parsed.cdna_fasta_filename +
+                     " --genome_lib_dir " + args_parsed.genome_lib_dir +
                      " --max_promiscuity " + `args_parsed.max_promiscuity` +
                      " -E " + `args_parsed.Evalue`)
                 
