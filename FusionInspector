@@ -230,7 +230,7 @@ class FusionInspector( ParentScript.ParentScript ):
             bam_files_list.append(hisat_rmdup_bam_file)
 
 
-        if (args_parsed.align_utils.find("STAR2") > -1):
+        if (args_parsed.align_utils.find("STAR") > -1):
         
             ###############
             ## patched fusion-genome for STAR
@@ -275,8 +275,10 @@ class FusionInspector( ParentScript.ParentScript ):
 
         
 
-        elif (args_parsed.align_utils.find("STAR") > -1): # not STAR2
+        elif (args_parsed.align_utils.find("oldSTAR") > -1): # orig star, do not use... .keeping here in case I need to troubleshoot something.
 
+            raise Exception("oldSTAR not supported")
+            
             ###############
             ## Create a combined hg19 + fusion-genome for STAR
             ###############

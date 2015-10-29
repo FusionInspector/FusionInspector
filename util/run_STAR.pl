@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use FindBin;
-use lib("$FindBin::RealBin/../../PerlLib");
+use lib("$FindBin::RealBin/../PerlLib");
 use Pipeliner;
 use File::Basename;
 use Cwd;
@@ -28,6 +28,7 @@ my $usage = <<__EOUSAGE__;
 #  --out_dir <string>          output directory (default: current working directory)
 #  --star_path <string>        full path to the STAR program to use.
 #  --patch <string>            genomic targets to patch the genome fasta with.
+#  --prep_reference_only       build the genome index and then stop.
 #
 #######################################################################
 
@@ -50,6 +51,8 @@ my $ADV = 0;
 
 my $star_path = "STAR";
 my $patch;
+my $prep_reference_only = 0;
+
 
 &GetOptions( 'h' => \$help_flag,
              'genome=s' => \$genome,
@@ -61,6 +64,8 @@ my $patch;
              'ADV' => \$ADV,
              'star_path=s' => \$star_path,
              'patch=s' => \$patch,
+             'prep_reference_only' => \$prep_reference_only,
+
     );
 
 
@@ -107,15 +112,12 @@ main: {
     
 
     my $star_index = "$genome.star.idx";
-    if (! -e "$star_index/build.ok") {
+    if ($prep_reference_only) {
         ## build star index
-        unless (-d $star_index) {
-            mkdir($star_index) or die "Error, cannot mkdir $star_index";
-        }
-        
-        
+        mkdir($star_index) or die "Error, cannot mkdir $star_index";
+                
         my $cmd = "$star_prog --runThreadN $CPU --runMode genomeGenerate --genomeDir $star_index "
-            . " --twopassMode Basic "
+            # . " --twopassMode Basic "
             . " --genomeFastaFiles $genome "
             . " --limitGenomeGenerateRAM 40419136213 ";
         if ($gtf_file) {
@@ -126,7 +128,8 @@ main: {
         
         &process_cmd($cmd);
         
-        &process_cmd("touch $star_index/build.ok");
+        print STDERR "done building genome index.  stopping here.\n";
+        exit(0);
         
     }
 
