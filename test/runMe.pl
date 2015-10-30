@@ -38,7 +38,7 @@ main: {
 
     my $outdir = "Fusion_Inspector-" . join("-", split(/,/, $method));
     
-    my $cmd = "$INSTALL_DIR/FusionInspector --fusions test_fusions.list,test_fusions.list2,test_fusions.list3 --genome_lib $ENV{CTAT_GENOME_LIB} --left_fq $left_fq --right $right_fq --out_dir $outdir --out_prefix finspector --include_whole_genome --align_utils $method ";
+    my $cmd = "$INSTALL_DIR/FusionInspector --fusions test_fusions.list,test_fusions.list2,test_fusions.list3 --genome_lib $ENV{CTAT_GENOME_LIB} --left_fq $left_fq --right $right_fq --out_dir $outdir --out_prefix finspector --align_utils $method ";
     
     if ($INCLUDE_TRINITY_FLAG) {
         $cmd .= " --include_Trinity"
