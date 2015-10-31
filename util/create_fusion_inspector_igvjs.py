@@ -3,7 +3,7 @@
 import argparse
 import csv
 import json
-import os
+import os, sys
 
 # Constants keys in JSON file
 C_REFERENCE = "reference"
@@ -32,7 +32,6 @@ C_FUSION_DETAIL_RIGHT_GENE = "Right Gene"
 C_FUSION_DETAIL_SPLICE_TYPE = "Splice Type"
 C_FUSION_DETAIL_JUNCTION_READS = "Junction Reads"
 C_FUSION_DETAIL_SPANNING_FRAGMENTS = "Spanning Frags"
-C_FUSION_INSPECTOR_DIR = "FUSION_INSPECTOR"
 
 # Constants from Fusion Inspector (in output file that is parsed into the fusion detail)
 C_PRED_FUSION_NAME = "#fusion_name"
@@ -66,18 +65,18 @@ convert_splice_type_to_eng = {
 
 # Change headers to more readable headers for the data table
 convert_header_to_eng = {
-  C_PRED_FUSION_NAME : C_PRED_FUSION_NAME_ENG,
-  C_PRED_JUNCTION_READS : C_PRED_JUNCTION_READS_ENG,
-  C_PRED_SPANNING_FRAGS : C_PRED_SPANNING_FRAGS_ENG,
-  C_PRED_SPLICE_TYPE : C_PRED_SPLICE_TYPE_ENG,
-  C_PRED_LEFT_GENE : C_PRED_LEFT_GENE_ENG,
-  C_PRED_RIGHT_GENE : C_PRED_RIGHT_GENE_ENG,
-  C_PRED_LEFT_BREAK_POINT : C_PRED_LEFT_BREAK_POINT_ENG,
-  C_PRED_RIGHT_BREAK_POINT : C_PRED_RIGHT_BREAK_POINT_ENG
+    C_PRED_FUSION_NAME : C_PRED_FUSION_NAME_ENG,
+    C_PRED_JUNCTION_READS : C_PRED_JUNCTION_READS_ENG,
+    C_PRED_SPANNING_FRAGS : C_PRED_SPANNING_FRAGS_ENG,
+    C_PRED_SPLICE_TYPE : C_PRED_SPLICE_TYPE_ENG,
+    C_PRED_LEFT_GENE : C_PRED_LEFT_GENE_ENG,
+    C_PRED_RIGHT_GENE : C_PRED_RIGHT_GENE_ENG,
+    C_PRED_LEFT_BREAK_POINT : C_PRED_LEFT_BREAK_POINT_ENG,
+    C_PRED_RIGHT_BREAK_POINT : C_PRED_RIGHT_BREAK_POINT_ENG
 }
 
 arguments = argparse.ArgumentParser( prog = "Fusion Inspector JSON Maker", description = "Makes a JSON file for a directory of results from fusion inspector", formatter_class = argparse.ArgumentDefaultsHelpFormatter )
-arguments.add_argument( dest="fusion_inspector_directory", help = "The input directory to create the json from; this folder should contain the " + C_FUSION_INSPECTOR_DIR + " directory." )
+arguments.add_argument( dest="fusion_inspector_directory", help = "The input directory to create the json from; this folder should contain the finspector.fusion_predictions.final.abridged file")
 arguments.add_argument( dest="output_json_file", help = "The output json file to create" )
 args = arguments.parse_args()
 
@@ -102,46 +101,49 @@ dict_json[ C_SAMPLE_NAME ] = os.path.basename( args.fusion_inspector_directory )
 dict_json[ C_FUSION_DETAIL ] = []
 
 # Make fusion detail
-with open( os.path.join( absolute_fusion_directory, C_FUSION_INSPECTOR_DIR, "finspector.fusion_predictions.final.abridged" ), "r" ) as fusion_detail_contents:
-  fusion_detail_parsed = csv.reader( fusion_detail_contents, delimiter = "\t" )
+with open( os.path.join( absolute_fusion_directory, "finspector.fusion_predictions.final.abridged" ), "r" ) as fusion_detail_contents:
+    fusion_detail_parsed = csv.reader( fusion_detail_contents, delimiter = "\t" )
 
-  # Get indices of the columns of interest, if they do not exist error.
-  detail_key_to_index = {}
-  header_line = fusion_detail_parsed.next()
-  header_keys = [ C_PRED_FUSION_NAME, C_PRED_JUNCTION_READS, C_PRED_SPANNING_FRAGS, C_PRED_SPLICE_TYPE,
-                      C_PRED_LEFT_GENE, C_PRED_RIGHT_GENE, C_PRED_LEFT_BREAK_POINT, C_PRED_RIGHT_BREAK_POINT ]
+    # Get indices of the columns of interest, if they do not exist error.
+    detail_key_to_index = {}
+    header_line = fusion_detail_parsed.next()
+    header_keys = [ C_PRED_FUSION_NAME, C_PRED_JUNCTION_READS, C_PRED_SPANNING_FRAGS, C_PRED_SPLICE_TYPE,
+                    C_PRED_LEFT_GENE, C_PRED_RIGHT_GENE, C_PRED_LEFT_BREAK_POINT, C_PRED_RIGHT_BREAK_POINT ]
 
-  # Get indices to shuffle incoming header to the given order in header_keys
-  for header_key in header_keys:
-    detail_key_to_index[ header_key] = header_line.index( header_key )
-    if( detail_key_to_index[ header_key] < 0 ):
-      print( "Could not find the index for " + header_key + "." )
-
-  # Parse fusion annotation information
-  for fusion_detail_line in fusion_detail_parsed:
-    fusion_detail_current = {}
-
-    # Parse compound annotations
+    # Get indices to shuffle incoming header to the given order in header_keys
     for header_key in header_keys:
-      if header_key == C_PRED_LEFT_BREAK_POINT:
-        break_point_entries = fusion_detail_line[ detail_key_to_index[ header_key ] ].split(":")
-        fusion_detail_current[ C_FUSION_DETAIL_LEFT_CHR ] = break_point_entries[ 0 ]
-        fusion_detail_current[ C_FUSION_DETAIL_LEFT_POS ] = break_point_entries[ 1 ]
-        fusion_detail_current[ C_FUSION_DETAIL_LEFT_STRAND ] = break_point_entries[ 2 ]
-      elif header_key == C_PRED_RIGHT_BREAK_POINT:
-        break_point_entries = fusion_detail_line[ detail_key_to_index[ header_key ] ].split(":")
-        fusion_detail_current[ C_FUSION_DETAIL_RIGHT_CHR ] = break_point_entries[ 0 ]
-        fusion_detail_current[ C_FUSION_DETAIL_RIGHT_POS ] = break_point_entries[ 1 ]
-        fusion_detail_current[ C_FUSION_DETAIL_RIGHT_STRAND ] = break_point_entries[ 2 ]
-      elif header_key == C_PRED_SPLICE_TYPE:
-        fusion_detail_current[ convert_header_to_eng[ header_key ] ] = convert_splice_type_to_eng[ fusion_detail_line[ detail_key_to_index[ header_key ] ] ]
-      elif header_key == C_PRED_FUSION_NAME:
-        fusion_detail_current[ convert_header_to_eng[ header_key ] ] = fusion_detail_line[ detail_key_to_index[ header_key ] ]
-      else:
-        fusion_detail_current[ convert_header_to_eng[ header_key ] ] = fusion_detail_line[ detail_key_to_index[ header_key ] ]
+        detail_key_to_index[ header_key] = header_line.index( header_key )
+        if( detail_key_to_index[ header_key] < 0 ):
+            print( "Could not find the index for " + header_key + "." )
 
-    dict_json[ C_FUSION_DETAIL ].append( fusion_detail_current )
+    # Parse fusion annotation information
+    for fusion_detail_line in fusion_detail_parsed:
+        fusion_detail_current = {}
+
+        # Parse compound annotations
+        for header_key in header_keys:
+            if header_key == C_PRED_LEFT_BREAK_POINT:
+                break_point_entries = fusion_detail_line[ detail_key_to_index[ header_key ] ].split(":")
+                fusion_detail_current[ C_FUSION_DETAIL_LEFT_CHR ] = break_point_entries[ 0 ]
+                fusion_detail_current[ C_FUSION_DETAIL_LEFT_POS ] = break_point_entries[ 1 ]
+                fusion_detail_current[ C_FUSION_DETAIL_LEFT_STRAND ] = break_point_entries[ 2 ]
+            elif header_key == C_PRED_RIGHT_BREAK_POINT:
+                break_point_entries = fusion_detail_line[ detail_key_to_index[ header_key ] ].split(":")
+                fusion_detail_current[ C_FUSION_DETAIL_RIGHT_CHR ] = break_point_entries[ 0 ]
+                fusion_detail_current[ C_FUSION_DETAIL_RIGHT_POS ] = break_point_entries[ 1 ]
+                fusion_detail_current[ C_FUSION_DETAIL_RIGHT_STRAND ] = break_point_entries[ 2 ]
+            elif header_key == C_PRED_SPLICE_TYPE:
+                fusion_detail_current[ convert_header_to_eng[ header_key ] ] = convert_splice_type_to_eng[ fusion_detail_line[ detail_key_to_index[ header_key ] ] ]
+            elif header_key == C_PRED_FUSION_NAME:
+                fusion_detail_current[ convert_header_to_eng[ header_key ] ] = fusion_detail_line[ detail_key_to_index[ header_key ] ]
+            else:
+                fusion_detail_current[ convert_header_to_eng[ header_key ] ] = fusion_detail_line[ detail_key_to_index[ header_key ] ]
+                
+        dict_json[ C_FUSION_DETAIL ].append( fusion_detail_current )
 
 # Store as a json object
 with open( args.output_json_file, "w" ) as write_json:
-  write_json.write( json.dumps( dict_json, sort_keys=True, indent= 2 ) )
+    write_json.write( json.dumps( dict_json, sort_keys=True, indent= 2 ) )
+
+
+sys.exit(0)
