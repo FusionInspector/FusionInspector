@@ -37,7 +37,7 @@ my %keep = map { + $_ => 1 } @files_to_keep;
 `rm -rf ./Star_FGene` if (-d "Star_FGene");
 `rm -rf ./_STAR*`;
 `rm -rf ./Fusion_Inspector_ALL`;
-
+`rm -rf ./Fusion_Inspector-*`;
 
 foreach my $file (<*>) {
 	
