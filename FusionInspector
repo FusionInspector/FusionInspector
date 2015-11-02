@@ -41,7 +41,7 @@ class FusionInspector( ParentScript.ParentScript ):
         arg_raw.add_argument("--right_fq", dest="right_fq_filename", type=str, required=True, help="right fastq file")
         arg_raw.add_argument("--out_dir", dest="out_dirname", type=str, required=True, help="output directory")
         arg_raw.add_argument("--out_prefix", dest="out_prefix", type=str, required=True, help="output filename prefix")
-        arg_raw.add_argument("--align_utils", dest="align_utils", type=str, required=True, help="alignment utilities to use. Comma-delimited selection of: STAR,GSNAP,HISAT")
+        arg_raw.add_argument("--align_utils", dest="align_utils", type=str, required=False, default="STAR", help="alignment utilities to use.") # Comma-delimited selection of: STAR,GSNAP,HISAT")
         
         arg_raw.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=1, help="minimum number of junction-spanning reads required")
         arg_raw.add_argument("--min_sum_frags", dest="min_sum_frags", type=int, required=False, default=2, help="minimum fusion support = ( # junction_reads + # spanning_frags )")

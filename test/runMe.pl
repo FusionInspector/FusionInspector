@@ -8,9 +8,9 @@ use lib ("$FindBin::Bin/../PerlLib");
 use Pipeliner;
 use __GLOBALS__;
 
-my $usage = "usage: $0 align_method=(STAR|HISAT|GSNAP) [INCLUDE_TRINITY_FLAG]\n\n";
+my $usage = "usage: $0 align_method=STAR [INCLUDE_TRINITY_FLAG]\n\n";
 
-my $method = $ARGV[0] or die $usage;
+my $method = $ARGV[0] || "STAR";
 my $INCLUDE_TRINITY_FLAG = $ARGV[1] || 0;
 
 unless ($method =~ /GSNAP|HISAT|STAR/) {
