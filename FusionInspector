@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __example__ = "FusionInspector --left_fq ../BT474--ACACA--STAC2.left.fq --right_fq ../BT474--ACACA--STAC2.right.fq \
-              --align_utils GSNAP,HISAT --fusions fusion_gene_candidates.dat --out_dir myoutdir --out_prefix ladeda"
+              --align_utils STAR,GSNAP,HISAT --fusions fusion_gene_candidates.dat --out_dir myoutdir --out_prefix ladeda"
 
 
 import os, re, sys
@@ -161,7 +161,7 @@ class FusionInspector( ParentScript.ParentScript ):
 
         bam_files_list = []
         
-        if (re.match("GSNAP", args_parsed.align_utils, re.IGNORECASE)):
+        if (re.search("GSNAP", args_parsed.align_utils, re.IGNORECASE)):
 
             ########################################################
             ## align the reads against the fusion contig using GSNAP
@@ -195,7 +195,7 @@ class FusionInspector( ParentScript.ParentScript ):
             bam_files_list.append(gsnap_rmdup_bam_file)
 
 
-        if (re.match("HISAT", args_parsed.align_utils, re.IGNORECASE)):
+        if (re.search("HISAT", args_parsed.align_utils, re.IGNORECASE)):
 
             ########################################################
             ## align the reads against the fusion contig using HISAT
@@ -233,7 +233,7 @@ class FusionInspector( ParentScript.ParentScript ):
             bam_files_list.append(hisat_rmdup_bam_file)
 
 
-        if (re.match("STAR", args_parsed.align_utils, re.IGNORECASE)):
+        if (re.search("STAR", args_parsed.align_utils, re.IGNORECASE)):
         
             filter_FP_reads_flag = False # unnecessary due to whole genome search integration
 
@@ -280,8 +280,8 @@ class FusionInspector( ParentScript.ParentScript ):
 
 
 
-        if (args_parsed.align_utils.find("orig") > -1): # earlier way of using STAR
-
+        if (re.search("orig", args_parsed.align_utils, re.IGNORECASE)): # earlier way of using STAR
+            
             filter_FP_reads_flag = False # unnecessary due to whole genome search integration
 
             ###############
