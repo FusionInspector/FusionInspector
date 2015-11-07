@@ -113,7 +113,6 @@ main: {
           close $fh;
       }
     }
-
     
     my %genes_want;
     {
@@ -129,6 +128,7 @@ main: {
             }
         }
     }
+
     
     my %gene_to_gtf = &extract_gene_gtfs($gtf_file, \%genes_want);
     
@@ -404,8 +404,9 @@ sub get_gene_contig_gtf {
     my ($gene_gtf, $genome_fasta_file) = @_;
 
     
-    my ($gene_chr, $gene_lend, $gene_rend, $gene_orient) = &get_gene_span_info($gene_gtf);
+    my ($gene_chr, $gene_lend, $gene_rend, $gene_orient, $revised_gene_gtf) = &get_gene_span_info($gene_gtf);
     
+    $gene_gtf = $revised_gene_gtf;
     
     my $seq_region = &get_genomic_region_sequence($genome_fasta_file,
                                                   $gene_chr, 
@@ -510,6 +511,8 @@ sub get_gene_span_info {
 
     my ($chr, $min_lend, $max_rend, $orient);
 
+    my $revised_gene_gtf_text = "";
+
     my @gtf_lines = split(/\n/, $gene_gtf_text);
     foreach my $line (@gtf_lines) {
         my @x = split(/\t/, $line);
@@ -519,11 +522,14 @@ sub get_gene_span_info {
         my $strand = $x[6];
         if (defined $chr) {
             ## check to ensure the rest of the info matches up
+            ## if discrepancy, use first found.
             if ($chr ne $scaffold) {
-                die "Error, chr discrepancy in gtf info: $gene_gtf_text";
+                print STDERR "Error, chr discrepancy in gtf info: $gene_gtf_text";
+                next; 
             }
             if ($orient ne $strand) {
-                die "Error, strand conflict in gtf info: $gene_gtf_text";
+                print STDERR "Error, strand conflict in gtf info: $gene_gtf_text";
+                next;
             }
             if ($lend < $min_lend) {
                 $min_lend = $lend;
@@ -537,10 +543,12 @@ sub get_gene_span_info {
             ## init
             ($chr, $min_lend, $max_rend, $orient) = ($scaffold, $lend, $rend, $strand);
         }
+        $revised_gene_gtf_text .= "$line\n";
     }
 
-    return($chr, $min_lend, $max_rend, $orient);
+    return($chr, $min_lend, $max_rend, $orient, $gene_gtf_text);
 }
+
 
 ####
 sub transform_gtf_coordinates {

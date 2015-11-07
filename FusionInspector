@@ -13,11 +13,11 @@ import sciedpiper.ParentScript as ParentScript
 UTILDIR = os.sep.join([os.path.dirname(__file__), "util"])
 
 ## Trinity is required, as we use the kmer counting functionality in the read filter step.
-if not os.environ.has_key('TRINITY_HOME'):
-    print >> sys.stderr, "Error, need TRINITY_HOME environmental variable set and pointing to Trinity installation directory"
-    sys.exit(2)
+#if not os.environ.has_key('TRINITY_HOME'):
+#    print >> sys.stderr, "Error, need TRINITY_HOME environmental variable set and pointing to Trinity installation directory"
+#    sys.exit(2)
 
-TRINITY_HOME = os.environ["TRINITY_HOME"]
+#TRINITY_HOME = os.environ["TRINITY_HOME"]
     
 
 class FusionInspector( ParentScript.ParentScript ):
@@ -157,6 +157,8 @@ class FusionInspector( ParentScript.ParentScript ):
 
 
 
+        filter_FP_reads_flag = True
+
         bam_files_list = []
         
         if (re.match("GSNAP", args_parsed.align_utils, re.IGNORECASE)):
@@ -233,6 +235,8 @@ class FusionInspector( ParentScript.ParentScript ):
 
         if (re.match("STAR", args_parsed.align_utils, re.IGNORECASE)):
         
+            filter_FP_reads_flag = False # unnecessary due to whole genome search integration
+
             ###############
             ## patched fusion-genome for STAR
             ###############
@@ -321,23 +325,33 @@ class FusionInspector( ParentScript.ParentScript ):
         ##############################################
 
         fusion_summary_file = os.sep.join([workdir, args_parsed.out_prefix + ".fusion_preds.coalesced.summary"]) 
-        
-        filter_FP_reads_cmd = str(os.sep.join([UTILDIR, "filter_FP_evidence_reads.pl"]) + " " +
-                                  " --left_fq " + args_parsed.left_fq_filename +
-                                  " --right_fq " + args_parsed.right_fq_filename +
-                                  " --cdna_fa " + args_parsed.cdna_fasta_filename +
-                                  " --fusion_summary " + fusion_summary_pre_read_filter +
-                                  " --genome_lib_dir " + genome_lib_dir + 
-                                  " --tmpdir " + workdir +
-                                  " > " + fusion_summary_file)
 
-        lcmd_commands.append( Command.Command( str_cur_command = filter_FP_reads_cmd,
-                                               lstr_cur_dependencies = [args_parsed.left_fq_filename,
-                                                                        args_parsed.right_fq_filename,
-                                                                        args_parsed.cdna_fasta_filename,
-                                                                        fusion_summary_pre_read_filter
-                                                                        ],
-                                               lstr_cur_products = [ fusion_summary_file ] ) )
+        if filter_FP_reads_flag:
+            filter_FP_reads_cmd = str(os.sep.join([UTILDIR, "filter_FP_evidence_reads.pl"]) + " " +
+                                      " --left_fq " + args_parsed.left_fq_filename +
+                                      " --right_fq " + args_parsed.right_fq_filename +
+                                      " --cdna_fa " + args_parsed.cdna_fasta_filename +
+                                      " --fusion_summary " + fusion_summary_pre_read_filter +
+                                      " --genome_lib_dir " + genome_lib_dir + 
+                                      " --tmpdir " + workdir +
+                                      " > " + fusion_summary_file)
+
+            lcmd_commands.append( Command.Command( str_cur_command = filter_FP_reads_cmd,
+                                                   lstr_cur_dependencies = [args_parsed.left_fq_filename,
+                                                                            args_parsed.right_fq_filename,
+                                                                            args_parsed.cdna_fasta_filename,
+                                                                            fusion_summary_pre_read_filter
+                                                                            ],
+                                                   lstr_cur_products = [ fusion_summary_file ] ) )
+
+        else:
+            # just symlink it
+            cmdstr = "ln -s " + fusion_summary_pre_read_filter + " " + fusion_summary_file
+
+            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                   lstr_cur_dependencies = [ fusion_summary_pre_read_filter ],
+                                                   lstr_cur_products = [ fusion_summary_file ] ) )
+        
 
 
         ## need to filter based on remaining fusion support.
