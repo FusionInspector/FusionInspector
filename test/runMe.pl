@@ -13,7 +13,7 @@ my $usage = "usage: $0 align_method=STAR [INCLUDE_TRINITY_FLAG]\n\n";
 my $method = $ARGV[0] || "STAR";
 my $INCLUDE_TRINITY_FLAG = $ARGV[1] || 0;
 
-unless ($method =~ /GSNAP|HISAT|STAR/) {
+unless ($method =~ /GSNAP|HISAT|STAR|orig/) {
     die $usage;
 }
 
