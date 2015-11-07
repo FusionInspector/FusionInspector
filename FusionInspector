@@ -169,8 +169,8 @@ class FusionInspector( ParentScript.ParentScript ):
 
             gsnap_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".gsnap.cSorted.bam"])
 
-        
-            cmdstr = str(TRINITY_HOME + "/util/misc/run_GSNAP.pl --genome " + workdir_mergedContig_fasta_filename +
+            
+            cmdstr = str(UTILDIR + "/run_GSNAP.pl --genome " + workdir_mergedContig_fasta_filename +
                          " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\"" +
                          " -G " + workdir_mergedContig_gtf_filename  + " --CPU 4 -N 20 --proper_pairs_only " +
                          " --out_prefix " + os.sep.join([workdir, args_parsed.out_prefix + ".gsnap"]) )
