@@ -153,13 +153,12 @@ main: {
         . " --limitBAMsortRAM 20000000000";
 
     if ($patch) {
-        $cmd .= " --genomeFastaFiles $patch ";
+        $cmd .= " --genomeFastaFiles $patch "; #--outSAMfilter KeepOnlyAddedReferences ";
     }
         
     
-    #if ($ADV) {
-        $cmd .= " --alignSJstitchMismatchNmax 5 -1 5 5 ";  #which allows for up to 5 mismatches for non-canonical GC/AG, and AT/AC junctions, and any number of mismatches for canonical junctions (the default values 0 -1 0 0 replicate the old behavior (from AlexD)
-    #}
+    $cmd .= " --alignSJstitchMismatchNmax 5 -1 5 5 ";  #which allows for up to 5 mismatches for non-canonical GC/AG, and AT/AC junctions, and any number of mismatches for canonical junctions (the default values 0 -1 0 0 replicate the old behavior (from AlexD)
+    
     
     if ($reads =~ /\.gz$/) {
         $cmd .= " --readFilesCommand 'gunzip -c' ";
