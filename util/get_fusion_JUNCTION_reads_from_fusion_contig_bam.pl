@@ -15,6 +15,8 @@ use Set::IntervalTree;
 
 my $MIN_JUNCTION_READ_SEGMENT_LENGTH = 12;
 
+my $DEBUG = 0;
+
 my $usage = "\n\n\tusage: $0 genePairContig.gtf read_alignments.bam\n\n\n";
 
 my $gtf_file = $ARGV[0] or die $usage;
@@ -25,9 +27,11 @@ main: {
     my %scaffold_itree_to_exon_structs;
     print STDERR "-parsing GTF file: $gtf_file\n";
     my %scaffold_to_gene_structs = &parse_gtf_file($gtf_file, \%scaffold_itree_to_exon_structs);
+
+    
         
     
-    #print STDERR Dumper(\%scaffold_to_gene_structs);
+    print STDERR Dumper(\%scaffold_to_gene_structs) if $DEBUG;
     
     my $prev_scaff = "";
 
@@ -84,7 +88,7 @@ main: {
             my $itree = $scaffold_itree_to_exon_structs{$scaffold};
             my @exon_hits = &hits_exon_bound($genome_coords_aref, $read_coords_aref, $itree);
             
-            #print Dumper(\@exon_hits);
+            print Dumper(\@exon_hits) if $DEBUG;
 
             unless (scalar @exon_hits > 1) { next; } 
             
@@ -93,7 +97,7 @@ main: {
                 $genes_matched{ $exon_hit->{exon_struct}->{gene_id} }++;
             }
             my $num_genes_matched = scalar(keys %genes_matched);
-            #print "Genes matched: $num_genes_matched\n";
+            print "Genes matched: $num_genes_matched\n" if $DEBUG;
             unless ($num_genes_matched > 1) { next; }
             
                         
@@ -103,7 +107,7 @@ main: {
                 my ($gene_A, $brkpt_A, $gene_B, $brkpt_B, $splice_token) = split(/\t/, $junction_coord_token);
                 my ($left_brkpt_length, $right_brkpt_length) = &divide_junction_read_at_breakpoint($genome_coords_aref, $read_coords_aref, $brkpt_A);
                 
-                #print STDERR "LEFT_read_seg: $left_brkpt_length, RIGHT_read_seg: $right_brkpt_length\n";
+                print STDERR "LEFT_read_seg: $left_brkpt_length, RIGHT_read_seg: $right_brkpt_length\n" if $DEBUG;
 
                 if ($left_brkpt_length >= $MIN_JUNCTION_READ_SEGMENT_LENGTH
                     &&
@@ -150,6 +154,8 @@ sub get_junction_coord_token {
     
     @exon_hits = sort {$a->{align_genome_lend}<=>$b->{align_genome_lend}} @exon_hits;
     
+    print STDERR "Ordered exon hits: " . Dumper(\@exon_hits) if $DEBUG;
+
     
     my @fusion_candidates;
     
@@ -170,9 +176,9 @@ sub get_junction_coord_token {
             ## see if different genes and properly split alignment
             if ($exon_struct_i->{gene_id} ne $exon_struct_j->{gene_id}
                 &&
-                ( $exon_hit_i->{read_end3} == $exon_hit_j->{read_end5} - 1 # forward read alignment
+                ( abs($exon_hit_i->{read_end3} - $exon_hit_j->{read_end5}) == 1 # forward read alignment
                   ||
-                  $exon_hit_i->{read_end5} == $exon_hit_j->{read_end3} + 1 # reverse read alignment
+                  abs($exon_hit_i->{read_end5} - $exon_hit_j->{read_end3}) == 1 # reverse read alignment
                 ) 
                 ) {
                 
@@ -198,6 +204,7 @@ sub get_junction_coord_token {
     
 
     unless (@fusion_candidates) {
+        print STDERR "** no fusion candidate.\n" if $DEBUG;
         return(undef);
     }
 
@@ -207,7 +214,7 @@ sub get_junction_coord_token {
 
     my $best_fusion_candidate = shift @fusion_candidates;
     
-    #print Dumper($best_fusion_candidate);
+    print Dumper($best_fusion_candidate) if $DEBUG;
     
     my $splice_token = ($best_fusion_candidate->{score} == 0) ? "ONLY_REF_SPLICE" : "INCL_NON_REF_SPLICE";
 
@@ -393,7 +400,7 @@ sub divide_junction_read_at_breakpoint {
         my ($genome_lend, $genome_rend) = @$g_coords_aref;
         my ($read_lend, $read_rend) = @$r_coords_aref;
 
-        my $read_segment_length = $read_rend - $read_lend + 1;
+        my $read_segment_length = abs($read_rend - $read_lend) + 1;
         
         if ($genome_rend <= $brkpt_A) {
             $left_read_length += $read_segment_length;
