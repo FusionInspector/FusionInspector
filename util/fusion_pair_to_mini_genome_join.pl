@@ -128,11 +128,11 @@ main: {
             }
         }
     }
-
+    
     
     my %gene_to_gtf = &extract_gene_gtfs($gtf_file, \%genes_want);
     
-        
+    
     ## split readthru transcripts into their separate parts
     my @tmp_chim_pairs;
     foreach my $chim_pair (@chim_pairs) {
@@ -146,6 +146,7 @@ main: {
         my $all_ok = 1;
 
         foreach my $tmp_left_gene (@left_genes) {
+            
             foreach my $tmp_right_gene (@right_genes) {
                 
                 if (exists $gene_to_gtf{$tmp_left_gene}
@@ -407,6 +408,11 @@ sub get_gene_contig_gtf {
     my ($gene_chr, $gene_lend, $gene_rend, $gene_orient, $revised_gene_gtf) = &get_gene_span_info($gene_gtf);
     
     $gene_gtf = $revised_gene_gtf;
+
+    # print STDERR "INFO: gene_chr: $gene_chr, lend: $gene_lend, rend: $gene_rend\n";
+
+    #print STDERR "\n\nGENE_GTF:\n$gene_gtf\n\n";
+    
     
     my $seq_region = &get_genomic_region_sequence($genome_fasta_file,
                                                   $gene_chr, 
@@ -419,6 +425,9 @@ sub get_gene_contig_gtf {
                                                      length($seq_region),
                                                      $gene_orient);
     
+
+    # print STDERR "GENE_contig_gtf:\n$gene_contig_gtf\n\n";
+
     return($gene_contig_gtf, $seq_region);
     
     
@@ -519,16 +528,17 @@ sub get_gene_span_info {
         my $scaffold = $x[0];
         my $lend = $x[3];
         my $rend = $x[4];
+        ($lend, $rend) = sort {$a<=>$b} ($lend, $rend);
         my $strand = $x[6];
         if (defined $chr) {
             ## check to ensure the rest of the info matches up
             ## if discrepancy, use first found.
             if ($chr ne $scaffold) {
-                print STDERR "Error, chr discrepancy in gtf info: $gene_gtf_text";
+                print STDERR "Error, chr discrepancy in gtf info for $line\n";
                 next; 
             }
             if ($orient ne $strand) {
-                print STDERR "Error, strand conflict in gtf info: $gene_gtf_text";
+                print STDERR "Error, strand conflict in gtf info for $line\n";
                 next;
             }
             if ($lend < $min_lend) {
@@ -546,7 +556,11 @@ sub get_gene_span_info {
         $revised_gene_gtf_text .= "$line\n";
     }
 
-    return($chr, $min_lend, $max_rend, $orient, $gene_gtf_text);
+    if ($max_rend - $min_lend > 100e6) {
+        confess "Error - no gene spans 100M bases in length.... likely problem";
+    }
+    
+    return($chr, $min_lend, $max_rend, $orient, $revised_gene_gtf_text);
 }
 
 
