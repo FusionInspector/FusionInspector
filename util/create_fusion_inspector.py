@@ -68,20 +68,20 @@ C_SPLICE_NOT_REFERENCE_ENG = "DOES NOT Include Reference"
 
 # Change splice info to plain english 
 convert_splice_type_to_eng = {
-  C_SPLICE_REFERENCE : C_SPLICE_REFERENCE_ENG,
-  C_SPLICE_NOT_REFERENCE : C_SPLICE_NOT_REFERENCE_ENG
+    C_SPLICE_REFERENCE : C_SPLICE_REFERENCE_ENG,
+    C_SPLICE_NOT_REFERENCE : C_SPLICE_NOT_REFERENCE_ENG
 }
 
 # Change headers to more readable headers for the data table
 convert_header_to_eng = {
-  C_PRED_FUSION_NAME : C_PRED_FUSION_NAME_ENG,
-  C_PRED_JUNCTION_READS : C_PRED_JUNCTION_READS_ENG,
-  C_PRED_SPANNING_FRAGS : C_PRED_SPANNING_FRAGS_ENG,
-  C_PRED_SPLICE_TYPE : C_PRED_SPLICE_TYPE_ENG,
-  C_PRED_LEFT_GENE : C_PRED_LEFT_GENE_ENG,
-  C_PRED_RIGHT_GENE : C_PRED_RIGHT_GENE_ENG,
-  C_PRED_LEFT_BREAK_POINT : C_PRED_LEFT_BREAK_POINT_ENG,
-  C_PRED_RIGHT_BREAK_POINT : C_PRED_RIGHT_BREAK_POINT_ENG
+    C_PRED_FUSION_NAME : C_PRED_FUSION_NAME_ENG,
+    C_PRED_JUNCTION_READS : C_PRED_JUNCTION_READS_ENG,
+    C_PRED_SPANNING_FRAGS : C_PRED_SPANNING_FRAGS_ENG,
+    C_PRED_SPLICE_TYPE : C_PRED_SPLICE_TYPE_ENG,
+    C_PRED_LEFT_GENE : C_PRED_LEFT_GENE_ENG,
+    C_PRED_RIGHT_GENE : C_PRED_RIGHT_GENE_ENG,
+    C_PRED_LEFT_BREAK_POINT : C_PRED_LEFT_BREAK_POINT_ENG,
+    C_PRED_RIGHT_BREAK_POINT : C_PRED_RIGHT_BREAK_POINT_ENG
 }
 
 arguments = argparse.ArgumentParser( prog = "Fusion Inspector JSON Maker", description = "Makes a JSON file for a directory of results from fusion inspector", formatter_class = argparse.ArgumentDefaultsHelpFormatter )
@@ -112,59 +112,59 @@ dict_json[ C_FUSION_DETAIL ] = []
 
 # Uncompress bed file for Galaxy (which does not like compressed files).
 if args.f_include_trinity:
-  str_trinity_bed_file = os.path.join( absolute_fusion_directory, C_FUSION_INSPECTOR_DIR, C_STR_INCLUDE_TRINITY_BED )
-  str_trinity_bed_file_compressed = os.path.join( absolute_fusion_directory, C_FUSION_INSPECTOR_DIR, C_STR_INCLUDE_TRINITY_BED_GZ )
-  if not os.path.exists( str_trinity_bed_file ):
-    if os.path.exists( str_trinity_bed_file_compressed ):
-      with gzip.open( str_trinity_bed_file_compressed ) as hndl_compressed_file:
-        with open( str_trinity_bed_file, "w" ) as hndl_uncompressed_file:
-          for str_compressed_line in hndl_compressed_file:
-            hndl_uncompressed_file.write( str_compressed_line ) 
-    else:
-      print C_ARG_INCLUDE_TRINITY + " was given but one of the following files are expected to exist and did not:" + " or ".join([ C_STR_INCLUDE_TRINITY_BED, C_STR_INCLUDE_TRINITY_BED_GZ ])
-      exit( -1 )
+    str_trinity_bed_file = os.path.join( absolute_fusion_directory, C_FUSION_INSPECTOR_DIR, C_STR_INCLUDE_TRINITY_BED )
+    str_trinity_bed_file_compressed = os.path.join( absolute_fusion_directory, C_FUSION_INSPECTOR_DIR, C_STR_INCLUDE_TRINITY_BED_GZ )
+    if not os.path.exists( str_trinity_bed_file ):
+        if os.path.exists( str_trinity_bed_file_compressed ):
+            with gzip.open( str_trinity_bed_file_compressed ) as hndl_compressed_file:
+                with open( str_trinity_bed_file, "w" ) as hndl_uncompressed_file:
+                    for str_compressed_line in hndl_compressed_file:
+                        hndl_uncompressed_file.write( str_compressed_line ) 
+        else:
+            print C_ARG_INCLUDE_TRINITY + " was given but one of the following files are expected to exist and did not:" + " or ".join([ C_STR_INCLUDE_TRINITY_BED, C_STR_INCLUDE_TRINITY_BED_GZ ])
+            exit( -1 )
 
 # Make fusion detail
 with open( os.path.join( absolute_fusion_directory, C_FUSION_INSPECTOR_DIR, "finspector.fusion_predictions.final.abridged" ), "r" ) as fusion_detail_contents:
-  fusion_detail_parsed = csv.reader( fusion_detail_contents, delimiter = "\t" )
+    fusion_detail_parsed = csv.reader( fusion_detail_contents, delimiter = "\t" )
 
-  # Get indices of the columns of interest, if they do not exist error.
-  detail_key_to_index = {}
-  header_line = fusion_detail_parsed.next()
-  header_keys = [ C_PRED_FUSION_NAME, C_PRED_JUNCTION_READS, C_PRED_SPANNING_FRAGS, C_PRED_SPLICE_TYPE,
+    # Get indices of the columns of interest, if they do not exist error.
+    detail_key_to_index = {}
+    header_line = fusion_detail_parsed.next()
+    header_keys = [ C_PRED_FUSION_NAME, C_PRED_JUNCTION_READS, C_PRED_SPANNING_FRAGS, C_PRED_SPLICE_TYPE,
                       C_PRED_LEFT_GENE, C_PRED_RIGHT_GENE, C_PRED_LEFT_BREAK_POINT, C_PRED_RIGHT_BREAK_POINT ]
 
-  # Get indices to shuffle incoming header to the given order in header_keys
-  for header_key in header_keys:
-    detail_key_to_index[ header_key] = header_line.index( header_key )
-    if( detail_key_to_index[ header_key] < 0 ):
-      print( "Could not find the index for " + header_key + "." )
-
-  # Parse fusion annotation information
-  for fusion_detail_line in fusion_detail_parsed:
-    fusion_detail_current = {}
-
-    # Parse compound annotations
+    # Get indices to shuffle incoming header to the given order in header_keys
     for header_key in header_keys:
-      if header_key == C_PRED_LEFT_BREAK_POINT:
-        break_point_entries = fusion_detail_line[ detail_key_to_index[ header_key ] ].split(":")
-        fusion_detail_current[ C_FUSION_DETAIL_LEFT_CHR ] = break_point_entries[ 0 ]
-        fusion_detail_current[ C_FUSION_DETAIL_LEFT_POS ] = break_point_entries[ 1 ]
-        fusion_detail_current[ C_FUSION_DETAIL_LEFT_STRAND ] = break_point_entries[ 2 ]
-      elif header_key == C_PRED_RIGHT_BREAK_POINT:
-        break_point_entries = fusion_detail_line[ detail_key_to_index[ header_key ] ].split(":")
-        fusion_detail_current[ C_FUSION_DETAIL_RIGHT_CHR ] = break_point_entries[ 0 ]
-        fusion_detail_current[ C_FUSION_DETAIL_RIGHT_POS ] = break_point_entries[ 1 ]
-        fusion_detail_current[ C_FUSION_DETAIL_RIGHT_STRAND ] = break_point_entries[ 2 ]
-      elif header_key == C_PRED_SPLICE_TYPE:
-        fusion_detail_current[ convert_header_to_eng[ header_key ] ] = convert_splice_type_to_eng[ fusion_detail_line[ detail_key_to_index[ header_key ] ] ]
-      elif header_key == C_PRED_FUSION_NAME:
-        fusion_detail_current[ convert_header_to_eng[ header_key ] ] = fusion_detail_line[ detail_key_to_index[ header_key ] ]
-      else:
-        fusion_detail_current[ convert_header_to_eng[ header_key ] ] = fusion_detail_line[ detail_key_to_index[ header_key ] ]
+        detail_key_to_index[ header_key] = header_line.index( header_key )
+        if( detail_key_to_index[ header_key] < 0 ):
+            print( "Could not find the index for " + header_key + "." )
+
+    # Parse fusion annotation information
+    for fusion_detail_line in fusion_detail_parsed:
+        fusion_detail_current = {}
+
+        # Parse compound annotations
+        for header_key in header_keys:
+            if header_key == C_PRED_LEFT_BREAK_POINT:
+                break_point_entries = fusion_detail_line[ detail_key_to_index[ header_key ] ].split(":")
+                fusion_detail_current[ C_FUSION_DETAIL_LEFT_CHR ] = break_point_entries[ 0 ]
+                fusion_detail_current[ C_FUSION_DETAIL_LEFT_POS ] = break_point_entries[ 1 ]
+                fusion_detail_current[ C_FUSION_DETAIL_LEFT_STRAND ] = break_point_entries[ 2 ]
+            elif header_key == C_PRED_RIGHT_BREAK_POINT:
+                break_point_entries = fusion_detail_line[ detail_key_to_index[ header_key ] ].split(":")
+                fusion_detail_current[ C_FUSION_DETAIL_RIGHT_CHR ] = break_point_entries[ 0 ]
+                fusion_detail_current[ C_FUSION_DETAIL_RIGHT_POS ] = break_point_entries[ 1 ]
+                fusion_detail_current[ C_FUSION_DETAIL_RIGHT_STRAND ] = break_point_entries[ 2 ]
+            elif header_key == C_PRED_SPLICE_TYPE:
+                fusion_detail_current[ convert_header_to_eng[ header_key ] ] = convert_splice_type_to_eng[ fusion_detail_line[ detail_key_to_index[ header_key ] ] ]
+            elif header_key == C_PRED_FUSION_NAME:
+                fusion_detail_current[ convert_header_to_eng[ header_key ] ] = fusion_detail_line[ detail_key_to_index[ header_key ] ]
+            else:
+                fusion_detail_current[ convert_header_to_eng[ header_key ] ] = fusion_detail_line[ detail_key_to_index[ header_key ] ]
 
     dict_json[ C_FUSION_DETAIL ].append( fusion_detail_current )
 
 # Store as a json object
 with open( args.output_json_file, "w" ) as write_json:
-  write_json.write( json.dumps( dict_json, sort_keys=True, indent= 2 ) )
+    write_json.write( json.dumps( dict_json, sort_keys=True, indent= 2 ) )
