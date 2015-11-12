@@ -145,11 +145,11 @@ main: {
         . " --genomeDir $star_index "
         . " --outSAMtype BAM SortedByCoordinate "
         . " --readFilesIn $reads "
-        . " --chimJunctionOverhangMin 12 "
-        . " --chimSegmentMin 12 "
+        #. " --chimJunctionOverhangMin 12 "
+        #. " --chimSegmentMin 12 "
         . " --twopassMode Basic "
         . " --alignSJDBoverhangMin 10 "
-        . " --chimSegmentReadGapMax parameter 3 "
+        #. " --chimSegmentReadGapMax parameter 3 "
         . " --limitBAMsortRAM 20000000000";
 
     if ($patch) {
