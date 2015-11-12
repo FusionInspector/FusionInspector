@@ -3,7 +3,16 @@
 import argparse
 import csv
 import json
-import os, sys
+import gzip
+import os
+import sys
+
+# Argument
+C_ARG_INCLUDE_TRINITY = "--include_Trinity"
+
+# Include Trinity related files
+C_STR_INCLUDE_TRINITY_BED = "finspector.gmap_trinity_GG.fusions.gff3.bed.sorted.bed"
+C_STR_INCLUDE_TRINITY_BED_GZ = "finspector.gmap_trinity_GG.fusions.gff3.bed.sorted.bed.gz"
 
 # Constants keys in JSON file
 C_REFERENCE = "reference"
@@ -59,8 +68,8 @@ C_SPLICE_NOT_REFERENCE_ENG = "DOES NOT Include Reference"
 
 # Change splice info to plain english 
 convert_splice_type_to_eng = {
-  C_SPLICE_REFERENCE : C_SPLICE_REFERENCE_ENG,
-  C_SPLICE_NOT_REFERENCE : C_SPLICE_NOT_REFERENCE_ENG
+    C_SPLICE_REFERENCE : C_SPLICE_REFERENCE_ENG,
+    C_SPLICE_NOT_REFERENCE : C_SPLICE_NOT_REFERENCE_ENG
 }
 
 # Change headers to more readable headers for the data table
@@ -76,6 +85,7 @@ convert_header_to_eng = {
 }
 
 arguments = argparse.ArgumentParser( prog = "Fusion Inspector JSON Maker", description = "Makes a JSON file for a directory of results from fusion inspector", formatter_class = argparse.ArgumentDefaultsHelpFormatter )
+arguments.add_argument( C_ARG_INCLUDE_TRINITY, dest="f_include_trinity", action="store_true", help = "Adds the gmap_trinity_GG bed file to the json for viewing." )
 arguments.add_argument( dest="fusion_inspector_directory", help = "The input directory to create the json from; this folder should contain the finspector.fusion_predictions.final.abridged file")
 arguments.add_argument( dest="output_json_file", help = "The output json file to create" )
 args = arguments.parse_args()
@@ -90,7 +100,7 @@ dict_json[ C_REFERENCE_INDEX ] = "finspector.fa.fai"
 dict_json[ C_CYTOBAND ] = "cytoBand.txt"
 dict_json[ C_REFERENCE_BED ] = "finspector.bed"
 dict_json[ C_JUNCTION_SPANNING ] = "finspector.igv.FusionJuncSpan"
-dict_json[ C_TRINITY_BED ] = "finspector.gmap_trinity_GG.fusions.gff3.bed.sorted.bed.gz"
+dict_json[ C_TRINITY_BED ] = C_STR_INCLUDE_TRINITY_BED if args.f_include_trinity else "NA"
 dict_json[ C_JUNCTION_READS ] = "finspector.junction_reads.bam.bed.sorted.bed.gz"
 dict_json[ C_JUNCTION_READS_BAM ] = "finspector.junction_reads.bam"
 dict_json[ C_JUNCTION_READS_BAI ] = "finspector.junction_reads.bam.bai"
@@ -99,6 +109,20 @@ dict_json[ C_SPANNING_READS_BAM ] = "finspector.spanning_reads.bam"
 dict_json[ C_SPANNING_READS_BAI ] = "finspector.spanning_reads.bam.bai"
 dict_json[ C_SAMPLE_NAME ] = os.path.basename( args.fusion_inspector_directory ) 
 dict_json[ C_FUSION_DETAIL ] = []
+
+# Uncompress bed file for Galaxy (which does not like compressed files).
+if args.f_include_trinity:
+    str_trinity_bed_file = os.path.join( absolute_fusion_directory, C_STR_INCLUDE_TRINITY_BED )
+    str_trinity_bed_file_compressed = os.path.join( absolute_fusion_directory, C_STR_INCLUDE_TRINITY_BED_GZ )
+    if not os.path.exists( str_trinity_bed_file ):
+        if os.path.exists( str_trinity_bed_file_compressed ):
+            with gzip.open( str_trinity_bed_file_compressed ) as hndl_compressed_file:
+                with open( str_trinity_bed_file, "w" ) as hndl_uncompressed_file:
+                    for str_compressed_line in hndl_compressed_file:
+                        hndl_uncompressed_file.write( str_compressed_line ) 
+        else:
+            print C_ARG_INCLUDE_TRINITY + " was given but one of the following files are expected to exist and did not:" + " or ".join([ C_STR_INCLUDE_TRINITY_BED, C_STR_INCLUDE_TRINITY_BED_GZ ])
+            exit( -1 )
 
 # Make fusion detail
 with open( os.path.join( absolute_fusion_directory, "finspector.fusion_predictions.final.abridged" ), "r" ) as fusion_detail_contents:
@@ -144,6 +168,5 @@ with open( os.path.join( absolute_fusion_directory, "finspector.fusion_predictio
 # Store as a json object
 with open( args.output_json_file, "w" ) as write_json:
     write_json.write( json.dumps( dict_json, sort_keys=True, indent= 2 ) )
-
 
 sys.exit(0)
