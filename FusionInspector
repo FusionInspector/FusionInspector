@@ -662,9 +662,10 @@ class FusionInspector( ParentScript.ParentScript ):
         if args_parsed.prep_for_IGV:
             ## generate the fusion-inspector-web galaxy js 
 
-            cmdstr = str( os.path.sep.join([UTILDIR, "create_fusion_inspector_igvjs.py"]) +
-                          " " + args_parsed.out_dirname +
-                          " " + os.path.sep.join([args_parsed.out_dirname, "fusion_inspector_web.json"]) )
+            cmdstr = os.path.sep.join( [ UTILDIR, "create_fusion_inspector_igvjs.py" ] )
+            if args_parsed.include_Trinity:
+                cmdstr = cmdstr + " --include_Trinity"
+            cmdstr = " ".join( [ cmdstr, args_parsed.out_dirname, os.path.sep.join( [ args_parsed.out_dirname, "fusion_inspector_web.json" ] ) ] )
 
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                    lstr_cur_dependencies = [args_parsed.out_dirname],
