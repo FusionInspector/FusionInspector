@@ -27,7 +27,7 @@ C_JUNCTION_READS_BAI = "junctionReadsBai"
 C_SPANNING_READS = "spanningReads"
 C_SPANNING_READS_BAM = "spanningReadsBam"
 C_SPANNING_READS_BAI = "spanningReadsBai"
-C_SAMPLE_NAME = "sampleName"
+#C_SAMPLE_NAME = "sampleName"
 C_FUSION_DETAIL = "fusions"
 C_FUSION_DETAIL_NAME = "Name"
 C_FUSION_DETAIL_LEFT_CHR = "Left Chr"
@@ -107,7 +107,7 @@ dict_json[ C_JUNCTION_READS_BAI ] = "finspector.junction_reads.bam.bai"
 dict_json[ C_SPANNING_READS ] = "finspector.spanning_reads.bam.bed.sorted.bed.gz"
 dict_json[ C_SPANNING_READS_BAM ] = "finspector.spanning_reads.bam"
 dict_json[ C_SPANNING_READS_BAI ] = "finspector.spanning_reads.bam.bai"
-dict_json[ C_SAMPLE_NAME ] = os.path.basename( args.fusion_inspector_directory ) 
+#dict_json[ C_SAMPLE_NAME ] = os.path.basename( args.fusion_inspector_directory ) 
 dict_json[ C_FUSION_DETAIL ] = []
 
 # Uncompress bed file for Galaxy (which does not like compressed files).
