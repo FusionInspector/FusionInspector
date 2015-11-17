@@ -54,8 +54,8 @@ class FusionInspector( ParentScript.ParentScript ):
 
         arg_raw.add_argument("--prep_for_IGV", dest="prep_for_IGV", required=False, action="store_true", default=False, help="generate bam, bed, etc., for use with IGV")
         arg_raw.add_argument("--write_intermediate_results", dest="write_intermediate_results", required=False, action="store_true", default=False, help="generate bam, bed, etc., for intermediate aligner outputs")
-        
-        #arg_raw.add_argument("--align_reads", dest="align_reads", default=None, required=False, help="read fasta files to align to the fusion contig. Include multiple files separated by commas (no spaces). Reads must have fusion name encoded as fusion_name|read_name, only those reads aligning to the corresponding fusion contig will be shown.")
+
+        arg_raw.add_argument("--no_cleanup", dest="no_cleanup", required=False, action="store_true", default=False, help="do not cleanup the fusion inspector workspace, retain intermediate output files")
         
         
 
@@ -79,6 +79,7 @@ class FusionInspector( ParentScript.ParentScript ):
         args_parsed.out_dirname = ensure_full_path(args_parsed.out_dirname)
                 
         workdir = args_parsed.out_dirname + "/fi_workdir";
+        workdir = ensure_full_path(workdir)
         
         cur_pipeline.func_mkdirs( [ args_parsed.out_dirname, workdir ] )
 
@@ -673,7 +674,18 @@ class FusionInspector( ParentScript.ParentScript ):
                                                    lstr_cur_products = [ os.path.sep.join([args_parsed.out_dirname, "fusion_inspector_web.json"]) ] ) )
 
         
-                
+
+
+        ## cleanup
+        if not args_parsed.no_cleanup:
+
+            workdir_cleaned_file = os.path.sep.join([args_parsed.out_dirname, "workdir.cleaned"])
+            cmdstr = "/bin/rm -rf " + workdir + " && touch " + workdir_cleaned_file
+            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                   lstr_cur_dependencies = [workdir],
+                                                   lstr_cur_products = [workdir_cleaned_file]) )
+            
+        
         return lcmd_commands
 
 
@@ -807,58 +819,6 @@ class FusionInspector( ParentScript.ParentScript ):
 
 
     
-                                                                
-    def add_fusion_read_alignment(self, args_parsed, mergedContig_fasta_filename, mergedContig_gtf_filename, lcmd_commands):
-    
-        reads_list_string = args_parsed.align_reads
-
-        reads_list = reads_list_string.split(",")
-
-        for reads_file in reads_list:
-
-            reads_file_basename =  os.path.basename(reads_file)
-
-            alignment_output_file_prefix = args_parsed.out_dirname + "/" + reads_file_basename
-            
-            cmdstr = str(os.path.sep.join([UTILDIR, "run_GSNAP.pl"]) +
-                         " --genome " + mergedContig_fasta_filename +
-                         " --reads " + reads_file +
-                         " -G " + mergedContig_gtf_filename  + " --CPU 4 " +
-                         " --out_prefix " + alignment_output_file_prefix)
-
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ reads_file, mergedContig_fasta_filename, mergedContig_gtf_filename ],
-                                                   lstr_cur_products = [ alignment_output_file_prefix + ".cSorted.bam" ] ) )
-            
-
-
-            ## convert the reads bam file to bed format
-            cmdstr = str(TRINITY_HOME + "/util/misc/SAM_pair_to_bed.pl " + alignment_output_file_prefix + ".cSorted.bam" +
-                         " > " + alignment_output_file_prefix + ".bed")
-
-            lcmd_commands.append( Command.Command ( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ alignment_output_file_prefix + ".cSorted.bam" ],
-                                                   lstr_cur_products = [ alignment_output_file_prefix + ".bed" ] ) )
-
-
-            # filter out the reads that arent mapping to the corresponding fusion contig
-
-            cmdstr = str(UTILDIR + "/restrict_bed_to_fusion_contig_mappings.pl " +
-                         alignment_output_file_prefix + ".bed" + " > " + alignment_output_file_prefix + ".filtered.bed")
-
-            lcmd_commands.append( Command.Command ( str_cur_command = cmdstr,
-                                                    lstr_cur_dependencies = [ alignment_output_file_prefix + ".bed" ],
-                                                    lstr_cur_products = [ alignment_output_file_prefix + ".filtered.bed" ] ) )
-
-
-            self.sort_and_index_bed(alignment_output_file_prefix + ".filtered.bed", lcmd_commands)
-
-
-        return
-    
-    
-    
-
     def add_trinfusion_gmap_subpipe(self, args_parsed, mergedContig_fasta_filename, mergedContig_gtf_filename, trinity_fasta_filename, lcmd_commands, workdir):
 
         gmap_gff3_output_filename = os.sep.join([workdir, args_parsed.out_prefix + ".gmap_trinity_GG.gff3"])
@@ -916,7 +876,7 @@ class FusionInspector( ParentScript.ParentScript ):
 def ensure_full_path(file_or_dir):
 
     if file_or_dir[0] != '/' :
-        file_or_dir = os.getcwd() + "/" + file_or_dir
+        file_or_dir = os.path.abspath(file_or_dir)
 
     return(file_or_dir)
 
