@@ -153,7 +153,9 @@ main: {
         . " --limitBAMsortRAM 20000000000";
 
     if ($patch) {
-        $cmd .= " --genomeFastaFiles $patch --outSAMfilter KeepOnlyAddedReferences ";
+        $cmd .= " --genomeFastaFiles $patch "
+            #. " --outSAMfilter KeepOnlyAddedReferences "
+            ;
     }
     if ($gtf_file) {
         $cmd .= " --sjdbGTFfile $gtf_file ";

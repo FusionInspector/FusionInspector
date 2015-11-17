@@ -5,7 +5,7 @@ use warnings;
 use FindBin;
 use lib ("$FindBin::Bin/../PerlLib");
 use __GLOBALS__;
-use FusionAnnotator;
+
 
 my $usage = "\n\tusage: $0 junction_info_A.txt,[junction_info_B.txt,...] spanning_info_A.txt,[spanning_info_B.txt,...]\n\n";
 
@@ -79,11 +79,8 @@ main: {
         my ($geneA, $local_brkpt_A, $chr_brkpt_A, $geneB, $local_brkpt_B, $chr_brkpt_B) = split(/\t/, $fusion);
         
         
-        my @annots = &FusionAnnotator::get_annotations($geneA, $geneB);
-        unless (@annots) {
-            @annots = ("."); # put in a placeholder
-        }
-
+        my @annots = ("."); # put in a placeholder
+        
 
         print join("\t", $fusion, $num_junction_reads, $num_spanning_reads,
                    join(",", @junction_reads),
