@@ -114,8 +114,10 @@ main: {
     my $star_index = "$genome.star.idx";
     if ($prep_reference_only) {
         ## build star index
-        mkdir($star_index) or die "Error, cannot mkdir $star_index";
-                
+        unless (-d $star_index) {
+            mkdir($star_index) or die "Error, cannot mkdir $star_index";
+        }
+        
         my $cmd = "$star_prog --runThreadN $CPU --runMode genomeGenerate --genomeDir $star_index "
             # . " --twopassMode Basic "
             . " --genomeFastaFiles $genome "
