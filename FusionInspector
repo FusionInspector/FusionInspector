@@ -284,7 +284,7 @@ class FusionInspector( ParentScript.ParentScript ):
 
         if (re.search("orig", args_parsed.align_utils, re.IGNORECASE)): # earlier way of using STAR
             
-            filter_FP_reads_flag = False # unnecessary due to whole genome search integration
+            filter_FP_reads_flag = True
 
             ###############
             ## Create a combined hg19 + fusion-genome for STAR
@@ -321,7 +321,7 @@ class FusionInspector( ParentScript.ParentScript ):
             
             # do alignment
             
-            cmdstr = str(UTILDIR + "/run_STAR.pl --genome " + star_target_genome_filename +
+            cmdstr = str(UTILDIR + "/run_FI_STAR.pl --genome " + star_target_genome_filename +
                          " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\"" +
                          " -G " + workdir_mergedContig_gtf_filename + " --CPU 4 " +  
                          " --out_prefix " + args_parsed.out_prefix + ".star"
