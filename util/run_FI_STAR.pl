@@ -156,7 +156,7 @@ main: {
 
     if ($patch) {
         $cmd .= " --genomeFastaFiles $patch "
-            #. " --outSAMfilter KeepOnlyAddedReferences "
+            . " --outSAMfilter KeepOnlyAddedReferences "
             ;
     }
     if ($gtf_file) {

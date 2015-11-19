@@ -236,7 +236,7 @@ class FusionInspector( ParentScript.ParentScript ):
 
         if (re.search("STAR", args_parsed.align_utils, re.IGNORECASE)):
         
-            filter_FP_reads_flag = False # unnecessary due to whole genome search integration
+            filter_FP_reads_flag = True
 
             ###############
             ## patched fusion-genome for STAR
@@ -259,8 +259,6 @@ class FusionInspector( ParentScript.ParentScript ):
                                                                              workdir_mergedContig_gtf_filename,
                                                                              workdir_mergedContig_fasta_filename],
                                                    lstr_cur_products = [ star_bam_file ] ) )
-
-
 
             
             # remove duplicate reads
