@@ -656,9 +656,18 @@ class FusionInspector( ParentScript.ParentScript ):
         lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                lstr_cur_dependencies = [ final_fusions_file + ".final" ],
                                                lstr_cur_products = [ final_fusions_file + ".final.abridged"] ) )
+
+        ## add FFPM calculations
+        cmdstr = str( os.path.sep.join([UTILDIR, "incorporate_FFPM_into_final_report.pl"]) +
+                      " " + args_parsed.left_fq_filename +
+                      " " + final_fusions_file + ".final.abridged" +
+                      " > " + final_fusions_file + ".final.abridged.FFPM" )
+        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                               lstr_cur_dependencies = [ final_fusions_file + ".final.abridged",
+                                                                         args_parsed.left_fq_filename ],
+                                               lstr_cur_products = [ final_fusions_file + ".final.abridged.FFPM" ] ) )
         
-
-
+        
         if args_parsed.prep_for_IGV:
             ## generate the fusion-inspector-web galaxy js 
 
