@@ -64,16 +64,23 @@ main: {
         }
 
         my @x = split(/\t/, $line);
+        my $splice_type = $x[6];
         my $J = $x[7];
         my $S = $x[8];
-        my $splice_type = $x[6];
+        my $large_breakpoint_anchored = $x[9];
 
         if ($splice_type ne 'ONLY_REF_SPLICE') {
-            unless ($J >= $min_novel_junction_support) {
+            unless ($J >= $min_novel_junction_support && $large_breakpoint_anchored eq 'YES') {
                 next;
             }
         }
 
+        # require big anchors when no spanning support exists.
+        if ($S == 0 && $large_breakpoint_anchored eq 'NO') {
+            next;
+        }
+        
+        
         my $sum_JS = $J + $S;
         
         if ($J >= $min_junction_reads && $sum_JS >= $min_sum_frags) {

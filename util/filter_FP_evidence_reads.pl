@@ -436,9 +436,9 @@ sub parse_junction_and_spanning_reads {
         chomp;
         if (/^\#/) { next; }
         my @x = split(/\t/);
-        my $junc_reads_list = $x[9];
-        my $spanning_frag_list = $x[10];
-
+        my $junc_reads_list = $x[10];
+        my $spanning_frag_list = $x[11];
+        
         foreach my $junc_read (split(/,/, $junc_reads_list)) {
             $junction_reads_href->{$junc_read}++;
         }
@@ -495,8 +495,11 @@ sub exclude_FP_junction_and_spanning_reads {
         
         my $PSEUDOCOUNT = 1;
         
-        my $num_left_contrary_reads = $x[11];
-        my $num_right_contrary_reads = $x[13];
+        my $num_left_contrary_reads = $x[12];
+        my $num_right_contrary_reads = $x[14];
+
+
+        ## Warning - TAF info isn't going to be correct when running STAR in patch mode, since multiple mappers will be exluded from output.
         
         my $TAF_left = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) / ($num_left_contrary_reads + $PSEUDOCOUNT);
         $TAF_left = sprintf("%.2f", $TAF_left);
@@ -504,8 +507,8 @@ sub exclude_FP_junction_and_spanning_reads {
         my $TAF_right = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) / ($num_right_contrary_reads + $PSEUDOCOUNT);
         $TAF_right = sprintf("%.2f", $TAF_right);
         
-        $x[15] = $TAF_left;
-        $x[16] = $TAF_right;
+        $x[16] = $TAF_left;
+        $x[17] = $TAF_right;
         
         
         my $pct_filtered_junction = 0;
@@ -527,14 +530,14 @@ sub exclude_FP_junction_and_spanning_reads {
         #add % filtered annotation
         if ($pct_filtered_junction > 0 || $pct_filtered_spanning > 0) {
             # add to annotations
-            if ($x[17] eq ".") {
-                $x[17] = "";
+            if ($x[18] eq ".") {
+                $x[18] = "";
             }
             else {
-                $x[17] .= ",";
+                $x[18] .= ",";
             }
             
-            $x[17] .= "PctFiltJ[$pct_filtered_junction],PctFiltS[$pct_filtered_spanning]";
+            $x[18] .= "PctFiltJ[$pct_filtered_junction],PctFiltS[$pct_filtered_spanning]";
         }
         
         # report entry

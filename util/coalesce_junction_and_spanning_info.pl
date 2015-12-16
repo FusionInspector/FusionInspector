@@ -3,8 +3,9 @@
 use strict;
 use warnings;
 use FindBin;
+use Carp;
 use lib ("$FindBin::Bin/../PerlLib");
-use __GLOBALS__;
+#use __GLOBALS__;
 
 
 my $usage = "\n\tusage: $0 junction_info_A.txt,[junction_info_B.txt,...] spanning_info_A.txt,[spanning_info_B.txt,...]\n\n";
@@ -17,22 +18,24 @@ my $PSEUDOCOUNT = 1;
 main: {
 
     my %fusion_info;
+    my %fusion_large_breakpoint_anchored;
 
     foreach my $junction_info_file (split(/,/, $junction_info_file_list)) {
 
-        &parse_info_file(\%fusion_info, "junction", $junction_info_file);
+        &parse_junction_info_file(\%fusion_info, "junction", $junction_info_file, \%fusion_large_breakpoint_anchored);
     }
     
     foreach my $spanning_info_file (split(/,/, $spanning_info_file_list)) {
 
-        &parse_info_file(\%fusion_info, "spanning", $spanning_info_file);
+        &parse_spanning_info_file(\%fusion_info, "spanning", $spanning_info_file);
 
     }
-
+    
     # generate coalesced view:
     print join("\t", "#geneA", "local_brkpt_A", "chr_brkpt_A", 
                "geneB", "local_brkpt_B", "chr_brkpt_B", "splice_type",
-               "junction_count", "spanning_count", "junction_reads", "spanning_reads", 
+               "junction_count", "spanning_count", "has_large_anchor_junction_support", 
+               "junction_reads", "spanning_reads", 
                "num_left_contrary_reads", "left_contrary_reads",
                "num_right_contrary_reads", "right_contrary_reads",
                "TAF_left", "TAF_right", "fusion_annotations") . "\n";
@@ -40,17 +43,19 @@ main: {
     foreach my $fusion (keys %fusion_info) {
         my @junction_reads = keys %{$fusion_info{$fusion}->{'junction'}};
 
+        my $has_large_anchor_junction_support = $fusion_large_breakpoint_anchored{$fusion} or confess "Error, missing indicator of large_breakpoint_anchor_support";
+        
         my @spanning_reads;
         if (exists $fusion_info{$fusion}->{'spanning'}) {
             @spanning_reads = keys %{$fusion_info{$fusion}->{'spanning'}};
         
             @spanning_reads = &remove_residual_junction_from_spanning_reads(\@junction_reads, \@spanning_reads);
-
+            
         }
-
+        
         my $num_junction_reads = scalar(@junction_reads);
         my $num_spanning_reads = scalar(@spanning_reads);
-
+        
         my @left_contrary_reads;
         if (exists $fusion_info{$fusion}->{'spanning-left_contrary_support'}) {
             @left_contrary_reads = keys %{$fusion_info{$fusion}->{'spanning-left_contrary_support'}};
@@ -80,9 +85,10 @@ main: {
         
         
         my @annots = ("."); # put in a placeholder
-        
 
-        print join("\t", $fusion, $num_junction_reads, $num_spanning_reads,
+        
+        print join("\t", $fusion, # remember, fusion here is a collection of tab-delim fields
+                   $num_junction_reads, $num_spanning_reads, $has_large_anchor_junction_support,
                    join(",", @junction_reads),
                    join(",", @spanning_reads),
                    $num_left_contrary_reads,
@@ -104,7 +110,32 @@ main: {
 
 
 ####
-sub parse_info_file {
+sub parse_junction_info_file {
+    my ($fusion_info_href, $fusion_read_type, $file, $fusion_large_breakpoint_anchored_href) = @_;
+
+    open (my $fh, $file) or die "Error, cannot open file $file";
+    while (<$fh>) {
+        chomp;
+        my ($geneA, $coordA, $orig_coordA, $geneB, $coordB, $orig_coordB, $splice_info, $count, $has_large_anchors, $read_list) = split(/\t/);
+        
+        my $fusion_token = join("\t", $geneA, $coordA, $orig_coordA, $geneB, $coordB, $orig_coordB, $splice_info);
+        
+        foreach my $read (split(/,/, $read_list)) {
+
+            $fusion_info_href->{$fusion_token}->{$fusion_read_type}->{$read}++;
+        }
+        
+        $fusion_large_breakpoint_anchored_href->{$fusion_token} = $has_large_anchors;
+    }
+    close $fh;
+    
+    return;
+}
+
+
+
+####
+sub parse_spanning_info_file {
     my ($fusion_info_href, $fusion_read_type, $file) = @_;
 
     open (my $fh, $file) or die "Error, cannot open file $file";

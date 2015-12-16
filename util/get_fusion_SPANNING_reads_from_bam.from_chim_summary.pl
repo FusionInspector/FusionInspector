@@ -9,12 +9,61 @@ use lib ("$FindBin::Bin/../PerlLib");
 use SAM_reader;
 use SAM_entry;
 use Data::Dumper;
+use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 
-my $usage = "\n\n\tusage: $0 genePairContig.gtf read_alignments.bam bam.fusion_junction_info\n\n\n";
 
-my $gtf_file = $ARGV[0] or die $usage;
-my $bam_file = $ARGV[1] or die $usage;
-my $junction_info_file = $ARGV[2] or die $usage; # ignore these among the spanning reads
+my $gtf_file;
+my $bam_file;
+my $junction_info_file;
+
+my $MAX_END_CLIP = 10;
+my $MAX_MISMATCHES = 2;
+
+my $usage = <<__EOUSAGE__;
+
+###############################################################
+#
+# Required:
+#
+#  --gtf_file <string>         genePairContig.gtf
+#  --bam <string>              read_alignments.bam
+#  --junction_info <string>    bam.fusion_junction_info
+#
+# Optional:
+#
+#  --MAX_MISMATCHES <int>     default: $MAX_MISMATCHES
+#  --MAX_END_CLIP <int>       default: $MAX_END_CLIP
+#
+##############################################################
+
+__EOUSAGE__
+
+    ;
+
+my $help_flag;
+
+&GetOptions('help|h' => \$help_flag,
+            
+            'gtf_file=s' => \$gtf_file,
+            'bam_file=s' => \$bam_file,
+            'junction_info=s' => \$junction_info_file,
+            
+            'MAX_MISMATCHES=i' => \$MAX_MISMATCHES,
+            'MAX_END_CLIP=i' => \$MAX_END_CLIP,
+            
+    );
+
+if ($help_flag) {
+    die $usage;
+}
+
+unless ($gtf_file && $bam_file) {
+    die $usage;
+}
+
+
+
+
 
 main: {
 
@@ -106,6 +155,24 @@ main: {
             
             #print STDERR Dumper($sam_entry);
 
+            ## examine number of mismatches in read alignment
+            my $line = $sam_entry->get_original_line();
+            if ($line =~ /NM:i:(\d+)/) {
+                my $mismatch_count = $1;
+                if ($mismatch_count > $MAX_MISMATCHES) {
+                    next;
+                }
+            }
+
+            ## check end clipping of alignment
+            my $cigar = $sam_entry->get_cigar_alignment();
+            if ($cigar =~ /^(\d+)[SH]/) {
+                my $clip_len = $1;
+                if ($clip_len > $MAX_END_CLIP) {
+                    next;
+                }
+            }
+                        
             my $qual_val = $sam_entry->get_mapping_quality();
             #unless ($qual_val >= $MIN_QUALITY) { next; }
             

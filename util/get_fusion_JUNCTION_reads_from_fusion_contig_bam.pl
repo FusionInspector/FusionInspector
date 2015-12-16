@@ -10,27 +10,69 @@ use SAM_entry;
 use Carp;
 use Data::Dumper;
 use Set::IntervalTree;
+use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 
 
-
-my $MIN_JUNCTION_READ_SEGMENT_LENGTH = 12;
+my $MIN_SMALL_ANCHOR = 12;
+my $MAX_MISMATCHES = 2;
+my $MIN_LARGE_ANCHOR = 25;
+my $MAX_END_CLIP = 3;
 
 my $DEBUG = 0;
 
-my $usage = "\n\n\tusage: $0 genePairContig.gtf read_alignments.bam\n\n\n";
+my $usage = <<__EOUSAGE__;
 
-my $gtf_file = $ARGV[0] or die $usage;
-my $bam_file = $ARGV[1] or die $usage;
+###############################################################
+#
+# Required:
+#
+#  --gtf_file <string>     genePairContig.gtf
+#  --bam <string>          read_alignments.bam
+#
+# Optional:
+#
+#  --MAX_MISMATCHES <int>     default: $MAX_MISMATCHES
+#  --MIN_SMALL_ANCHOR <int>   default: $MIN_SMALL_ANCHOR
+#  --MIN_LARGE_ANCHOR <int>   default: $MIN_LARGE_ANCHOR
+#  --MAX_END_CLIP <int>       default: $MAX_END_CLIP
+#
+##############################################################
+
+
+__EOUSAGE__
+
+    ;
+
+
+my $gtf_file;
+my $bam_file;
+my $help_flag;
+
+&GetOptions('help|h' => \$help_flag,
+            'gtf_file=s' => \$gtf_file,
+            'bam_file=s' => \$bam_file,
+
+            'MAX_MISMATCHES=i' => \$MAX_MISMATCHES,
+            'MAX_END_CLIP=i' => \$MAX_END_CLIP,
+            'MIN_SMALL_ANCHOR=i' => \$MIN_SMALL_ANCHOR,
+            'MIN_LARGE_ANCHOR=i' => \$MIN_LARGE_ANCHOR,
+    );
+
+if ($help_flag) {
+    die $usage;
+}
+
+unless ($gtf_file && $bam_file) {
+    die $usage;
+}
+
 
 main: {
     
     my %scaffold_itree_to_exon_structs;
     print STDERR "-parsing GTF file: $gtf_file\n";
     my %scaffold_to_gene_structs = &parse_gtf_file($gtf_file, \%scaffold_itree_to_exon_structs);
-
-    
         
-    
     print STDERR Dumper(\%scaffold_to_gene_structs) if $DEBUG;
     
     my $prev_scaff = "";
@@ -39,16 +81,34 @@ main: {
     
 
     my %fusion_junctions;
-
-
+    my %fusion_large_anchors;
+    
     my $counter = 0;
     ## find the reads that matter:
     my $sam_reader = new SAM_reader($bam_file);
     while (my $sam_entry = $sam_reader->get_next()) {
-        
+            
         $counter++;
         if ($counter % 10000 == 0) { 
             print STDERR "\r[$counter]   ";
+        }
+
+        ## examine number of mismatches in read alignment
+        my $line = $sam_entry->get_original_line();
+        if ($line =~ /NM:i:(\d+)/) {
+            my $mismatch_count = $1;
+            if ($mismatch_count > $MAX_MISMATCHES) {
+                next;
+            }
+        }
+        
+        ## check end clipping of alignment
+        my $cigar = $sam_entry->get_cigar_alignment();
+        if ($cigar =~ /^(\d+)[SH]/) {
+            my $clip_len = $1;
+            if ($clip_len > $MAX_END_CLIP) {
+                next;
+            }
         }
         
         my $read_name = $sam_entry->reconstruct_full_read_name();
@@ -109,20 +169,28 @@ main: {
                 
                 print STDERR "LEFT_read_seg: $left_brkpt_length, RIGHT_read_seg: $right_brkpt_length\n" if $DEBUG;
 
-                if ($left_brkpt_length >= $MIN_JUNCTION_READ_SEGMENT_LENGTH
+                if ($left_brkpt_length >= $MIN_SMALL_ANCHOR
                     &&
-                    $right_brkpt_length >= $MIN_JUNCTION_READ_SEGMENT_LENGTH) {
+                    $right_brkpt_length >= $MIN_SMALL_ANCHOR) {
                     # calling it a fusion read.
                     
                     push (@{$fusion_junctions{$junction_coord_token}}, $read_name);
                     print $sam_entry->get_original_line() . "\n";
+                
+                    if ($left_brkpt_length >= $MIN_LARGE_ANCHOR) {
+                        $fusion_large_anchors{$junction_coord_token}->{LEFT_LARGE_ANCHOR}++;
+                    }
+                    if ($right_brkpt_length >= $MIN_LARGE_ANCHOR) {
+                        $fusion_large_anchors{$junction_coord_token}->{RIGHT_LARGE_ANCHOR}++;
+                    }
+                    
                 }
                 
             }
         }
         
     }
-
+    
     {
         
         print STDERR "-writing fusion junction support info.\n";
@@ -134,9 +202,16 @@ main: {
         my @fusion_j = reverse sort { $#{$fusion_junctions{$a}} <=> $#{$fusion_junctions{$b}} } keys %fusion_junctions;
         foreach my $fusion (@fusion_j) {
             my @reads = @{$fusion_junctions{$fusion}};
-            my $num_fusions = scalar @reads;
+            my $num_fusion_reads = scalar @reads;
 
-            print $ofh "$fusion\t$num_fusions\t" . join(",", @reads) . "\n";
+            my $LARGE_ANCHOR_BOTH_ENDS = ($fusion_large_anchors{$fusion}->{LEFT_LARGE_ANCHOR}
+                                          &&
+                                          $fusion_large_anchors{$fusion}->{RIGHT_LARGE_ANCHOR})
+                ? "YES"
+                : "NO";
+            
+            
+            print $ofh "$fusion\t$num_fusion_reads\t$LARGE_ANCHOR_BOTH_ENDS\t" . join(",", @reads) . "\n";
         }
         close $ofh;
     }
