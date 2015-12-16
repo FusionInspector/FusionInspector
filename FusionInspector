@@ -236,7 +236,7 @@ class FusionInspector( ParentScript.ParentScript ):
 
         if (re.search("STAR", args_parsed.align_utils, re.IGNORECASE)):
         
-            filter_FP_reads_flag = True
+            filter_FP_reads_flag = False #True
 
             ###############
             ## patched fusion-genome for STAR
