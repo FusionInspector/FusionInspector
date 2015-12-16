@@ -50,7 +50,7 @@ my $help_flag;
 
 &GetOptions('help|h' => \$help_flag,
             'gtf_file=s' => \$gtf_file,
-            'bam_file=s' => \$bam_file,
+            'bam=s' => \$bam_file,
 
             'MAX_MISMATCHES=i' => \$MAX_MISMATCHES,
             'MAX_END_CLIP=i' => \$MAX_END_CLIP,

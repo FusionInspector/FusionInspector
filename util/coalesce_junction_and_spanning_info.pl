@@ -43,7 +43,7 @@ main: {
     foreach my $fusion (keys %fusion_info) {
         my @junction_reads = keys %{$fusion_info{$fusion}->{'junction'}};
 
-        my $has_large_anchor_junction_support = $fusion_large_breakpoint_anchored{$fusion} or confess "Error, missing indicator of large_breakpoint_anchor_support";
+        my $has_large_anchor_junction_support = $fusion_large_breakpoint_anchored{$fusion} || "NO";
         
         my @spanning_reads;
         if (exists $fusion_info{$fusion}->{'spanning'}) {

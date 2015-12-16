@@ -464,8 +464,8 @@ sub exclude_FP_junction_and_spanning_reads {
         if (/^\#/) { print; next; }
         chomp;
         my @x = split(/\t/);
-        my $junc_reads_list = $x[9];
-        my $spanning_frag_list = $x[10];
+        my $junc_reads_list = $x[10];
+        my $spanning_frag_list = $x[11];
 
         my @adj_junc_reads;
         foreach my $junc_read (split(/,/, $junc_reads_list)) {
@@ -483,8 +483,8 @@ sub exclude_FP_junction_and_spanning_reads {
 
         ## adjust the stats based on the adjusted evidence counts.
         
-        $x[9] = join(",", @adj_junc_reads);
-        $x[10] = join(",", @adj_spanning_frags);
+        $x[10] = join(",", @adj_junc_reads);
+        $x[11] = join(",", @adj_spanning_frags);
         
         my $orig_junc_read_count = $x[7];
         my $orig_span_frag_count = $x[8];

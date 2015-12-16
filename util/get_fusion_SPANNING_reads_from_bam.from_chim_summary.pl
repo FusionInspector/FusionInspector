@@ -45,7 +45,7 @@ my $help_flag;
 &GetOptions('help|h' => \$help_flag,
             
             'gtf_file=s' => \$gtf_file,
-            'bam_file=s' => \$bam_file,
+            'bam=s' => \$bam_file,
             'junction_info=s' => \$junction_info_file,
             
             'MAX_MISMATCHES=i' => \$MAX_MISMATCHES,
