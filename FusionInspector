@@ -6,6 +6,7 @@ __example__ = "FusionInspector --left_fq ../BT474--ACACA--STAC2.left.fq --right_
 
 import os, re, sys
 sys.path.append(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR"]))
+sys.path.append(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR/sciedpiper"]))
 import sciedpiper.Command as Command
 import sciedpiper.ParentScript as ParentScript
 
@@ -87,7 +88,14 @@ class FusionInspector( ParentScript.ParentScript ):
         
         cur_pipeline.func_check_files_exist( [ args_parsed.left_fq_filename, args_parsed.right_fq_filename,
                                                args_parsed.gtf_filename, args_parsed.genome_fasta_filename,
-                                               args_parsed.left_fq_filename, args_parsed.right_fq_filename] )
+                                               args_parsed.left_fq_filename, args_parsed.right_fq_filename,
+                                               args_parsed.chim_summary_files] )
+
+
+        # if the list of fusion contigs is empty, just gracefully exit.
+        if os.stat(args_parsed.chim_summary_files).st_size == 0:
+            print >>sys.stderr, "No list of fusions are provided in the file: " + args_parsed.chim_summary_files
+            sys.exit(0)
         
         ## Construct the list of pipeline commands
         
@@ -452,9 +460,9 @@ class FusionInspector( ParentScript.ParentScript ):
         fusion_summary_min_score_thresh_file = fusion_summary_file + ".min_frag_thresh"
 
         filter_by_frag_thresh_cmd = str(os.sep.join([UTILDIR, "filter_fusions_by_frag_thresholds.pl"]) +
-                                        " --min_junction_reads " + `args_parsed.min_junction_reads` +
-                                        " --min_sum_frags " + `args_parsed.min_sum_frags` +
-                                        " --min_novel_junction_support " + `args_parsed.min_novel_junction_support` +
+                                        " --min_junction_reads " + str(args_parsed.min_junction_reads) +
+                                        " --min_sum_frags " + str(args_parsed.min_sum_frags) +
+                                        " --min_novel_junction_support " + str(args_parsed.min_novel_junction_support) +
                                         " --fusion_preds " + fusion_summary_file +
                                         " > " + fusion_summary_min_score_thresh_file)
 
@@ -640,8 +648,8 @@ class FusionInspector( ParentScript.ParentScript ):
         cmdstr = str(UTILDIR + "/BLASTN.filter.pl --fusion_preds " + fusion_summary_min_score_thresh_file +
                      " --out_prefix " + final_fusions_file +
                      " --genome_lib_dir " + args_parsed.genome_lib_dir +
-                     " --max_promiscuity " + `args_parsed.max_promiscuity` +
-                     " -E " + `args_parsed.Evalue`)
+                     " --max_promiscuity " + str(args_parsed.max_promiscuity) +
+                     " -E " + str(args_parsed.Evalue) )
                 
         lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                lstr_cur_dependencies = [ fusion_summary_min_score_thresh_file ],
