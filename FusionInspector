@@ -85,18 +85,28 @@ class FusionInspector( ParentScript.ParentScript ):
         cur_pipeline.func_mkdirs( [ args_parsed.out_dirname, workdir ] )
 
         
+        chim_summary_files_list = args_parsed.chim_summary_files.split(",")
+        
+        chim_summary_files_adj = []
+        for chim_summary_file in chim_summary_files_list:
+            if os.stat(chim_summary_file).st_size == 0:
+                print >>sys.stderr, "Warning: No list of fusions in file: %s" % chim_summary_file
+            else:
+                chim_summary_files_adj.append(chim_summary_file)
+
+        chim_summary_files_list = chim_summary_files_adj
+
+        if not chim_summary_files_list:
+            print >>sys.stderr, "All fusion files: %s are empty. Exiting gracefully." % args_parsed.chim_summary_files
+            sys.exit(0)
+
         
         cur_pipeline.func_check_files_exist( [ args_parsed.left_fq_filename, args_parsed.right_fq_filename,
                                                args_parsed.gtf_filename, args_parsed.genome_fasta_filename,
-                                               args_parsed.left_fq_filename, args_parsed.right_fq_filename,
-                                               args_parsed.chim_summary_files] )
-
-
-        # if the list of fusion contigs is empty, just gracefully exit.
-        if os.stat(args_parsed.chim_summary_files).st_size == 0:
-            print >>sys.stderr, "No list of fusions are provided in the file: " + args_parsed.chim_summary_files
-            sys.exit(0)
+                                               args_parsed.left_fq_filename, args_parsed.right_fq_filename] +
+                                             chim_summary_files_list )
         
+
         ## Construct the list of pipeline commands
         
         lcmd_commands = []
