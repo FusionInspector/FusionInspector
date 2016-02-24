@@ -1,5 +1,6 @@
 # FusionInspector
-FusionInspector code
 
+All documentation is available via the wiki:
 
-Documentation coming soon.
+<https://github.com/FusionInspector/FusionInspector/wiki>
+
