@@ -700,7 +700,7 @@ class FusionInspector( ParentScript.ParentScript ):
             
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                    lstr_cur_dependencies = [args_parsed.out_dirname],
-                                                   lstr_cur_products = [ os.path.sep.join([args_parsed.out_dirname, "fusion_inspector_web.json"]) ] ) )
+                                                   lstr_cur_products = [ os.path.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".fusion_inspector_web.json"]) ] ) )
 
         
 
