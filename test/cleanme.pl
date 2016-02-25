@@ -21,6 +21,7 @@ my @files_to_keep = qw (cleanme.pl
 
 runMe.hisat.pl
 runMe.ALL.pl
+README.txt
                         );
 
 

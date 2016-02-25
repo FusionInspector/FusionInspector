@@ -10,10 +10,6 @@ import sys
 # Argument
 C_ARG_INCLUDE_TRINITY = "--include_Trinity"
 
-# Include Trinity related files
-C_STR_INCLUDE_TRINITY_BED = "finspector.gmap_trinity_GG.fusions.gff3.bed.sorted.bed"
-C_STR_INCLUDE_TRINITY_BED_GZ = "finspector.gmap_trinity_GG.fusions.gff3.bed.sorted.bed.gz"
-
 # Constants keys in JSON file
 C_REFERENCE = "reference"
 C_REFERENCE_INDEX = "referenceIndex"
@@ -84,29 +80,61 @@ convert_header_to_eng = {
     C_PRED_RIGHT_BREAK_POINT : C_PRED_RIGHT_BREAK_POINT_ENG
 }
 
-arguments = argparse.ArgumentParser( prog = "Fusion Inspector JSON Maker", description = "Makes a JSON file for a directory of results from fusion inspector", formatter_class = argparse.ArgumentDefaultsHelpFormatter )
-arguments.add_argument( C_ARG_INCLUDE_TRINITY, dest="f_include_trinity", action="store_true", help = "Adds the gmap_trinity_GG bed file to the json for viewing." )
-arguments.add_argument( dest="fusion_inspector_directory", help = "The input directory to create the json from; this folder should contain the finspector.fusion_predictions.final.abridged file")
-arguments.add_argument( dest="output_json_file", help = "The output json file to create" )
+arguments = argparse.ArgumentParser( prog = "Fusion Inspector JSON Maker",
+                                     description = "Makes a JSON file for a directory of results from fusion inspector",
+                                     formatter_class = argparse.ArgumentDefaultsHelpFormatter )
+
+arguments.add_argument( C_ARG_INCLUDE_TRINITY,
+                        dest="f_include_trinity",
+                        action="store_true",
+                        help = "Adds the gmap_trinity_GG bed file to the json for viewing." )
+
+arguments.add_argument( "--fusion_inspector_directory",
+                        dest="fusion_inspector_directory",
+                        required=True,
+                        type=str,
+                        help = "The input directory to create the json from; this folder should " +
+                        "contain the finspector.fusion_predictions.final.abridged file")
+
+arguments.add_argument("--json_outfile",
+                       dest="output_json_file",
+                       required=True,
+                       type=str,
+                       help = "The output json file to create" )
+
+arguments.add_argument("--file_prefix",
+                       dest = "file_prefix",
+                       required=True,
+                       type=str,
+                       help="prefix to FusionInspector output files")
+
+
 args = arguments.parse_args()
 
 # Make sure the input directory is an absolute path
 absolute_fusion_directory = os.path.abspath( args.fusion_inspector_directory )
 
+file_prefix = args.file_prefix
+
+# Include Trinity related files
+C_STR_INCLUDE_TRINITY_BED = file_prefix + ".gmap_trinity_GG.fusions.gff3.bed.sorted.bed"
+C_STR_INCLUDE_TRINITY_BED_GZ = file_prefix + ".gmap_trinity_GG.fusions.gff3.bed.sorted.bed.gz"
+
+
 # Dict to be translated to JSON object
 dict_json = {}
-dict_json[ C_REFERENCE ] = "finspector.fa"
-dict_json[ C_REFERENCE_INDEX ] = "finspector.fa.fai"
+dict_json[ C_REFERENCE ] = file_prefix + ".fa"
+dict_json[ C_REFERENCE_INDEX ] = file_prefix + ".fa.fai"
 dict_json[ C_CYTOBAND ] = "cytoBand.txt"
-dict_json[ C_REFERENCE_BED ] = "finspector.bed"
-dict_json[ C_JUNCTION_SPANNING ] = "finspector.igv.FusionJuncSpan"
+dict_json[ C_REFERENCE_BED ] = file_prefix + ".bed"
+dict_json[ C_JUNCTION_SPANNING ] = file_prefix + ".igv.FusionJuncSpan"
 dict_json[ C_TRINITY_BED ] = C_STR_INCLUDE_TRINITY_BED if args.f_include_trinity else "NA"
-dict_json[ C_JUNCTION_READS ] = "finspector.junction_reads.bam.bed.sorted.bed.gz"
-dict_json[ C_JUNCTION_READS_BAM ] = "finspector.junction_reads.bam"
-dict_json[ C_JUNCTION_READS_BAI ] = "finspector.junction_reads.bam.bai"
-dict_json[ C_SPANNING_READS ] = "finspector.spanning_reads.bam.bed.sorted.bed.gz"
-dict_json[ C_SPANNING_READS_BAM ] = "finspector.spanning_reads.bam"
-dict_json[ C_SPANNING_READS_BAI ] = "finspector.spanning_reads.bam.bai"
+dict_json[ C_JUNCTION_READS ] = file_prefix + ".junction_reads.bam.bed.sorted.bed.gz"
+dict_json[ C_JUNCTION_READS_BAM ] = file_prefix + ".junction_reads.bam"
+dict_json[ C_JUNCTION_READS_BAI ] = file_prefix + ".junction_reads.bam.bai"
+dict_json[ C_SPANNING_READS ] = file_prefix + ".spanning_reads.bam.bed.sorted.bed.gz"
+dict_json[ C_SPANNING_READS_BAM ] = file_prefix + ".spanning_reads.bam"
+dict_json[ C_SPANNING_READS_BAI ] = file_prefix + ".spanning_reads.bam.bai"
 #dict_json[ C_SAMPLE_NAME ] = os.path.basename( args.fusion_inspector_directory ) 
 dict_json[ C_FUSION_DETAIL ] = []
 
@@ -125,7 +153,7 @@ if args.f_include_trinity:
             exit( -1 )
 
 # Make fusion detail
-with open( os.path.join( absolute_fusion_directory, "finspector.fusion_predictions.final.abridged" ), "r" ) as fusion_detail_contents:
+with open( os.path.join( absolute_fusion_directory, file_prefix + ".fusion_predictions.final.abridged" ), "r" ) as fusion_detail_contents:
     fusion_detail_parsed = csv.reader( fusion_detail_contents, delimiter = "\t" )
 
     # Get indices of the columns of interest, if they do not exist error.
