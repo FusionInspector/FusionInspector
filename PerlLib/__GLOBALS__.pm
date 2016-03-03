@@ -9,7 +9,7 @@ our @ISA = qw(Exporter);
 
 our @EXPORT = qw($TRINITY_HOME);
 
-our ($TRINITY_HOME, $FUSION_ANNOTATOR_LIB);
+our ($TRINITY_HOME);
 
 
 
