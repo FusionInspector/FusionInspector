@@ -63,6 +63,7 @@ sub write_fastq_files {
     while (my $fq_record = $fastq_reader->next()) {
         
         my $core_read_name = $fq_record->get_core_read_name();
+        #print "[$core_read_name]\n";
         
         if (my $fusion_name = $core_frag_name_to_fusion_name_href->{$core_read_name}) {
 
@@ -92,8 +93,8 @@ sub write_fastq_files {
 sub append_reads_to_fusion {
     my ($fusion_name, $core_frag_name_to_fusion_name_href, $reads_href) = @_;
 
-    foreach my $frag_name (keys %$core_frag_name_to_fusion_name_href) {
-        $reads_href->{$frag_name} = 1;
+    foreach my $frag_name (keys %$reads_href) {
+        $core_frag_name_to_fusion_name_href->{$frag_name} = $fusion_name ;
     }
     
     return;
@@ -111,6 +112,7 @@ sub parse_core_frag_names {
         $core_frag_names{$read_name} = 1;
     }
 
+    
     return(%core_frag_names);
 }
 
