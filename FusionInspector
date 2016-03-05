@@ -73,7 +73,7 @@ class FusionInspector( ParentScript.ParentScript ):
         To know the variables available from command line look in the ParentScript in func_create_arguments.
         """
 
-        if args.version:
+        if args_parsed.version:
             print("\n\nFusionInspector Version: " + VERSION + "\n\n")
             sys.exit(0)
                 
