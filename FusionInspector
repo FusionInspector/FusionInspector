@@ -10,6 +10,9 @@ import sciedpiper.Command as Command
 import sciedpiper.ParentScript as ParentScript
 
 
+VERSION = "v0.5.0"
+
+
 UTILDIR = os.sep.join([os.path.dirname(__file__), "util"])
 
 ## Trinity is required, as we use the kmer counting functionality in the read filter step.
@@ -56,7 +59,8 @@ class FusionInspector( ParentScript.ParentScript ):
         arg_raw.add_argument("--write_intermediate_results", dest="write_intermediate_results", required=False, action="store_true", default=False, help="generate bam, bed, etc., for intermediate aligner outputs")
 
         arg_raw.add_argument("--no_cleanup", dest="no_cleanup", required=False, action="store_true", default=False, help="do not cleanup the fusion inspector workspace, retain intermediate output files")
-        
+
+        arg_raw.add_argument("--version", dest='version', required=False, action='store_true', default=False, help="show version string: " + VERSION)
         
 
     def func_make_commands( self, args_parsed, cur_pipeline ):
@@ -69,6 +73,11 @@ class FusionInspector( ParentScript.ParentScript ):
         To know the variables available from command line look in the ParentScript in func_create_arguments.
         """
 
+        if args.version:
+            print("\n\nFusionInspector Version: " + VERSION + "\n\n")
+            sys.exit(0)
+                
+        
         genome_lib_dir = args_parsed.genome_lib_dir
         genome_lib_dir = ensure_full_path(genome_lib_dir)
         

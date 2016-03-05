@@ -1,0 +1,38 @@
+## FusionInspector Release v0.5.0 (Mar 5, 2016)
+Update to FusionFilter v0.1.0
+removed unnecessary env vars, further cleanup, and documentation in sample data area.
+
+## FusionInspector Release v0.4.2 (Feb 2016)
+Wiki documentation is updated, removed environmental variable requirements that were unnecessary, and added a README.txt
+
+## FusionInspector v0.4.1 (Jan 6, 2016)
+bugfix - fusion spanning and junction read evidence bam files once again written correctly.
+
+## FusionInspector v0.4.0 (Dec 16, 2015)
+Includes FFPM (fusion fragments per million total rna-seq reads) normalized evidence support measurements in the summary output.
+
+Runtimes w/ STAR are now much faster and slightly more sensitive while retaining low false positive rates. Be sure to use the very latest STAR software.
+
+
+## FusionInspector v0.3.3 (Nov 19, 2015)
+includes filtering of repetitive reads
+
+## FusionInspector v0.3.2 (Nov 12, 2015)
+Uses the very latest STAR software, outputs only those alignments corresponding to the fusion contigs.
+
+## FusionInspector v0.3.1 (Nov 8, 2015)
+no longer using kmer read filter when leveraging STAR, as it's unnecessary and just adds to runtime and resource requirements.
+
+## FusionInspector v0.3.0 (Nov 2, 2015)
+Initial release. See wiki for documentation.
+
+## FusionInspector Pre-Release v0.2.0 (Aug 10, 2015)
+Filters out repetitive reads based on kmer composition.
+
+Ensures that the spanning support frags are each entirely mapped separately to the different genes (not involving junction reads) and are actually concordant (not relying on the bit flags that aren't always set according to expectations).
+
+## FusionInspector v0.1.0 Pre-Release (July 21, 2015)
+slimmed down for faster execution, making IGV-prep an option rather than mandatory.
+
+## FusionInspector pre-release v0.0.1 (July 9, 2015)
+First pre-release
