@@ -61,6 +61,8 @@ class FusionInspector( ParentScript.ParentScript ):
         arg_raw.add_argument("--no_cleanup", dest="no_cleanup", required=False, action="store_true", default=False, help="do not cleanup the fusion inspector workspace, retain intermediate output files")
 
         arg_raw.add_argument("--version", dest='version', required=False, action='store_true', default=False, help="show version string: " + VERSION)
+
+        arg_raw.add_argument("--CPU", dest="CPU", required=False, type=int, default=4, help="Number of threads for running the aligner")
         
 
     def func_make_commands( self, args_parsed, cur_pipeline ):
@@ -272,7 +274,7 @@ class FusionInspector( ParentScript.ParentScript ):
                          " --genome " + args_parsed.genome_fasta_filename +
                          " --patch " + workdir_mergedContig_fasta_filename +
                          " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\"" +
-                         " -G " + workdir_mergedContig_gtf_filename + " --CPU 4 " +  
+                         " -G " + workdir_mergedContig_gtf_filename + " --CPU " + str(args_parsed.CPU) +  
                          " --out_prefix " + args_parsed.out_prefix + ".star2" +
                           # " --star_path /seq/regev_genome_portal/SOFTWARE/STAR/STAR_FIenabled/STAR-master/source/STAR " +
                          " --out_dir " + workdir )   
