@@ -6,6 +6,9 @@ use Carp;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 use Data::Dumper;
 use JSON::XS;
+use FindBin;
+use lib ("$FindBin::Bin/../PerlLib");
+use Fasta_reader;
 
 my $usage = <<__EOUSAGE__;
 
@@ -15,9 +18,12 @@ my $usage = <<__EOUSAGE__;
 #
 #  --ref_coding_GFF3 <string>        : reference annotation for coding genes in gff3 format
 #                                      
+#  --cds_fasta <string>              : CDS fasta file
+#
 #  --pfam_domains <string>           : pfam output
 #
 ##########################################################################
+
 
 
 __EOUSAGE__
@@ -28,36 +34,120 @@ __EOUSAGE__
 my $help_flag;
 my $fusions_file;
 my $ref_coding_gff3_file;
+my $cds_fasta_file;
 my $pfam_domains_file;
 
 &GetOptions ( 'h' => \$help_flag,
               'fusions=s' => \$fusions_file,
               'ref_coding_GFF3=s' => \$ref_coding_gff3_file,
+              'cds_fasta=s' => \$cds_fasta_file,
               'pfam_domains=s' => \$pfam_domains_file,
               
     );
 
-unless ($fusions_file && $ref_coding_gff3_file && $pfam_domains_file) {
+unless ($fusions_file && $ref_coding_gff3_file && $cds_fasta_file && $pfam_domains_file) {
     die $usage;
 }
 
 
 main: {
 
-    #my @fusions = &parse_fusions($fusions_file);
 
     my $annot_manager = Annotation_manager->new($ref_coding_gff3_file);
 
-    #print Dumper($annot_manager);
-
-    print $annot_manager->toString();
-
-    my $coder = JSON::XS->new->convert_blessed;
-    print $coder->pretty->encode($annot_manager);
+    print STDERR "-parsing cds fa: $cds_fasta_file\n";
+    my $fasta_reader = new Fasta_reader($cds_fasta_file);
+    my %cds_seqs = $fasta_reader->retrieve_all_seqs_hash();
     
+    my %pfam_hits = &parse_pfam($pfam_domains_file);
+    
+    $annot_manager->add_cds_and_pfam(\%cds_seqs, \%pfam_hits);
+    
+    $annot_manager->build_prot_info_db();
+        
     
     exit(0);
 }
+
+
+=pfam_entry
+
+0       BTG
+1       PF07742.9
+2       116
+3       BTG2|ENST00000290551.4
+4       -
+5       158
+6       3.8e-42
+7       142.7
+8       0.0
+9       1
+10      1
+11      2.8e-46
+12      4.5e-42
+13      142.4
+14      0.0
+15      1
+16      115
+17      9
+18      121
+19      9
+20      122
+21      0.99
+22      BTG
+23      family
+
+=cut
+
+
+####
+sub parse_pfam {
+    my ($pfam_file) = @_;
+
+    print STDERR "-parsing $pfam_file\n";
+    
+    my %model_to_domains;
+    
+    open (my $fh, $pfam_file) or die "Error, cannot open file $pfam_file";
+    while (<$fh>) {
+        chomp;
+        unless (/\w/) { next; }
+        if (/^\#/) { next; }
+        my @x = split(/\s+/);
+        
+        if (scalar @x < 22) {
+            print STDERR "WARNING: Skipping line: $_ as likely corrupt.\n";
+            next;
+        }
+        
+        my $QueryProtID = $x[3];
+        my $pfam_id = $x[1];
+        my $HMMERDomain = $x[0];
+        my $HMMERTDomainDescription = join(" ", @x[22..$#x]);
+        my $QueryStartAlign = $x[17];
+        my $QueryEndAlign = $x[18];
+        my $PFAMStartAlign = $x[15];
+        my $PFAMEndAlign = $x[16];
+        my $FullSeqEvalue = $x[6];
+        my $ThisDomainEvalue = $x[11];
+        my $FullSeqScore = $x[7];
+        my $FullDomainScore = $x[13];
+        
+        my $pfam_domain_struct = { cds_id => $QueryProtID,
+                                   hmmer_domain => $HMMERDomain,
+                                   query_start => $QueryStartAlign,
+                                   query_end => $QueryEndAlign,
+                                   domain_evalue => $ThisDomainEvalue,
+        };
+        
+        push (@{$model_to_domains{$QueryProtID}}, $pfam_domain_struct);
+    }
+    close $fh;
+
+    return(%model_to_domains);
+}
+        
+        
 
 ####
 package Annotation_manager;
@@ -130,8 +220,52 @@ sub toString {
     return ($text);
 }
     
-
+####
+sub add_cds_and_pfam {
+    my ($self) = shift;
+    my ($cds_seqs_href, $pfam_hits_href) = @_;
     
+    
+    my @gene_ids = $self->get_gene_list();
+    
+    foreach my $gene_id (@gene_ids) {
+        my @cds_features = $self->get_CDS_features($gene_id);
+        foreach my $cds_feature (@cds_features) {
+
+            my $cds_id = $cds_feature->{cds_id};
+            my $cds_seq = $cds_seqs_href->{$cds_id} or die "Error, no CDS sequence for $cds_id";
+
+            $cds_feature->set_CDS_sequence($cds_seq);
+
+            my $pfam_hits = $pfam_hits_href->{$cds_id};
+            if (ref $pfam_hits) {
+                $cds_feature->add_pfam_hits(@$pfam_hits);
+            }
+        }
+    }
+
+    return;
+}
+
+####
+sub build_prot_info_db {
+    my ($self) = shift;
+    
+    my @gene_ids = $self->get_gene_list();
+
+    my $coder = JSON::XS->new->convert_blessed;
+    
+    foreach my $gene_id (@gene_ids) {
+        my @cds_features = $self->get_CDS_features($gene_id);
+
+        print $coder->pretty->encode(\@cds_features);
+    }
+
+    return;
+}
+
+
+            
 ####
 sub parse_GFF3_instantiate_featureset {
     my ($self) = shift;
@@ -272,9 +406,14 @@ sub new {
         
         gene_id => $gene_id,
         cds_id => $cds_id,
-                
-        init_flag => 0,
-    
+        
+        refined_flag => 0,
+
+        pfam_hits => [],
+
+        cds_seq => "",
+        
+        
     };
 
     bless($self, $packagename);
@@ -352,7 +491,10 @@ sub refine {
         $sum_segs_len += $seg_len;
     
     }
-        
+
+    $self->{refined_flag} = 1;
+
+    return;
 }
 
 
@@ -385,4 +527,24 @@ sub toString {
     
     return ($ret_text);
         
+}
+
+####
+sub set_CDS_sequence {
+    my ($self) = shift;
+    my ($cds_seq) = @_;
+
+    $self->{cds_seq} = $cds_seq;
+
+    return;
+}
+
+####
+sub add_pfam_hits {
+    my $self = shift;
+    my (@pfam_hits) = @_;
+
+    push (@{$self->{pfam_hits}}, @pfam_hits);
+
+    return;
 }
