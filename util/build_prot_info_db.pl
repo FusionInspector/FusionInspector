@@ -9,6 +9,8 @@ use JSON::XS;
 use FindBin;
 use lib ("$FindBin::Bin/../PerlLib");
 use Fasta_reader;
+use TiedHash;
+use Process_cmd;
 
 my $usage = <<__EOUSAGE__;
 
@@ -22,10 +24,12 @@ my $usage = <<__EOUSAGE__;
 #
 #  --pfam_domains <string>           : pfam output
 #
+#  --out_db_dir <string>             : directory to store prot_info.db.idx
+#
 ##########################################################################
 
 
-
+ 
 __EOUSAGE__
 
     ;
@@ -36,23 +40,32 @@ my $fusions_file;
 my $ref_coding_gff3_file;
 my $cds_fasta_file;
 my $pfam_domains_file;
+my $out_db_dir;
 
 &GetOptions ( 'h' => \$help_flag,
               'fusions=s' => \$fusions_file,
               'ref_coding_GFF3=s' => \$ref_coding_gff3_file,
               'cds_fasta=s' => \$cds_fasta_file,
               'pfam_domains=s' => \$pfam_domains_file,
-              
+              'out_db_dir=s' => \$out_db_dir,
     );
 
-unless ($fusions_file && $ref_coding_gff3_file && $cds_fasta_file && $pfam_domains_file) {
+unless ($fusions_file && $ref_coding_gff3_file && $cds_fasta_file && $pfam_domains_file && $out_db_dir) {
     die $usage;
 }
 
 
+
 main: {
 
-
+    unless (-d $out_db_dir) {
+        &process_cmd("mkdir -p $out_db_dir");
+    }
+    my $prot_info_db_idx = "$out_db_dir/prot_info_db.idx";
+    if (-e $prot_info_db_idx) {
+        die "Error, $prot_info_db_idx already exists.  Please remove it or rename it before proceeding";
+    }
+        
     my $annot_manager = Annotation_manager->new($ref_coding_gff3_file);
 
     print STDERR "-parsing cds fa: $cds_fasta_file\n";
@@ -63,8 +76,8 @@ main: {
     
     $annot_manager->add_cds_and_pfam(\%cds_seqs, \%pfam_hits);
     
-    $annot_manager->build_prot_info_db();
-        
+    $annot_manager->build_prot_info_db($prot_info_db_idx);
+    
     
     exit(0);
 }
@@ -149,7 +162,7 @@ sub parse_pfam {
         
         
 
-####
+#############################################################################
 package Annotation_manager;
 use strict;
 use warnings;
@@ -250,17 +263,25 @@ sub add_cds_and_pfam {
 ####
 sub build_prot_info_db {
     my ($self) = shift;
+    my ($prot_db_idx_file) = @_;
+    
+    my $tied_hash = new TiedHash( { create => $prot_db_idx_file } );
+    
     
     my @gene_ids = $self->get_gene_list();
-
+    
     my $coder = JSON::XS->new->convert_blessed;
     
     foreach my $gene_id (@gene_ids) {
         my @cds_features = $self->get_CDS_features($gene_id);
+        
+        my $json = $coder->pretty->encode(\@cds_features);
 
-        print $coder->pretty->encode(\@cds_features);
+        $tied_hash->store_key_value($gene_id, $json);
     }
 
+    $tied_hash = undef; # closes it.
+    
     return;
 }
 
