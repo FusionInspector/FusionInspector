@@ -109,7 +109,10 @@ sub GTF_to_gene_objs {
 		# print "gene_id: $gene_id, transcrpt_id: $transcript_id, $type\n";
 
         if ($type eq 'transcript' || $type eq 'gene') { next; } # capture by exon coordinates
-
+        if ($type =~ /^(Selenocysteine)$/) { 
+            # features to skip over for other reasons
+            next;
+        }
         
         if ($type eq 'CDS' || $type eq 'stop_codon' || $type eq 'start_codon') {
             push (@{$gene_transcript_data{$seqname}->{$gene_id}->{$transcript_id}->{CDS}}, [$end5, $end3] );
