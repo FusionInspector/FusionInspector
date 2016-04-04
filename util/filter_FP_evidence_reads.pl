@@ -501,10 +501,16 @@ sub exclude_FP_junction_and_spanning_reads {
 
         ## Warning - TAF info isn't going to be correct when running STAR in patch mode, since multiple mappers will be exluded from output.
         
-        my $TAF_left = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) / ($num_left_contrary_reads + $PSEUDOCOUNT);
+        my $TAF_left = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) 
+            / 
+            ($num_left_contrary_reads $num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT);
+        
         $TAF_left = sprintf("%.2f", $TAF_left);
         
-        my $TAF_right = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) / ($num_right_contrary_reads + $PSEUDOCOUNT);
+        my $TAF_right = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) 
+            / 
+            ($num_right_contrary_reads + $num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT);
+        
         $TAF_right = sprintf("%.2f", $TAF_right);
         
         $x[16] = $TAF_left;

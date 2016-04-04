@@ -71,15 +71,16 @@ unless ($fusion_preds_file && $out_prefix && defined($Evalue) && $max_promiscuit
 6       splice_type
 7       junction_count
 8       spanning_count
-9       junction_reads
-10      spanning_reads
-11      num_left_contrary_reads
-12      left_contrary_reads
-13      num_right_contrary_reads
-14      right_contrary_reads
-15      TAF_left
-16      TAF_right
-17      fusion_annotations
+9       has_large_anchor_junction_support
+10      junction_reads
+11      spanning_reads
+12      num_left_contrary_reads
+13      left_contrary_reads
+14      num_right_contrary_reads
+15      right_contrary_reads
+16      TAF_left
+17      TAF_right
+18      fusion_annotations
 
 but want:
 
@@ -108,7 +109,21 @@ main: {
     open (my $fh, $fusion_preds_file) or die "Error, cannot open file $fusion_preds_file";
     my $header = <$fh>;
     
-    print $ofh join("\t", "#fusion_name", "JunctionReads", "SpanningFrags", "Splice_type", "LeftGene", "LeftBreakpoint", "RightGene", "RightBreakpoint", "JunctionReads", "SpanningFrags", "Annotations", "TrinityGG") . "\n";
+    print $ofh join("\t", 
+                    "#fusion_name", 
+                    "JunctionReads", 
+                    "SpanningFrags", 
+                    "Splice_type", 
+                    "LeftGene", 
+                    "LeftBreakpoint", 
+                    "RightGene", 
+                    "RightBreakpoint", 
+                    "JunctionReads", 
+                    "SpanningFrags", 
+                    "TAF_left",
+                    "TAF_right",
+                    "Annotations", 
+                    "TrinityGG") . "\n";
 
     while (<$fh>) {
         if (/^\#/) { 
@@ -117,11 +132,43 @@ main: {
         chomp;
         my $line = $_;
 
-        my ($geneA, $local_chr_brkpt_A, $chr_brkpt_A, $geneB, $local_chr_brkpt_B, $chr_brkpt_B, $splice_type, $junction_count, $spanning_count, $has_lrg_anchor_support, $junction_reads, $spanning_reads, $num_left_contrary_reads, $left_contrary_reads, $num_right_contrary_reads, $right_contrary_reads, $TAF_left, $TAF_right, @rest) = split(/\t/);
+        my ($geneA, 
+            $local_chr_brkpt_A, 
+            $chr_brkpt_A, 
+            $geneB, 
+            $local_chr_brkpt_B, 
+            $chr_brkpt_B, 
+            $splice_type, 
+            $junction_count, 
+            $spanning_count, 
+            $has_lrg_anchor_support, 
+            $junction_reads, 
+            $spanning_reads, 
+            $num_left_contrary_reads, 
+            $left_contrary_reads, 
+            $num_right_contrary_reads, 
+            $right_contrary_reads, 
+            $TAF_left, 
+            $TAF_right, 
+            @rest, # annotations, TrinityGG, ...
+            ) = split(/\t/);
         
         my $fusion_name = "$geneA--$geneB";
         
-        print $ofh join("\t", $fusion_name, $junction_count, $spanning_count, $splice_type, $geneA, $chr_brkpt_A, $geneB, $chr_brkpt_B, $junction_reads, $spanning_reads, @rest) . "\n";
+        print $ofh join("\t", 
+                        $fusion_name, 
+                        $junction_count, 
+                        $spanning_count, 
+                        $splice_type, 
+                        $geneA, 
+                        $chr_brkpt_A, 
+                        $geneB, 
+                        $chr_brkpt_B, 
+                        $junction_reads,
+                        $spanning_reads, 
+                        $TAF_left,
+                        $TAF_right,
+                        @rest) . "\n";
     }
     
     close $fh;
