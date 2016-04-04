@@ -246,8 +246,12 @@ sub add_cds_and_pfam {
         foreach my $cds_feature (@cds_features) {
 
             my $cds_id = $cds_feature->{cds_id};
-            my $cds_seq = $cds_seqs_href->{$cds_id} or die "Error, no CDS sequence for $cds_id";
-
+            my $cds_seq = $cds_seqs_href->{$cds_id};
+            unless ($cds_seq) {
+                print STDERR "WARNING, no CDS sequence for $cds_id\n";
+                $cds_seq = "";
+            }
+            
             $cds_feature->set_CDS_sequence($cds_seq);
 
             my $pfam_hits = $pfam_hits_href->{$cds_id};
@@ -275,11 +279,15 @@ sub build_prot_info_db {
     foreach my $gene_id (@gene_ids) {
         my @cds_features = $self->get_CDS_features($gene_id);
         
+
+        my $gene_id_store = $gene_id;
+        $gene_id_store =~ s/\|.*$//;
+
         my $json = $coder->pretty->encode(\@cds_features);
 
-        $tied_hash->store_key_value($gene_id, $json);
+        $tied_hash->store_key_value($gene_id_store, $json);
     }
-
+    
     $tied_hash = undef; # closes it.
     
     return;
@@ -302,7 +310,8 @@ sub parse_GFF3_instantiate_featureset {
         if (/^\#/) { next; }
         
         my @x = split(/\t/);
-
+        my $chr = $x[0];
+        
         my %info = &_parse_info($x[8]);
 
         if ($x[2] eq 'mRNA') {
@@ -322,7 +331,7 @@ sub parse_GFF3_instantiate_featureset {
             
             $phase_init = &_phase_transform($phase_init);
             
-            $self->_add_to_CDS_feature($gene_id, $mRNA_id, $start, $end, $orient, $phase_init);
+            $self->_add_to_CDS_feature($gene_id, $mRNA_id, $chr, $start, $end, $orient, $phase_init);
         }
     }
 
@@ -332,11 +341,11 @@ sub parse_GFF3_instantiate_featureset {
 ####
 sub _add_to_CDS_feature {
     my ($self) = shift;
-    my ($gene_id, $cds_id, $start, $end, $orient, $phase_init) = @_;
+    my ($gene_id, $cds_id, $chr, $start, $end, $orient, $phase_init) = @_;
 
     my $cds_feature_obj = $self->_get_CDS_feature($gene_id, $cds_id);
     
-    $cds_feature_obj->add_segment($start, $end, $orient, $phase_init);
+    $cds_feature_obj->add_segment($chr, $start, $end, $orient, $phase_init);
     
 }
 
@@ -451,9 +460,11 @@ sub TO_JSON {
 ####
 sub add_segment {
     my ($self) = shift;
-    my ($lend, $rend, $orient, $phase_beg) = @_;
+    my ($chr, $lend, $rend, $orient, $phase_beg) = @_;
 
-    my $phased_segment = { lend => $lend,
+    my $phased_segment = { chr => $chr,
+                           
+                           lend => $lend,
                            rend => $rend,
                            orient => $orient,
                            phase_beg => $phase_beg,
@@ -497,13 +508,18 @@ sub refine {
         my $seg_len = $segment->{rend} - $segment->{lend} + 1;
         my $phase_beg = $segment->{phase_beg};
 
+
+        
         my $rel_lend = $sum_segs_len + 1;
         my $rel_rend = $sum_segs_len + $seg_len;
-     
-        my $adj_seg_len = $seg_len;
-        $adj_seg_len += $phase_beg;
+
+        my $phase_end = ".";
+        if ($phase_beg ne ".") {
+            my $adj_seg_len = $seg_len;
+            $adj_seg_len += $phase_beg;
         
-        my $phase_end = ($adj_seg_len -1)  % 3;
+            $phase_end = ($adj_seg_len -1)  % 3;
+        }
         
         $segment->{rel_lend} = $rel_lend;
         $segment->{rel_rend} = $rel_rend;

@@ -6,6 +6,10 @@ use Carp;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 use Data::Dumper;
 use JSON::XS;
+use FindBin;
+use lib ("$FindBin::Bin/../PerlLib");
+use TiedHash;
+use Nuc_translator;
 
 my $usage = <<__EOUSAGE__;
 
@@ -13,10 +17,8 @@ my $usage = <<__EOUSAGE__;
 #
 #  --fusions <string>                : fusion predictions
 #
-#  --ref_coding_GFF3 <string>        : reference annotation for coding genes in gff3 format
+#  --prot_info_db <string>           :  prot_info_db.idx - path to file.
 #                                      
-#  --pfam_domains <string>           : pfam output
-#
 ##########################################################################
 
 
@@ -27,362 +29,306 @@ __EOUSAGE__
 
 my $help_flag;
 my $fusions_file;
-my $ref_coding_gff3_file;
-my $pfam_domains_file;
+my $prot_info_db;
 
 &GetOptions ( 'h' => \$help_flag,
               'fusions=s' => \$fusions_file,
-              'ref_coding_GFF3=s' => \$ref_coding_gff3_file,
-              'pfam_domains=s' => \$pfam_domains_file,
-              
+              'prot_info_db=s' => \$prot_info_db,
     );
 
-unless ($fusions_file && $ref_coding_gff3_file && $pfam_domains_file) {
+unless ($fusions_file && $prot_info_db) {
+    
     die $usage;
 }
 
 
 main: {
 
-    #my @fusions = &parse_fusions($fusions_file);
+    open (my $fh, $fusions_file) or die "Error, cannot open file $fusions_file";
+    my $header = <$fh>;
+    unless ($header =~ /^\#fusion_name/) {
+        die "Error, fusion_file: $fusions_file has unrecognizable header: $header";
+    }
+    print $header;
 
-    my $annot_manager = Annotation_manager->new($ref_coding_gff3_file);
+    
+    my $tied_hash = new TiedHash( { 'use' => $prot_info_db } );
 
-    #print Dumper($annot_manager);
+    while (<$fh>) {
+        
+        my $line = $_;
+        chomp;
+        my @x = split(/\t/);
 
-    print $annot_manager->toString();
+        my $fusion_name = $x[0];
+        my $gene_left = $x[6];
+        my $break_left = $x[7];
+                
+        my $gene_right = $x[8];
+        my $break_right = $x[9];
 
-    my $coder = JSON::XS->new->convert_blessed;
-    print $coder->pretty->encode($annot_manager);
+        my @results = &examine_fusion_coding_effect($gene_left, $break_left, $gene_right, $break_right, $tied_hash);
+        
+        foreach my $result (@results) {
+            print join("\t", $fusion_name, 
+                       $result->{cds_left_id}, $result->{cds_left_range},
+                       $result->{cds_right_id}, $result->{cds_right_range},
+                       $result->{prot_fusion_type},
+                       $result->{fusion_coding_descr},
+                       $result->{cds_fusion_seq},
+                       $result->{prot_fusion_seq} ) . "\n";
+        }
+    }
+    close $fh;
+    
+    #my $coder = JSON::XS->new->convert_blessed;
+    #print $coder->pretty->encode($annot_manager);
     
     
     exit(0);
 }
 
-####
-package Annotation_manager;
-use strict;
-use warnings;
 
 ####
-sub new {
-    my ($packagename, $gff3_file) = @_;
+sub examine_fusion_coding_effect {
+    my ($gene_left, $break_left, $gene_right, $break_right, $tied_hash) = @_;
 
-    my $self = {
-        gene_to_CDS_features => {},  # gene_id -> cds_id -> cds_feature_obj
-    };
-    
-    bless($self, $packagename);
-
-    $self->parse_GFF3_instantiate_featureset($gff3_file);
-
-    
-    
-    return($self);
-}
-
-
-sub TO_JSON {
-    return { %{ shift() } };
-}
-
-
-####
-sub get_gene_list {
-    my ($self) = @_;
-
-    my @gene_ids = keys %{$self->{gene_to_CDS_features}};
-
-    return(@gene_ids);
-}
-
-####
-sub get_CDS_features {
-    my $self = shift;
-    my ($gene_id) = @_;
-
-    my $cds_features_href = $self->{gene_to_CDS_features}->{$gene_id};
-    
-    if (ref $cds_features_href) {
-        return(values %$cds_features_href);
-    }
-
-    else {
-        return();
-    }
-}
-
-####
-sub toString {
-    my ($self) = shift;
-    
-    my @gene_ids = $self->get_gene_list();
-
-    my $text = "";
-    
-    foreach my $gene_id (@gene_ids) {
-        my @cds_features = $self->get_CDS_features($gene_id);
-        foreach my $cds_feature (@cds_features) {
-            $text .= $cds_feature->toString() . "\n";
-        }
-    }
-    
-    return ($text);
-}
-    
-
-    
-####
-sub parse_GFF3_instantiate_featureset {
-    my ($self) = shift;
-    my ($gff3_file) = @_;
-    
-    my %mRNA_to_gene;
-
-    print STDERR "-parsing gff3 coding regions file: $gff3_file\n";
-    open(my $fh, $gff3_file) or die "Error, cannot open file $gff3_file";
-    while (<$fh>) {
-        chomp;
-        unless (/\w/) { next; }
-        if (/^\#/) { next; }
+    my $coder = new JSON::XS();
         
-        my @x = split(/\t/);
+    my $gene_left_json = $tied_hash->get_value($gene_left);    
+    my $gene_left_aref = $coder->decode($gene_left_json);
 
-        my %info = &_parse_info($x[8]);
-
-        if ($x[2] eq 'mRNA') {
-            my $mRNA_id = $info{ID};
-            my $gene_id = $info{Parent};
-            $mRNA_to_gene{$mRNA_id} = $gene_id;
-        }
-        elsif ($x[2] eq 'CDS') {
-            my $cds_id = $info{ID};
-            my $mRNA_id = $info{Parent};
-            my $gene_id = $mRNA_to_gene{$mRNA_id} or die "Error, no gene_id for mRNA: $mRNA_id";
-            
-            my $start = $x[3];
-            my $end = $x[4];
-            my $orient = $x[6];
-            my $phase_init = $x[7];
-            
-            $phase_init = &_phase_transform($phase_init);
-            
-            $self->_add_to_CDS_feature($gene_id, $mRNA_id, $start, $end, $orient, $phase_init);
-        }
-    }
-
-    $self->_refine_CDS_features();
-}
-
-####
-sub _add_to_CDS_feature {
-    my ($self) = shift;
-    my ($gene_id, $cds_id, $start, $end, $orient, $phase_init) = @_;
-
-    my $cds_feature_obj = $self->_get_CDS_feature($gene_id, $cds_id);
+    print Dumper($gene_left_aref);
+    #print "Gene_left: $gene_left_json\n";
     
-    $cds_feature_obj->add_segment($start, $end, $orient, $phase_init);
+    
+    my $gene_right_json = $tied_hash->get_value($gene_right);
+    my $gene_right_aref = $coder->decode($gene_right_json);
+
+    #print Dumper($gene_right_aref);
+    #print "Gene_right: $gene_right_json\n";
+
+    my @results;
+
+    
+    foreach my $cds_left_obj (@$gene_left_aref) {
+        
+        my $cds_left_seq = $cds_left_obj->{cds_seq};
+        my $cds_left_id = $cds_left_obj->{cds_id};
+        
+        foreach my $cds_right_obj (@$gene_right_aref) {
+            
+            my $cds_right_seq = $cds_right_obj->{cds_seq};
+            my $cds_right_id = $cds_right_obj->{cds_id};
+            
+            my ($left_fuse_segments_aref, $right_fuse_segments_aref) = &try_fuse_cdss($cds_left_obj, $break_left, $cds_right_obj, $break_right);
+
+            if (@$left_fuse_segments_aref && @$right_fuse_segments_aref) {
+
+                ## see if compatible
+                my $terminal_left_seg = $left_fuse_segments_aref->[$#$left_fuse_segments_aref];
+                my $left_end_phase = $terminal_left_seg->{phase_end};
+                my $left_rel_rend = $terminal_left_seg->{rel_rend};
+
+                my $left_cds_part = substr($cds_left_seq, 0, $left_rel_rend);
+                
+                my $initial_right_seg = $right_fuse_segments_aref->[0];
+                my $right_beg_phase = $initial_right_seg->{phase_beg};
+                my $right_rel_lend = $initial_right_seg->{rel_lend};
+                
+                my $right_cds_part = substr($cds_right_seq, $right_rel_lend - 1);
+
+                my $fusion_seq = join("", lc($left_cds_part), uc($right_cds_part));
+                my $pep = translate_sequence($fusion_seq, 1);
+
+                my $prot_fusion_type = ( ($left_end_phase + 1) % 3 == $right_beg_phase) ? "INFRAME" : "FRAMESHIFT";
+                
+                my $left_segs_string = &segments_to_string(@$left_fuse_segments_aref);
+                my $right_segs_string = &segments_to_string(@$right_fuse_segments_aref);
+                
+                push (@results, { cds_left_id => $cds_left_id,
+                                  cds_right_id => $cds_right_id,
+                                  cds_left_range => "1-$left_rel_rend",
+                                  cds_right_range => "$right_rel_lend-" . length($cds_right_seq),
+                                  prot_fusion_type => $prot_fusion_type,
+                                  cds_fusion_seq => $fusion_seq,
+                                  prot_fusion_seq => $pep,
+                                  fusion_coding_descr => join("<==>", $left_segs_string, $right_segs_string),
+                      }
+                    );
+                
+            }
+        }
+    }
+    
+    return (@results);
+}
+
+
+####
+sub try_fuse_cdss {
+    my ($cds_left_obj, $break_left, $cds_right_obj, $break_right) = @_;
+
+    
+    # get left part
+    my @left_fusion_partner_segments = &get_left_fusion_partner_segments($cds_left_obj, $break_left);
+        
+    # todo: get right part
+    my @right_fusion_partner_segments = &get_right_fusion_partner_segments($cds_right_obj, $break_right);
+    
+        
+    ## piece it together.
+    
+    #print STDERR "Left: " . Dumper(\@left_fusion_partner_segments) . "\nRight: " . Dumper(\@right_fusion_partner_segments);
+    
+    return (\@left_fusion_partner_segments, \@right_fusion_partner_segments);
+    
+}
+
+
+####
+sub get_left_fusion_partner_segments {
+    my ($cds_obj, $breakpoint_info) = @_;
+    
+    my ($chr, $breakpoint_coord, $orient) = split(/:/, $breakpoint_info);
+    
+    my ($left_segs_aref, $right_segs_aref) = &split_cds_at_breakpoint($cds_obj, $breakpoint_coord);
+
+    if ($orient eq '+') {
+        return(@$left_segs_aref);
+    }
+    else {
+        return(reverse @$right_segs_aref);
+    }
+}
+
+####
+sub get_right_fusion_partner_segments {
+    my ($cds_obj, $breakpoint_info) = @_;
+    
+    my ($chr, $breakpoint_coord, $orient) = split(/:/, $breakpoint_info);
+    
+    my ($left_segs_aref, $right_segs_aref) = &split_cds_at_breakpoint($cds_obj, $breakpoint_coord);
+    
+    if ($orient eq '+') {
+        return(@$right_segs_aref);
+    }
+    else {
+        return(reverse @$left_segs_aref);
+    }
+}
+
+
+
+####
+sub split_cds_at_breakpoint {
+    my ($cds_obj, $breakpoint_coord) = @_;
+    
+    my @segments = sort {$a->{lend}<=>$b->{lend}} @{$cds_obj->{phased_segments}};
+    
+    my @segs_left;
+    my @segs_right;
+
+    
+    foreach my $segment (@segments) {
+        if ($segment->{rend} <= $breakpoint_coord) {
+            push (@segs_left, $segment);
+        }
+        elsif ($segment->{lend} >= $breakpoint_coord) {
+            push (@segs_right, $segment);
+        }
+        elsif(&overlaps_breakpoint($breakpoint_coord ,$segment->{lend}, $segment->{rend})) {
+
+            ## split the segment at the breakpoint, keep breakpoint coordinate in each piece.
+            my $orient = $segment->{orient};
+            if ($orient eq '+') {
+                my $new_left_segment = { chr => $segment->{chr}, 
+                                         lend => $segment->{lend},
+                                         rend => $breakpoint_coord,
+                                         orient => $orient,
+                                         rel_lend => $segment->{rel_lend},
+                                         rel_rend => $segment->{rel_lend} + ($breakpoint_coord - $segment->{lend}),
+                                         phase_beg => $segment->{phase_beg},
+                                         phase_end => ($segment->{rel_lend} + $segment->{phase_beg} + ($breakpoint_coord - $segment->{rel_lend})) % 3,
+                };
+                
+                my $new_right_segment = { chr => $segment->{chr},
+                                          lend => $breakpoint_coord,
+                                          rend => $segment->{rend},
+                                          orient => $orient,
+                                          rel_lend => $new_left_segment->{rel_rend},
+                                          rel_rend => $segment->{rel_rend},
+                                          phase_beg => $new_left_segment->{phase_end},
+                                          phase_end => $segment->{phase_end},
+                };
+
+                push (@segs_left, $new_left_segment);
+                push (@segs_right, $new_right_segment);
+            }
+            else {
+                ## orient eq '-'
+                
+                my $new_right_segment = { chr => $segment->{chr},
+                                          lend => $breakpoint_coord,
+                                          rend => $segment->{rend},
+                                          rel_lend => $segment->{rel_rend} + ($segment->{rend} - $breakpoint_coord),
+                                          rel_rend => $segment->{rel_rend},
+                                          phase_beg => $segment->{phase_beg},
+                                          phase_end => ($segment->{rel_lend} + $segment->{phase_beg} + (($segment->{rend} - $breakpoint_coord)) % 3),
+                };
+
+                my $new_left_segment = { chr => $segment->{chr},
+                                         lend => $segment->{lend},
+                                         rend => $breakpoint_coord,
+                                         rel_lend => $segment->{rel_lend},
+                                         rel_rend => $new_right_segment->{rel_lend},
+                                         phase_beg => $new_right_segment->{phase_end},
+                                         phase_end => $segment->{phase_end},
+                };
+                
+                push (@segs_left, $new_left_segment);
+                push (@segs_right, $new_right_segment);
+                
+            }                
+            
+        }
+        else {
+            die "Error, shouldn't get here";
+        }
+    }
+    
+    return(\@segs_left, \@segs_right);
     
 }
 
 ####
-sub _get_CDS_feature {
-    my ($self) = shift;
-    my ($gene_id, $cds_id) = @_;
+sub overlaps_breakpoint {
+    my ($breakpoint_coord, $lend, $rend) = @_;
 
-    my $cds_feature_obj = $self->{gene_to_CDS_features}->{$gene_id}->{$cds_id};
-
-    unless (ref $cds_feature_obj) {
-        $cds_feature_obj = $self->{gene_to_CDS_features}->{$gene_id}->{$cds_id} = CDS_feature->new($gene_id, $cds_id);
-    }
-
-    return($cds_feature_obj);
-}
-
-
-####
-sub _phase_transform {
-    my ($phase) = @_;
-
-    if ($phase eq "0") {
-        return(0);
-    }
-    elsif ($phase eq "1") {
-        return(2);
-    }
-    elsif ($phase eq "2") {
+    if ($breakpoint_coord >= $lend && $breakpoint_coord <= $rend) {
         return(1);
     }
     else {
-        return($phase);
+        return(0);
     }
 }
 
-    
 ####
-sub _parse_info {
-    my ($info) = @_;
+sub segments_to_string {
+    my (@segments) = @_;
 
-    my %ret;
+    @segments = sort {$a->{lend}<=>$b->{lend}} @segments;
 
-    my @keyvals = split(/;/, $info);
-    foreach my $keyval (@keyvals) {
-        my ($key, $val) = split(/=/, $keyval);
-        $ret{$key} = $val;
-    }
-    
-    return(%ret);
-}
-
-
-####
-sub _refine_CDS_features {
-    my $self = shift;
-
-    my @gene_ids = $self->get_gene_list();
-
-    foreach my $gene_id (@gene_ids) {
-        
-        my $cds_features_href = $self->{gene_to_CDS_features}->{$gene_id};
-        my @cds_feature_objs = values %$cds_features_href;
-
-        foreach my $cds_feature_obj (@cds_feature_objs) {
-            $cds_feature_obj->refine();
-        }
-    }
-    
-    return;
-}
-
-
-
-####################################################################################
-package CDS_feature;
-use strict;
-use warnings;
-
-####
-sub new {
-    my ($packagename) = shift;
-    my ($gene_id, $cds_id) = @_;
-
-    
-    my $self = {
-        phased_segments => [],
-        
-        gene_id => $gene_id,
-        cds_id => $cds_id,
-                
-        init_flag => 0,
-    
-    };
-
-    bless($self, $packagename);
-
-    return($self);
-}
-
-
-sub TO_JSON {
-    return { %{ shift() } };
-}
-
-
-####
-sub add_segment {
-    my ($self) = shift;
-    my ($lend, $rend, $orient, $phase_beg) = @_;
-
-    my $phased_segment = { lend => $lend,
-                           rend => $rend,
-                           orient => $orient,
-                           phase_beg => $phase_beg,
-
-                           rel_lend => undef,
-                           rel_rend => undef,
-                           phase_end => undef,  ## all set on init
-    };
-
-    push (@{$self->{phased_segments}}, $phased_segment);
-    
-    return;
-}
-
-####
-sub get_segments {
-    my ($self) = shift;
-
-    return(@{$self->{phased_segments}});
-
-}
-
-
-####
-sub refine {
-    my ($self) = shift;
-    
-    my @segments = $self->get_segments();
-
-    @segments = sort {$a->{lend} <=> $b->{lend}} @segments;
-    
+    my $chr = $segments[0]->{chr};
     my $orient = $segments[0]->{orient};
 
-    if ($orient eq '-') {
-        @segments = reverse @segments;
-    }
-
-    my $sum_segs_len = 0;
+    my @coord_text;
     foreach my $segment (@segments) {
-
-        my $seg_len = $segment->{rend} - $segment->{lend} + 1;
-        my $phase_beg = $segment->{phase_beg};
-
-        my $rel_lend = $sum_segs_len + 1;
-        my $rel_rend = $sum_segs_len + $seg_len;
-     
-        my $adj_seg_len = $seg_len;
-        $adj_seg_len += $phase_beg;
-        
-        my $phase_end = ($adj_seg_len -1)  % 3;
-        
-        $segment->{rel_lend} = $rel_lend;
-        $segment->{rel_rend} = $rel_rend;
-        $segment->{phase_end} = $phase_end;
-        
-        $sum_segs_len += $seg_len;
-    
-    }
-        
-}
-
-
-####
-sub toString {
-    my ($self) = shift;
-    
-    my @segments = $self->get_segments();
-    
-    @segments = sort {$a->{lend} <=> $b->{lend}} @segments;
-
-    my $orient = $segments[0]->{orient};
-    if ($orient eq '-') {
-        @segments = reverse @segments;
+        push (@coord_text, join("-", $segment->{lend}, $segment->{rend}));
     }
 
+    my $descr_text = join("|", $chr, $orient, @coord_text);
 
-    my $ret_text = "";
+    return($descr_text);
     
-    foreach my $segment (@segments) {
-        
-        $ret_text .= join("\t", $self->{gene_id}, $self->{cds_id}, 
-                          $segment->{lend}, $segment->{rend},
-                          $segment->{orient}, 
-                          $segment->{rel_lend}, $segment->{rel_rend},
-                          $segment->{phase_beg}, $segment->{phase_end}) . "\n";
-    }
-    
-    
-    
-    return ($ret_text);
-        
 }
