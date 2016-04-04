@@ -63,8 +63,9 @@ class FusionInspector( ParentScript.ParentScript ):
         arg_raw.add_argument("--version", dest='version', required=False, action='store_true', default=False, help="show version string: " + VERSION)
 
         arg_raw.add_argument("--CPU", dest="CPU", required=False, type=int, default=4, help="Number of threads for running the aligner")
-        
 
+        arg_raw.add_argument("--dirty", action='store_true', default=False, help='turn off FP filtering for non-STAR methods (increases speed, reduces RAM, mostly restricted for testing purposes)')
+        
     def func_make_commands( self, args_parsed, cur_pipeline ):
         """
         Allows:
@@ -187,7 +188,9 @@ class FusionInspector( ParentScript.ParentScript ):
 
 
         filter_FP_reads_flag = True
-
+        if args_parsed.dirty:
+            filter_FP_reads_flag = False
+        
         bam_files_list = []
         
         if (re.search("GSNAP", args_parsed.align_utils, re.IGNORECASE)):
@@ -264,7 +267,7 @@ class FusionInspector( ParentScript.ParentScript ):
 
         if (re.search("STAR", args_parsed.align_utils, re.IGNORECASE)):
         
-            filter_FP_reads_flag = False #True
+            filter_FP_reads_flag = False
 
             ###############
             ## patched fusion-genome for STAR

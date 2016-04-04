@@ -1,0 +1,1 @@
+../FusionInspector --fusions test_fusions.list,test_fusions.list2,test_fusions.list3 --genome_lib /seq/regev_genome_portal/RESOURCES/CTAT_GENOME_LIB/build_dir --left_fq reads.left.simPE.fq.gz --right reads.right.simPE.fq.gz --out_dir Fusion_Inspector-HISAT_dirty --out_prefix finspector --align_utils HISAT --dirty --prep_for_IGV --no_cleanup
