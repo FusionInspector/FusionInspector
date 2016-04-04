@@ -150,9 +150,15 @@ main: {
             $right_contrary_reads, 
             $TAF_left, 
             $TAF_right, 
-            @rest, # annotations, TrinityGG, ...
+            $annotations, 
+            $TrinityGG, 
+            @rest,
             ) = split(/\t/);
         
+        unless ($TrinityGG) {
+            $TrinityGG = ".";
+        }
+
         my $fusion_name = "$geneA--$geneB";
         
         print $ofh join("\t", 
@@ -168,6 +174,8 @@ main: {
                         $spanning_reads, 
                         $TAF_left,
                         $TAF_right,
+                        $annotations,
+                        $TrinityGG,
                         @rest) . "\n";
     }
     
