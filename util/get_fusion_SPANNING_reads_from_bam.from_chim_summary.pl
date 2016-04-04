@@ -103,6 +103,7 @@ main: {
             }
             $scaffold_to_gene_breaks{$scaffold} = [$gene_bound_left, $gene_bound_right];
 
+            # for later, just in case we need to report info for those fusions lacking defined breakpoints
             $spanning_only_info{$scaffold} = join("\t", 
                                                   $geneA, $gene_bound_left, $orig_coord_info{$scaffold}->{$gene_bound_left}, 
                                                   $geneB, $gene_bound_right, $orig_coord_info{$scaffold}->{$gene_bound_right}, 
@@ -111,9 +112,8 @@ main: {
         }
     }
     
-    #print STDERR "Scaffold to gene breaks: " . Dumper(\%scaffold_to_gene_breaks);
-    
-
+    #####################################
+    ## Capture the fusion breakpoint info
     
     my %junction_reads_ignore;
     my %fusion_junctions;
@@ -142,7 +142,9 @@ main: {
         close $fh;
     }
 
+    ####################################################
     ## for each paired read, get the bounds of that read
+
     my %scaffold_read_pair_to_read_bounds;    
     my %core_counter;
     {
@@ -172,7 +174,7 @@ main: {
                     next;
                 }
             }
-                        
+            
             my $qual_val = $sam_entry->get_mapping_quality();
             #unless ($qual_val >= $MIN_QUALITY) { next; }
             
@@ -191,13 +193,6 @@ main: {
             # check if alignments begin in their respective fusion gene areas:
             my ($scaff_gene_left_rend, $scaff_gene_right_lend) = @{$scaffold_to_gene_breaks{$scaffold}};
             
-
-            ## see that the fragment read pair together span both the genes
-            my ($pos1, $pos2) = sort {$a<=>$b} ($scaffold_pos, $mate_scaffold_pos);
-            
-            unless ($pos1 < $scaff_gene_left_rend && $pos2 > $scaff_gene_right_lend) { next; }
-            
-
             my ($span_lend, $span_rend) = sort {$a<=>$b} $sam_entry->get_genome_span();
             
             # be sure that each read on its own is entirely encapsulated within a single gene region (not crossing the bounds)
@@ -231,17 +226,21 @@ main: {
             }
         }
     }
-   
+
+
+    ##########################################
+    # determine which reads are spanning reads
+       
     my %fusion_to_spanning_reads;
 
     my %fusion_to_contrary_support;
     
-    # determine which reads are spanning reads
     my %spanning_read_want;
+
     {
         foreach my $scaffold (keys %scaffold_to_gene_breaks) {
             my ($gene_bound_left, $gene_bound_right) = @{$scaffold_to_gene_breaks{$scaffold}};
-            
+                        
             if ($gene_bound_left > $gene_bound_right) { 
                 die "Error, gene bounds out of range for $scaffold: $gene_bound_left - $gene_bound_right "; 
             }
@@ -250,7 +249,11 @@ main: {
             foreach my $fragment (keys %{$scaffold_read_pair_to_read_bounds{$scaffold}}) {
                 
                 if ($core_counter{"$scaffold|$fragment"} != 2) { next; } # ignore those fragments that have multiply-mapping reads to this contig.
+
                 my @pair_coords = grep { defined $_ } @{$scaffold_read_pair_to_read_bounds{$scaffold}->{$fragment}};
+                
+                ## data structure format: $scaffold_read_pair_to_read_bounds{$scaffold}->{$core}->[$pair_end-1] = [$span_lend, $span_rend, $strand];
+                
                 if (scalar @pair_coords > 1) {
                     # need both paired ends
                     
@@ -274,15 +277,18 @@ main: {
                         $spanning_read_want{"$scaffold|$fragment"}++; # capture for SAM-retreival next.
                     }
     
+                    #################
+                    ## assign spanning frags to the specific breakpoints
+                    
                     my $candidate_fusion_breakpoints_aref = $fusion_junctions{$scaffold};
                     if (ref $candidate_fusion_breakpoints_aref) {
                                         
                         foreach my $fusion_breakpoint (@{$candidate_fusion_breakpoints_aref}) {
                             my ($break_lend, $break_rend) = split(/-/, $fusion_breakpoint);
-                        
-                            if ($is_fusion_spanning_fragment_flag) {
+                            
+                            if ($left_read_rend < $break_lend && $break_rend < $right_read_lend) {
                                 
-                                ## assign all spanning frags to all junction reads.  Important for later filtering
+                                # junction-specific spanning fragment support assignment
                                 push (@{$fusion_to_spanning_reads{"$scaffold|$fusion_breakpoint"}}, $fragment);
                                                               
                             }
@@ -298,7 +304,7 @@ main: {
                                     ## contrary support at right junction
                                     push (@{$fusion_to_contrary_support{"$scaffold|$fusion_breakpoint"}->{right}}, $fragment);
                                 }
-                        
+                                
                             }
                         }
                     }
@@ -317,8 +323,10 @@ main: {
         }
     }
     
-
-    # output the spanning reads we want
+    
+    #################################################
+    # output the spanning reads we want in SAM format
+    
     if (%spanning_read_want) {
         my $sam_reader = new SAM_reader($bam_file);
         while (my $sam_entry = $sam_reader->get_next()) {
@@ -336,6 +344,8 @@ main: {
     }
     
     {
+        #########################################################################
+        ##  Generate the spanning fragment and contrary read support info summary
         
         print STDERR "-outputting the spanning read info.\n";
 
