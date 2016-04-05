@@ -69,6 +69,29 @@ main: {
         die "Error, fusion_file: $fusions_file has unrecognizable header: $header";
     }
     chomp $header;
+   
+    my %header_to_index;
+    {
+        my @fields = split(/\t/, $header);
+        for (my $i = 0; $i <= $#fields; $i++) {
+            $header_to_index{$fields[$i]} = $i;
+        }
+        
+        # ensure we have the fields we need:
+        my @fields_need = ('#fusion_name', 'LeftGene', 'LeftBreakpoint', 'RightGene', 'RightBreakpoint');
+        my $missing_field = 0;
+        foreach my $field (@fields_need) {
+            unless (exists $header_to_index{$field}) {
+                print STDERR "ERROR, missing column header: $field\n";
+                $missing_field = 1;
+            }
+        }
+        if ($missing_field) {
+            die "Error, at least one column header was missing";
+        }
+    }
+    
+
     print $header . "\t" . join("\t", 
                                 "CDS_LEFT_ID", 
                                 "CDS_LEFT_RANGE",
@@ -91,15 +114,15 @@ main: {
 
         my @x = split(/\t/);
 
-        my $fusion_name = $x[0];
-        my $gene_left = $x[6];
-        my $break_left = $x[7];
+        my $fusion_name = $x[ $header_to_index{'#fusion_name'} ];
+        my $gene_left = $x[ $header_to_index{'LeftGene'}];
+        my $break_left = $x[ $header_to_index{'LeftBreakpoint'} ];
                 
-        my $gene_right = $x[8];
-        my $break_right = $x[9];
+        my $gene_right = $x[ $header_to_index{'RightGene'} ];
+        my $break_right = $x[ $header_to_index{'RightBreakpoint'} ];
         
         my @results = &examine_fusion_coding_effect($gene_left, $break_left, $gene_right, $break_right, $tied_hash);
-
+        
         if (@results) {
             ## just take the single 'best' one, arbitrarily chosen as the one with the longest fusion sequence.
             @results = sort { 
