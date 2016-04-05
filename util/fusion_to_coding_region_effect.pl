@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 use Carp;
+use Carp::Assert;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 use Data::Dumper;
 use JSON::XS;
@@ -10,6 +11,8 @@ use FindBin;
 use lib ("$FindBin::Bin/../PerlLib");
 use TiedHash;
 use Nuc_translator;
+
+my $DEBUG = 0;
 
 my $usage = <<__EOUSAGE__;
 
@@ -133,9 +136,6 @@ main: {
 
     }
     close $fh;
-    
-    #my $coder = JSON::XS->new->convert_blessed;
-    #print $coder->pretty->encode($annot_manager);
     
     
     exit(0);
@@ -339,7 +339,7 @@ sub split_cds_at_breakpoint {
                                          rel_lend => $segment->{rel_lend},
                                          rel_rend => $segment->{rel_lend} + ($breakpoint_coord - $segment->{lend}),
                                          phase_beg => $segment->{phase_beg},
-                                         phase_end => ($segment->{rel_lend} + $segment->{phase_beg} + ($breakpoint_coord - $segment->{rel_lend})) % 3,
+                                         phase_end => ($segment->{phase_beg} + ($breakpoint_coord - $segment->{lend})) % 3,
                 };
                 
                 my $new_right_segment = { chr => $segment->{chr},
@@ -351,9 +351,22 @@ sub split_cds_at_breakpoint {
                                           phase_beg => $new_left_segment->{phase_end},
                                           phase_end => $segment->{phase_end},
                 };
-
+                
+                   
                 push (@segs_left, $new_left_segment);
                 push (@segs_right, $new_right_segment);
+                
+                
+                print "Original segment: " . &segments_to_string($segment) . 
+                    "\nNew frags: " . &segments_to_string($new_left_segment) . "\t" . &segments_to_string($new_right_segment) . "\n\n" if $DEBUG;
+                
+                
+                my $supposed_end_phase = ($new_right_segment->{phase_beg} + ($new_right_segment->{rel_rend} - $new_right_segment->{rel_lend})) % 3;
+                print "supposed end phase: $supposed_end_phase\n" if $DEBUG;
+                assert($supposed_end_phase == $new_right_segment->{phase_end});
+                
+                
+             
             }
             else {
                 ## orient eq '-'
@@ -361,15 +374,17 @@ sub split_cds_at_breakpoint {
                 my $new_right_segment = { chr => $segment->{chr},
                                           lend => $breakpoint_coord,
                                           rend => $segment->{rend},
+                                          orient => $orient,
                                           rel_lend => $segment->{rel_rend} + ($segment->{rend} - $breakpoint_coord),
                                           rel_rend => $segment->{rel_rend},
                                           phase_beg => $segment->{phase_beg},
-                                          phase_end => ($segment->{rel_lend} + $segment->{phase_beg} + (($segment->{rend} - $breakpoint_coord)) % 3),
+                                          phase_end => ($segment->{phase_beg} + (($segment->{rend} - $breakpoint_coord))) % 3,
                 };
 
                 my $new_left_segment = { chr => $segment->{chr},
                                          lend => $segment->{lend},
                                          rend => $breakpoint_coord,
+                                         orient => $orient,
                                          rel_lend => $segment->{rel_lend},
                                          rel_rend => $new_right_segment->{rel_lend},
                                          phase_beg => $new_right_segment->{phase_end},
@@ -378,6 +393,13 @@ sub split_cds_at_breakpoint {
                 
                 push (@segs_left, $new_left_segment);
                 push (@segs_right, $new_right_segment);
+                
+                print "Original segment: " . &segments_to_string($segment) . 
+                    "\nNew frags: " . &segments_to_string($new_left_segment) . "\t" . &segments_to_string($new_right_segment) . "\n\n" if $DEBUG;
+                
+                assert($new_right_segment->{phase_end} == ($new_right_segment->{phase_beg} + $new_right_segment->{rend} - $new_right_segment->{lend}) % 3);
+
+                assert($new_left_segment->{phase_end} == ($new_left_segment->{phase_beg} + $new_left_segment->{rend} - $new_left_segment->{lend}) % 3);
                 
             }                
             
@@ -410,7 +432,7 @@ sub segments_to_string {
     @segments = sort {$a->{lend}<=>$b->{lend}} @segments;
 
     my $chr = $segments[0]->{chr};
-    my $orient = $segments[0]->{orient};
+    my $orient = $segments[0]->{orient} or die "Error: " . Dumper(\@segments);
 
     my @coord_text;
     foreach my $segment (@segments) {
