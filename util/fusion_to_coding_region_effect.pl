@@ -19,6 +19,11 @@ my $usage = <<__EOUSAGE__;
 #
 #  --prot_info_db <string>           :  prot_info_db.idx - path to file.
 #                                      
+#  optional:
+#
+#  --show_all                        : by default, only the single 'best' fusion is shown
+#                                      prioritizizing INFRAME and longer fusion transcripts.
+#
 ##########################################################################
 
 
@@ -30,16 +35,26 @@ __EOUSAGE__
 my $help_flag;
 my $fusions_file;
 my $prot_info_db;
+my $show_all_flag = 0;
 
 &GetOptions ( 'h' => \$help_flag,
               'fusions=s' => \$fusions_file,
               'prot_info_db=s' => \$prot_info_db,
+   
+              'show_all' => \$show_all_flag,
     );
 
 unless ($fusions_file && $prot_info_db) {
     
     die $usage;
 }
+
+
+my %priority = ( 'INFRAME' => 1,
+                 'FRAMESHIFT' => 2,
+                 'NA' => 3,
+                 '.' => 4);
+
 
 
 main: {
@@ -84,7 +99,10 @@ main: {
 
         if (@results) {
             ## just take the single 'best' one, arbitrarily chosen as the one with the longest fusion sequence.
-            @results = reverse sort { length($a->{prot_fusion_seq}) <=> length($b->{prot_fusion_seq}) } @results;
+            @results = sort { 
+                $priority{$a->{prot_fusion_type}} <=> $priority{$b->{prot_fusion_type}}
+                ||
+                length($b->{prot_fusion_seq}) <=> length($a->{prot_fusion_seq}) } @results;
             
             #my $result = shift @results;
             
@@ -102,6 +120,11 @@ main: {
                            $result->{right_domains}
                            
                     ) . "\n";
+                
+                unless ($show_all_flag) {
+                    # only showing first entry.
+                    last;
+                }
             }
         }
         else {
@@ -122,22 +145,23 @@ main: {
 ####
 sub examine_fusion_coding_effect {
     my ($gene_left, $break_left, $gene_right, $break_right, $tied_hash) = @_;
+    
+    my $gene_left_aref = &decode_gene_json($gene_left, $tied_hash);
+    my $gene_right_aref = &decode_gene_json($gene_right, $tied_hash);
+    
+    unless ($gene_left_aref && $gene_right_aref) {
+        return();
+    }
 
-    my $coder = new JSON::XS();
+    if (0) {
+        ## debugging
+        foreach my $cds_obj (@$gene_left_aref, @$gene_right_aref) {
+            my @segments = @{$cds_obj->{phased_segments}};
+            print &segments_to_string(@segments) . "\n";
+        }
         
-    my $gene_left_json = $tied_hash->get_value($gene_left);    
-    my $gene_left_aref = $coder->decode($gene_left_json);
-
-    #print Dumper($gene_left_aref);
-    #print "Gene_left: $gene_left_json\n";
-    
-    
-    my $gene_right_json = $tied_hash->get_value($gene_right);
-    my $gene_right_aref = $coder->decode($gene_right_json);
-
-    #print Dumper($gene_right_aref);
-    #print "Gene_right: $gene_right_json\n";
-
+        return();
+    }
     my @results;
 
     
@@ -390,9 +414,13 @@ sub segments_to_string {
 
     my @coord_text;
     foreach my $segment (@segments) {
-        push (@coord_text, join("-", $segment->{lend}, $segment->{rend}));
+        my ($phase_left, $phase_right) = ($orient eq '+') 
+            ? ($segment->{phase_beg}, $segment->{phase_end})
+            : ($segment->{phase_end}, $segment->{phase_beg});
+        
+        push (@coord_text, "[$phase_left]" . join("-", $segment->{lend}, $segment->{rend}) . "[$phase_right]");
     }
-
+    
     my $descr_text = join("|", $chr, $orient, @coord_text);
 
     return($descr_text);
@@ -483,3 +511,34 @@ sub clone {
 
     return($clone_ref);
 }
+
+
+####
+sub decode_gene_json {
+    my ($gene_id, $tied_hash) = @_;
+
+    my $coder = new JSON::XS();
+
+    my $decoded = undef;
+    my $json = undef;
+    
+    eval {
+        $json = $tied_hash->get_value($gene_id);
+
+        if ($json) {
+            $decoded = $coder->decode($json);
+            #print Dumper($decoded);
+        }
+        else {
+            print STDERR "Error, no entry stored in prot_db for [$gene_id]\n";
+            return(undef);
+        }
+    };
+
+    if ($@) {
+        print STDERR "ERROR, gene_id: $gene_id returns json: $json and error decoding: $@";
+    }
+
+    return($decoded);
+}
+

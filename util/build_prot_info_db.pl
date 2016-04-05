@@ -16,8 +16,6 @@ my $usage = <<__EOUSAGE__;
 
 ##########################################################################
 #
-#  --fusions <string>                : fusion predictions
-#
 #  --ref_coding_GFF3 <string>        : reference annotation for coding genes in gff3 format
 #                                      
 #  --cds_fasta <string>              : CDS fasta file
@@ -36,21 +34,19 @@ __EOUSAGE__
 
 
 my $help_flag;
-my $fusions_file;
 my $ref_coding_gff3_file;
 my $cds_fasta_file;
 my $pfam_domains_file;
 my $out_db_dir;
 
 &GetOptions ( 'h' => \$help_flag,
-              'fusions=s' => \$fusions_file,
               'ref_coding_GFF3=s' => \$ref_coding_gff3_file,
               'cds_fasta=s' => \$cds_fasta_file,
               'pfam_domains=s' => \$pfam_domains_file,
               'out_db_dir=s' => \$out_db_dir,
     );
 
-unless ($fusions_file && $ref_coding_gff3_file && $cds_fasta_file && $pfam_domains_file && $out_db_dir) {
+unless ($ref_coding_gff3_file && $cds_fasta_file && $pfam_domains_file && $out_db_dir) {
     die $usage;
 }
 
