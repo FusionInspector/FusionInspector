@@ -65,7 +65,7 @@ main: {
     open (my $fh, $fusions_file) or die "Error, cannot open file $fusions_file";
     my $header = <$fh>;
     
-    unless ($header =~ /^\#fusion_name/) {
+    unless ($header =~ /^\#/) {
         die "Error, fusion_file: $fusions_file has unrecognizable header: $header";
     }
     chomp $header;
@@ -362,8 +362,11 @@ sub split_cds_at_breakpoint {
                                          rel_lend => $segment->{rel_lend},
                                          rel_rend => $segment->{rel_lend} + ($breakpoint_coord - $segment->{lend}),
                                          phase_beg => $segment->{phase_beg},
-                                         phase_end => ($segment->{phase_beg} + ($breakpoint_coord - $segment->{lend})) % 3,
+                                         phase_end => ".", # set below
                 };
+                if ($segment->{phase_beg} ne '.') {
+                    $new_left_segment->{phase_end} = ($segment->{phase_beg} + ($breakpoint_coord - $segment->{lend})) % 3;
+                }
                 
                 my $new_right_segment = { chr => $segment->{chr},
                                           lend => $breakpoint_coord,
@@ -384,10 +387,11 @@ sub split_cds_at_breakpoint {
                     "\nNew frags: " . &segments_to_string($new_left_segment) . "\t" . &segments_to_string($new_right_segment) . "\n\n" if $DEBUG;
                 
                 
-                my $supposed_end_phase = ($new_right_segment->{phase_beg} + ($new_right_segment->{rel_rend} - $new_right_segment->{rel_lend})) % 3;
-                print "supposed end phase: $supposed_end_phase\n" if $DEBUG;
-                assert($supposed_end_phase == $new_right_segment->{phase_end});
-                
+                if ($segment->{phase_beg} ne '.') {
+                    my $supposed_end_phase = ($new_right_segment->{phase_beg} + ($new_right_segment->{rel_rend} - $new_right_segment->{rel_lend})) % 3;
+                    print "supposed end phase: $supposed_end_phase\n" if $DEBUG;
+                    assert($supposed_end_phase == $new_right_segment->{phase_end});
+                }
                 
              
             }
@@ -401,8 +405,12 @@ sub split_cds_at_breakpoint {
                                           rel_lend => $segment->{rel_rend} + ($segment->{rend} - $breakpoint_coord),
                                           rel_rend => $segment->{rel_rend},
                                           phase_beg => $segment->{phase_beg},
-                                          phase_end => ($segment->{phase_beg} + (($segment->{rend} - $breakpoint_coord))) % 3,
+                                          phase_end => ".", # set below
                 };
+                
+                if ($segment->{phase_beg} ne '.') {
+                    $new_right_segment->{phase_end} = ($segment->{phase_beg} + (($segment->{rend} - $breakpoint_coord))) % 3;
+                }
 
                 my $new_left_segment = { chr => $segment->{chr},
                                          lend => $segment->{lend},
@@ -420,10 +428,11 @@ sub split_cds_at_breakpoint {
                 print "Original segment: " . &segments_to_string($segment) . 
                     "\nNew frags: " . &segments_to_string($new_left_segment) . "\t" . &segments_to_string($new_right_segment) . "\n\n" if $DEBUG;
                 
-                assert($new_right_segment->{phase_end} == ($new_right_segment->{phase_beg} + $new_right_segment->{rend} - $new_right_segment->{lend}) % 3);
-
-                assert($new_left_segment->{phase_end} == ($new_left_segment->{phase_beg} + $new_left_segment->{rend} - $new_left_segment->{lend}) % 3);
-                
+                if ($segment->{phase_beg} ne ".") {
+                    assert($new_right_segment->{phase_end} == ($new_right_segment->{phase_beg} + $new_right_segment->{rend} - $new_right_segment->{lend}) % 3);
+                    
+                    assert($new_left_segment->{phase_end} == ($new_left_segment->{phase_beg} + $new_left_segment->{rend} - $new_left_segment->{lend}) % 3);
+                }
             }                
             
         }
@@ -575,13 +584,13 @@ sub decode_gene_json {
             #print Dumper($decoded);
         }
         else {
-            print STDERR "Error, no entry stored in prot_db for [$gene_id]\n";
+            print STDERR "WARNING, no entry stored in prot_db for [$gene_id]\n";
             return(undef);
         }
     };
 
     if ($@) {
-        print STDERR "ERROR, gene_id: $gene_id returns json: $json and error decoding: $@";
+        print STDERR "WARNING, gene_id: $gene_id returns json: $json and error decoding: $@";
     }
 
     return($decoded);
