@@ -7,6 +7,7 @@ use FindBin;
 use lib ("$FindBin::Bin/../PerlLib");
 use SAM_reader;
 use SAM_entry;
+use DelimParser;
 use Carp;
 use Data::Dumper;
 use Set::IntervalTree;
@@ -196,23 +197,47 @@ main: {
         print STDERR "-writing fusion junction support info.\n";
         
         ## output the junction info summary:
+        
         my $junction_coords_info_file = "$bam_file.fusion_junction_info";
         open (my $ofh, ">$junction_coords_info_file") or die "Error, cannot write to file: $junction_coords_info_file";
+        
+        my @column_headers = qw(LeftGene LeftLocalBreakpoint LeftBreakpoint
+                                RightGene RightLocalBreakpoint RightBreakpoint
+                                Splice_type JunctionReadCount LargeAnchorSupport JunctionReads);
+        
+        my $tab_writer = new DelimParser::Writer($ofh, "\t", \@column_headers);
         
         my @fusion_j = reverse sort { $#{$fusion_junctions{$a}} <=> $#{$fusion_junctions{$b}} } keys %fusion_junctions;
         foreach my $fusion (@fusion_j) {
             my @reads = @{$fusion_junctions{$fusion}};
             my $num_fusion_reads = scalar @reads;
-
+            
             my $LARGE_ANCHOR_BOTH_ENDS = ($fusion_large_anchors{$fusion}->{LEFT_LARGE_ANCHOR}
                                           &&
                                           $fusion_large_anchors{$fusion}->{RIGHT_LARGE_ANCHOR})
                 ? "YES"
                 : "NO";
             
+            my ($LeftGene, $LeftLocalBreakpoint, $LeftBreakpoint,
+                $RightGene, $RightLocalBreakpoint, $RightBreakpoint,
+                $Splice_type) = split(/\t/, $fusion);
             
-            print $ofh "$fusion\t$num_fusion_reads\t$LARGE_ANCHOR_BOTH_ENDS\t" . join(",", @reads) . "\n";
+            $tab_writer->write_row( { LeftGene => $LeftGene,
+                                      LeftLocalBreakpoint => $LeftLocalBreakpoint,
+                                      LeftBreakpoint => $LeftBreakpoint,
+                                      RightGene => $RightGene,
+                                      RightLocalBreakpoint => $RightLocalBreakpoint,
+                                      RightBreakpoint => $RightBreakpoint,
+                                      Splice_type => $Splice_type,
+                                      JunctionReadCount => $num_fusion_reads,
+                                      LargeAnchorSupport => $LARGE_ANCHOR_BOTH_ENDS,
+                                      JunctionReads => join(",", @reads) } );
+            
+            
+            
+            
         }
+        
         close $ofh;
     }
     
