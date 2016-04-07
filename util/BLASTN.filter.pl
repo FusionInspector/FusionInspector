@@ -82,19 +82,6 @@ unless ($fusion_preds_file && $out_prefix && defined($Evalue) && $max_promiscuit
 17      TAF_right
 18      fusion_annotations
 
-but want:
-
-0       #fusion_name
-1       JunctionReads
-2       SpanningFrags
-3       Splice_type
-4       LeftGene
-5       LeftBreakpoint
-6       RightGene
-7       RightBreakpoint
-8       JunctionReads
-9       SpanningFrags
-10      annotations\tTrinityGG\t....
 
 =cut
 
@@ -111,8 +98,8 @@ main: {
     
     print $ofh join("\t", 
                     "#fusion_name", 
-                    "JunctionReads", 
-                    "SpanningFrags", 
+                    "JunctionReadCount", 
+                    "SpanningFragCount", 
                     "Splice_type", 
                     "LeftGene", 
                     "LeftBreakpoint", 
@@ -120,6 +107,8 @@ main: {
                     "RightBreakpoint", 
                     "JunctionReads", 
                     "SpanningFrags", 
+                    "num_counterFusion_left",
+                    "num_counterFusion_right",
                     "TAF_left",
                     "TAF_right",
                     "Annotations", 
@@ -171,7 +160,9 @@ main: {
                         $geneB, 
                         $chr_brkpt_B, 
                         $junction_reads,
-                        $spanning_reads, 
+                        $spanning_reads,
+                        $num_left_contrary_reads,
+                        $num_right_contrary_reads,
                         $TAF_left,
                         $TAF_right,
                         $annotations,

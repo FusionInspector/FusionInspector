@@ -682,7 +682,7 @@ class FusionInspector( ParentScript.ParentScript ):
         
         ## make an abridged version that lacks the list of supporting reads.
 
-        cmdstr = str("cut -f1-8,11-14 < " + final_fusions_file + ".final > " + final_fusions_file + ".final.abridged")
+        cmdstr = str("cut -f1-8,11-100 < " + final_fusions_file + ".final > " + final_fusions_file + ".final.abridged")
 
         lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                lstr_cur_dependencies = [ final_fusions_file + ".final" ],

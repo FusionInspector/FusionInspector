@@ -491,20 +491,18 @@ sub exclude_FP_junction_and_spanning_reads {
         my $num_junction_reads = $x[7] = scalar(@adj_junc_reads);
         my $num_spanning_reads = $x[8] = scalar(@adj_spanning_frags);
         
-        my $PSEUDOCOUNT = 1;
-        
         my $num_left_contrary_reads = $x[12];
         my $num_right_contrary_reads = $x[14];
 
-        my $TAF_left = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) 
+        my $TAF_left = ($num_junction_reads + $num_spanning_reads) 
             / 
-            ($num_left_contrary_reads $num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT);
+            ($num_left_contrary_reads $num_junction_reads + $num_spanning_reads);
         
         $TAF_left = sprintf("%.2f", $TAF_left);
         
-        my $TAF_right = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) 
+        my $TAF_right = ($num_junction_reads + $num_spanning_reads) 
             / 
-            ($num_right_contrary_reads + $num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT);
+            ($num_right_contrary_reads + $num_junction_reads + $num_spanning_reads);
         
         $TAF_right = sprintf("%.2f", $TAF_right);
         
