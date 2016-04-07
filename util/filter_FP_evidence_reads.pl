@@ -455,8 +455,7 @@ sub parse_junction_and_spanning_reads {
 ####
 sub exclude_FP_junction_and_spanning_reads {
     my ($fusion_summary, $junction_reads_href, $spanning_frags_href) = @_;
-
-
+    
     open (my $ofh, ">$fusion_summary.filt") or die $!;
     
     open (my $fh, $fusion_summary) or die "Error, cannot open file $fusion_summary";
@@ -489,7 +488,6 @@ sub exclude_FP_junction_and_spanning_reads {
         my $orig_junc_read_count = $x[7];
         my $orig_span_frag_count = $x[8];
         
-        
         my $num_junction_reads = $x[7] = scalar(@adj_junc_reads);
         my $num_spanning_reads = $x[8] = scalar(@adj_spanning_frags);
         
@@ -498,9 +496,6 @@ sub exclude_FP_junction_and_spanning_reads {
         my $num_left_contrary_reads = $x[12];
         my $num_right_contrary_reads = $x[14];
 
-
-        ## Warning - TAF info isn't going to be correct when running STAR in patch mode, since multiple mappers will be exluded from output.
-        
         my $TAF_left = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) 
             / 
             ($num_left_contrary_reads $num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT);

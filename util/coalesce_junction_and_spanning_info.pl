@@ -5,7 +5,6 @@ use warnings;
 use FindBin;
 use Carp;
 use lib ("$FindBin::Bin/../PerlLib");
-#use __GLOBALS__;
 
 
 my $usage = "\n\tusage: $0 junction_info_A.txt,[junction_info_B.txt,...] spanning_info_A.txt,[spanning_info_B.txt,...]\n\n";
@@ -75,10 +74,16 @@ main: {
             push (@right_contrary_reads, ".");
         }
         
-        my $TAF_left = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) / ($num_left_contrary_reads + $PSEUDOCOUNT);
+        my $TAF_left = ($num_junction_reads + $num_spanning_reads) 
+            / 
+            ($num_junction_reads + $num_spanning_reads + $num_left_contrary_reads);
+        
         $TAF_left = sprintf("%.2f", $TAF_left);
         
-        my $TAF_right = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) / ($num_right_contrary_reads + $PSEUDOCOUNT);
+        my $TAF_right = ($num_junction_reads + $num_spanning_reads) 
+            / 
+            ($num_junction_reads + $num_spanning_reads + $num_right_contrary_reads);
+        
         $TAF_right = sprintf("%.2f", $TAF_right);
         
         my ($geneA, $local_brkpt_A, $chr_brkpt_A, $geneB, $local_brkpt_B, $chr_brkpt_B) = split(/\t/, $fusion);
