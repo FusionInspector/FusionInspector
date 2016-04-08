@@ -3,6 +3,10 @@
 use strict;
 use warnings;
 
+use FindBin;
+use lib ("$FindBin::Bin/../PerlLib");
+use DelimParser;
+
 my $usage = "\n\n\tusage: $0 left.fq finspector.fusion_predictions.final.abridged\n\n";
 
 my $fq_filename = $ARGV[0] or die $usage;
@@ -13,26 +17,30 @@ main: {
     my $num_frags = &get_num_total_frags($fq_filename);
     
     open (my $fh, $finspector_results) or die "Error, cannot open file $finspector_results";
-    my $header = <$fh>;
-    my @header_pts = split(/\t/, $header);
+    my $tab_reader = new DelimParser::Reader($fh, "\t");
+
+    my @column_headers = $tab_reader->get_column_headers();
+    push (@column_headers, "J_FFPM", "S_FFPM");
+
+    my $tab_writer = new DelimParser::Writer(*STDOUT, "\t", \@column_headers);
     
-    $header = join("\t", @header_pts[0..2], "J_FFPM", "S_FFPM", @header_pts[3..$#header_pts]);
-    print $header;
-
-    while (<$fh>) {
-        my @x = split(/\t/);
-        my $J = $x[1];
-        my $S = $x[2];
-
+    while (my $row = $tab_reader->get_row()) {
+        
+        my $J = $row->{JunctionReadCount};
+        my $S = $row->{SpanningFragCount};
+        
         my $J_FFPM = &compute_FFPM($J, $num_frags);
         my $S_FFPM = &compute_FFPM($S, $num_frags);
 
-        print join("\t", @x[0..2], $J_FFPM, $S_FFPM, @x[3..$#x]);
+        $row->{J_FFPM} = $J_FFPM;
+        $row->{S_FFPM} = $S_FFPM;
+
+        $tab_writer->write_row($row);
     }
     close $fh;
-
+    
     exit(0);
-
+    
 }
 
 ####
