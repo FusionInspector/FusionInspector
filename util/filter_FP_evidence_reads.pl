@@ -12,6 +12,7 @@ use Pipeliner;
 use Fastq_reader;
 use SAM_reader;
 use SAM_entry;
+use DelimParser;
 use Cwd;
 
 
@@ -100,12 +101,12 @@ main: {
     print STDERR "-parsing junction and spanning reads info.\n";
     my %junction_reads;
     my %spanning_frags;
+    
     &parse_junction_and_spanning_reads($fusion_summary, \%junction_reads, \%spanning_frags);
 
     print STDERR "-identified " . scalar(keys %junction_reads) . " junction reads.\n";
     print STDERR "-identified " . scalar(keys %spanning_frags) . " spanning frags.\n";
     
-
     
     ##
     ## Examine/filter the junction reads
@@ -430,14 +431,15 @@ sub extract_spanning_reads {
 ####
 sub parse_junction_and_spanning_reads {
     my ($fusion_summary, $junction_reads_href, $spanning_frags_href) = @_;
-
+        
     open (my $fh, $fusion_summary) or die "Error, cannot open file $fusion_summary";
-    while (<$fh>) {
-        chomp;
-        if (/^\#/) { next; }
-        my @x = split(/\t/);
-        my $junc_reads_list = $x[10];
-        my $spanning_frag_list = $x[11];
+    
+    my $tab_reader = new DelimParser::Reader($fh, "\t");
+    
+    while (my $row = $tab_reader->get_row() ) {
+        
+        my $junc_reads_list = $row->{JunctionReads};
+        my $spanning_frag_list = $row->{SpanningFrags};
         
         foreach my $junc_read (split(/,/, $junc_reads_list)) {
             $junction_reads_href->{$junc_read}++;
@@ -447,7 +449,8 @@ sub parse_junction_and_spanning_reads {
         }
     }
     close $fh;
-
+    
+    
     return;
 }
 
@@ -456,58 +459,64 @@ sub parse_junction_and_spanning_reads {
 sub exclude_FP_junction_and_spanning_reads {
     my ($fusion_summary, $junction_reads_href, $spanning_frags_href) = @_;
     
-    open (my $ofh, ">$fusion_summary.filt") or die $!;
-    
     open (my $fh, $fusion_summary) or die "Error, cannot open file $fusion_summary";
-    while (<$fh>) {
-        if (/^\#/) { print; next; }
-        chomp;
-        my @x = split(/\t/);
-        my $junc_reads_list = $x[10];
-        my $spanning_frag_list = $x[11];
+    my $tab_reader = new DelimParser::Reader($fh, "\t");
 
+    my @column_headings = $tab_reader->get_column_headers();
+    push (@column_headings, "MiscComments");
+    
+    open (my $ofh, ">$fusion_summary.filt") or die $!;
+    my $tab_writer_filter = new DelimParser::Writer($ofh, "\t", \@column_headings);
+    my $tab_writer_stdout = new DelimParser::Writer(*STDOUT, "\t", \@column_headings);
+    
+    while (my $row = $tab_reader->get_row()) {
+
+        my $junc_reads_list = $row->{JunctionReads};
+        my $spanning_frag_list = $row->{SpanningFrags};
+        
         my @adj_junc_reads;
         foreach my $junc_read (split(/,/, $junc_reads_list)) {
             if (exists $junction_reads_href->{$junc_read}) {
                 push (@adj_junc_reads, $junc_read);
             }
         }
-
+        
         my @adj_spanning_frags;
         foreach my $spanning_frag (split(/,/, $spanning_frag_list)) {
             if (exists $spanning_frags_href->{$spanning_frag}) {
                 push (@adj_spanning_frags, $spanning_frag);
             }
         }
-
+        
+        my $orig_junc_read_count = $row->{JunctionReadCount};
+        my $orig_span_frag_count = $row->{SpanningFragCount};
+        
         ## adjust the stats based on the adjusted evidence counts.
         
-        $x[10] = join(",", @adj_junc_reads);
-        $x[11] = join(",", @adj_spanning_frags);
+        $row->{JunctionReads} = join(",", @adj_junc_reads);
+        $row->{SpanningFrags} = join(",", @adj_spanning_frags);
         
-        my $orig_junc_read_count = $x[7];
-        my $orig_span_frag_count = $x[8];
         
-        my $num_junction_reads = $x[7] = scalar(@adj_junc_reads);
-        my $num_spanning_reads = $x[8] = scalar(@adj_spanning_frags);
+        my $num_junction_reads = $row->{JunctionReadCount} = scalar(@adj_junc_reads);
+        my $num_spanning_reads = $row->{SpanningFragCount} = scalar(@adj_spanning_frags);
         
-        my $num_left_contrary_reads = $x[12];
-        my $num_right_contrary_reads = $x[14];
-
-        my $TAF_left = ($num_junction_reads + $num_spanning_reads) 
+        my $num_left_contrary_reads = $row->{NumCounterFusionLeft};
+        my $num_right_contrary_reads = $row->{NumCounterFusionRight};
+        
+        my $FAF_left = ($num_junction_reads + $num_spanning_reads) 
             / 
-            ($num_left_contrary_reads $num_junction_reads + $num_spanning_reads);
+            ($num_left_contrary_reads + $num_junction_reads + $num_spanning_reads);
         
-        $TAF_left = sprintf("%.2f", $TAF_left);
+        $FAF_left = sprintf("%.2f", $FAF_left);
         
-        my $TAF_right = ($num_junction_reads + $num_spanning_reads) 
+        my $FAF_right = ($num_junction_reads + $num_spanning_reads) 
             / 
             ($num_right_contrary_reads + $num_junction_reads + $num_spanning_reads);
         
-        $TAF_right = sprintf("%.2f", $TAF_right);
+        $FAF_right = sprintf("%.2f", $FAF_right);
         
-        $x[16] = $TAF_left;
-        $x[17] = $TAF_right;
+        $row->{FAF_left} = $FAF_left;
+        $row->{FAF_right}= $FAF_right;
         
         
         my $pct_filtered_junction = 0;
@@ -521,33 +530,29 @@ sub exclude_FP_junction_and_spanning_reads {
         }
         
 
-        if ($num_junction_reads == 0 && $x[6] ne "NO_JUNCTION_READS_IDENTIFIED") {
+        # in case we now filtered out all the junction-supporting reads
+        if ($num_junction_reads == 0 && $row->{SpliceType} ne "NO_JUNCTION_READS_IDENTIFIED") {
             # reset it
-            $x[6] = "NO_JUNCTION_READS_IDENTIFIED";
+            $row->{SpliceType} = "NO_JUNCTION_READS_IDENTIFIED";
         }
         
         #add % filtered annotation
+        $row->{MiscComments} = ".";
         if ($pct_filtered_junction > 0 || $pct_filtered_spanning > 0) {
-            # add to annotations
-            if ($x[18] eq ".") {
-                $x[18] = "";
-            }
-            else {
-                $x[18] .= ",";
-            }
-            
-            $x[18] .= "PctFiltJ[$pct_filtered_junction],PctFiltS[$pct_filtered_spanning]";
+            $row->{MiscComments} = "PctFiltJ[$pct_filtered_junction],PctFiltS[$pct_filtered_spanning]";
         }
         
         # report entry
-        my $outline = join("\t", @x) . "\n"; 
-        
+                
         if ($num_junction_reads > 0 || $num_spanning_reads > 0) {
-            print $outline;
-            print $ofh $outline;
+            $tab_writer_filter->write_row($row);
+            $tab_writer_stdout->write_row($row);
         }
         else {
-            print $ofh "#" . $outline;
+            # comment it out in the filt output
+            my $first_column = $column_headings[0];
+            $row->{$first_column} = "#" . $row->{$first_column};
+            $tab_writer_filter->write_row($row);
         }
         
     }
