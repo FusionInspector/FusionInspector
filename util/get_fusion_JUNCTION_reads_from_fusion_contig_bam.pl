@@ -203,7 +203,7 @@ main: {
         
         my @column_headers = qw(LeftGene LeftLocalBreakpoint LeftBreakpoint
                                 RightGene RightLocalBreakpoint RightBreakpoint
-                                Splice_type JunctionReadCount LargeAnchorSupport JunctionReads);
+                                SpliceType JunctionReadCount LargeAnchorSupport JunctionReads);
         
         my $tab_writer = new DelimParser::Writer($ofh, "\t", \@column_headers);
         
@@ -228,7 +228,7 @@ main: {
                                       RightGene => $RightGene,
                                       RightLocalBreakpoint => $RightLocalBreakpoint,
                                       RightBreakpoint => $RightBreakpoint,
-                                      Splice_type => $Splice_type,
+                                      SpliceType => $Splice_type,
                                       JunctionReadCount => $num_fusion_reads,
                                       LargeAnchorSupport => $LARGE_ANCHOR_BOTH_ENDS,
                                       JunctionReads => join(",", @reads) } );

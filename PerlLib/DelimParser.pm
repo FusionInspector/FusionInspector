@@ -108,7 +108,7 @@ sub _init {
 }
 
 ####
-sub get_next_row {
+sub get_row {
     my $self = shift;
     
     my $fh = $self->get_fh();

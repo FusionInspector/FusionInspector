@@ -8,6 +8,7 @@ use FindBin;
 use lib ("$FindBin::Bin/../PerlLib");
 use SAM_reader;
 use SAM_entry;
+use DelimParser;
 use Data::Dumper;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 
@@ -122,10 +123,24 @@ main: {
     
     {
         open (my $fh, "$junction_info_file") or die "error, cannot open file $junction_info_file";
-        while (<$fh>) {
-            chomp;
-            my ($geneA, $coordA, $orig_coordA, $geneB, $coordB, $orig_coordB, $splice_info, $fusion_read_count, $fusion_read_list) = split(/\t/);
-
+        my $tabreader = new DelimParser::Reader($fh, "\t");
+        
+        
+        while (my $row = $tabreader->get_row()) {
+            
+            my ($geneA, $coordA, $orig_coordA, 
+                $geneB, $coordB, $orig_coordB, 
+                $splice_info, $fusion_read_count, $fusion_read_list) = ($row->{LeftGene},
+                                                                        $row->{LeftLocalBreakpoint},
+                                                                        $row->{LeftBreakpoint},
+                                                                        $row->{RightGene},
+                                                                        $row->{RightLocalBreakpoint},
+                                                                        $row->{RightBreakpoint},
+                                                                        $row->{SpliceType},
+                                                                        $row->{JunctionReadCount},
+                                                                        $row->{LargeAnchorSupport},
+                                                                        $row->{JunctionReads});
+            
             foreach my $fusion_read (split(/,/, $fusion_read_list)) {
                 $junction_reads_ignore{$fusion_read}++;
             }
@@ -352,6 +367,16 @@ main: {
         ## output the spanning read info
         my $spanning_read_info_file = "$bam_file.fusion_spanning_info";
         open (my $ofh, ">$spanning_read_info_file") or die "Error, cannot write to $spanning_read_info_file";
+
+        my @fields = qw(LeftGene LeftLocalBreakpoint LeftBreakpoint
+                        RightGene RightLocalBreakpoint RightBreakpoint
+                        SpliceType 
+                        SpanningFragCount SpanningFrags
+                        NumCounterFusionLeft CounterFusionLeftReads
+                        NumCounterFusionRight CounterFusionRightReads);
+
+        my $tab_writer = new DelimParser::Writer($ofh, "\t", \@fields);
+        
         foreach my $fusion_n_breakpoint (sort keys %fusion_to_spanning_reads) {
             my ($fusion_name, $breakpoint) = split(/\|/, $fusion_n_breakpoint);
             my ($geneA, $geneB) = split(/--/, $fusion_name);
@@ -366,7 +391,6 @@ main: {
                 }
             }
             
-
             my ($coordA, $coordB) = split(/-/, $breakpoint);
             
             my @spanning_reads = @{$fusion_to_spanning_reads{$fusion_n_breakpoint}};
@@ -390,10 +414,33 @@ main: {
             my $contrary_left_support_txt = join(",", @contrary_left_support) || ".";
             my $contrary_right_support_txt = join(",", @contrary_right_support) || ".";
 
+            
+            my ($LeftGene, $LeftLocalBreakpoint, $LeftBreakpoint,
+                $RightGene, $RightLocalBreakpoint, $RightBreakpoint,
+                $SpliceType) = split(/\t/, $fusion_info);
+
+            
+
             print $ofh join("\t", $fusion_info, $num_spanning) . "\t" . join(",", @spanning_reads)
                 . "\t$num_left_contrary_support\t$contrary_left_support_txt"
                 . "\t$num_right_contrary_support\t$contrary_right_support_txt"
                 . "\n";
+        
+            $tab_writer->write_row( { LeftGene => $LeftGene,
+                                      LeftLocalBreakpoint => $LeftLocalBreakpoint,
+                                      LeftBreakpoint => $LeftBreakpoint,
+                                      RightGene => $RightGene,
+                                      RightLocalBreakpoint => $RightLocalBreakpoint,
+                                      RightBreakpoint => $RightBreakpoint,
+                                      SpliceType => $SpliceType,
+                                      SpanningFragCount => $num_spanning,
+                                      SpanningFrags => join(",", @spanning_reads),
+                                      NumCounterFusionLeft => $num_left_contrary_support,
+                                      CounterFusionLeftReads => $contrary_left_support_txt,
+                                      NumCounterFusionRight => $num_right_contrary_support,
+                                      CounterFusionRightReads => $contrary_right_support_txt,
+                                    } );
+            
         }
         close $ofh;
     }
