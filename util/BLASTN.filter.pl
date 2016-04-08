@@ -6,6 +6,7 @@ use Carp;
 use FindBin;
 use lib ("$FindBin::Bin/../PerlLib");
 use Fasta_reader;
+use DelimParser;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);                                                 
 
 
@@ -60,114 +61,38 @@ unless ($fusion_preds_file && $out_prefix && defined($Evalue) && $max_promiscuit
 }
 
 
-=incoming
-
-0       #geneA
-1       local_brkpt_A
-2       chr_brkpt_A
-3       geneB
-4       local_brkpt_B
-5       chr_brkpt_B
-6       splice_type
-7       junction_count
-8       spanning_count
-9       has_large_anchor_junction_support
-10      junction_reads
-11      spanning_reads
-12      num_left_contrary_reads
-13      left_contrary_reads
-14      num_right_contrary_reads
-15      right_contrary_reads
-16      TAF_left
-17      TAF_right
-18      fusion_annotations
-
-
-=cut
-
-
 main: {
 
     my $star_fusion_fmt_file = "$fusion_preds_file.starFfmt";
+
+    open (my $fh, $fusion_preds_file) or die "Error, cannot open file $fusion_preds_file";
     open (my $ofh, ">$star_fusion_fmt_file") or die  "Error, cannot write to $star_fusion_fmt_file";
     
-    
-    my @fusions;
-    open (my $fh, $fusion_preds_file) or die "Error, cannot open file $fusion_preds_file";
-    my $header = <$fh>;
-    
-    print $ofh join("\t", 
-                    "#fusion_name", 
-                    "JunctionReadCount", 
-                    "SpanningFragCount", 
-                    "Splice_type", 
-                    "LeftGene", 
-                    "LeftBreakpoint", 
-                    "RightGene", 
-                    "RightBreakpoint", 
-                    "JunctionReads", 
-                    "SpanningFrags", 
-                    "num_counterFusion_left",
-                    "num_counterFusion_right",
-                    "TAF_left",
-                    "TAF_right",
-                    "Annotations", 
-                    "TrinityGG") . "\n";
-
-    while (<$fh>) {
-        if (/^\#/) { 
-            next; 
-        }
-        chomp;
-        my $line = $_;
-
-        my ($geneA, 
-            $local_chr_brkpt_A, 
-            $chr_brkpt_A, 
-            $geneB, 
-            $local_chr_brkpt_B, 
-            $chr_brkpt_B, 
-            $splice_type, 
-            $junction_count, 
-            $spanning_count, 
-            $has_lrg_anchor_support, 
-            $junction_reads, 
-            $spanning_reads, 
-            $num_left_contrary_reads, 
-            $left_contrary_reads, 
-            $num_right_contrary_reads, 
-            $right_contrary_reads, 
-            $TAF_left, 
-            $TAF_right, 
-            $annotations, 
-            $TrinityGG, 
-            @rest,
-            ) = split(/\t/);
+    my $tab_reader = new DelimParser::Reader($fh, "\t");
         
-        unless ($TrinityGG) {
-            $TrinityGG = ".";
+    my @column_headers = $tab_reader->get_column_headers();
+    
+    # reorder
+    my %remove = ( JunctionReadCount => 1,
+                   SpanningFragCount => 1 );
+    
+    my @adj_column_headers;
+    foreach my $header (@column_headers) {
+        if (! exists $remove{$header}) {
+            push (@adj_column_headers, $header);
         }
+    }
 
-        my $fusion_name = "$geneA--$geneB";
+    @adj_column_headers = ("#FusionName", "JunctionReadCount", "SpanningFragCount", @adj_column_headers); # retain ordering for the rest.
+    
+    my $tab_writer = new DelimParser::Writer($ofh, "\t", \@adj_column_headers);
+    
+    while (my $row = $tab_reader->get_row()) {
         
-        print $ofh join("\t", 
-                        $fusion_name, 
-                        $junction_count, 
-                        $spanning_count, 
-                        $splice_type, 
-                        $geneA, 
-                        $chr_brkpt_A, 
-                        $geneB, 
-                        $chr_brkpt_B, 
-                        $junction_reads,
-                        $spanning_reads,
-                        $num_left_contrary_reads,
-                        $num_right_contrary_reads,
-                        $TAF_left,
-                        $TAF_right,
-                        $annotations,
-                        $TrinityGG,
-                        @rest) . "\n";
+        my $fusion_name = join("--", $row->{LeftGene}, $row->{RightGene});
+        $row->{'#FusionName'} = $fusion_name;
+        
+        $tab_writer->write_row($row);
     }
     
     close $fh;
