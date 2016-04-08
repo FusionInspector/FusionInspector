@@ -205,12 +205,7 @@ sub write_row {
     my $num_dict_fields = scalar(keys %$dict_href);
     
     my @column_headers = $self->get_column_headers();
-    my $num_column_headers = scalar(@column_headers);
-    
-    if ($num_column_headers != $num_dict_fields) {
-        confess "Error, should have $num_column_headers fields but only have $num_dict_fields";
-    }
-    
+        
     my @out_fields;
     for my $column_header (@column_headers) {
         my $field = $dict_href->{$column_header};
