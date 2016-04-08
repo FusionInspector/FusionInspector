@@ -2,6 +2,10 @@
 
 use strict;
 use warnings;
+use FindBin;
+use lib ("$FindBin::Bin/../PerlLib");
+use DelimParser;
+
 
 my $usage = "usage: $0 fusions.summary reads.frag_coords\n\n";
 
@@ -21,25 +25,25 @@ main: {
     my %spanning_want;
 
     {
+        
         open (my $fh, $fusions_summary_file) or die "Error, cannot open file $fusions_summary_file";
-        while (<$fh>) {
-            if (/^\#/) { next; }
-            chomp;
-            my @x = split(/\t/);
+        
+        my $tab_reader = new DelimParser::Reader($fh, "\t");
+        
+        while (my $row = $tab_reader->get_row()) {
+                        
+            my $geneA = $row->{LeftGene};
+            my $geneB = $row->{RightGene};
             
-            my $geneA = $x[0];
-            my $geneB = $x[3];
+            my $break_left = $row->{LeftLocalBreakpoint};
+            my $break_right = $row->{RightLocalBreakpoint};
+
+            my $num_junction_reads = $row->{JunctionReadCount};
+
+            my $num_spanning_frags = $row->{SpanningFragCount};
+            my @spanning_frags = split(/,/, $row->{SpanningFrags});
             
-            my $break_left = $x[1];
-            my $break_right = $x[4];
-
-            my @junction_reads = split(/,/, $x[10]);
-            my $num_junction_reads = scalar(@junction_reads);
-
-            my @spanning_frags = split(/,/, $x[11]);
-            my $num_spanning_frags = scalar(@spanning_frags);
-
-            my $fusion_name = join("--", $geneA, $geneB);
+            my $fusion_name = $row->{'#FusionName'};
             
             foreach my $spanning_frag (@spanning_frags) {
                 
