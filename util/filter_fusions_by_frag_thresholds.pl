@@ -4,7 +4,9 @@ use strict;
 use warnings;
 use Carp;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
-
+use FindBin;
+use lib ("$FindBin::Bin/../PerlLib");
+use DelimParser;
 
 my $usage = <<__EOUSAGE__;
 
@@ -56,25 +58,24 @@ main: {
     
     
     open (my $fh, $fusion_preds) or die $!;
-    while (<$fh>) {
-        my $line = $_;
-        if (/^\#/) { 
-            print $line;
-            next;
-        }
-
-        my @x = split(/\t/, $line);
-        my $splice_type = $x[6];
-        my $J = $x[7];
-        my $S = $x[8];
-        my $large_breakpoint_anchored = $x[9];
-
+    my $tab_reader = new DelimParser::Reader($fh, "\t");
+    my @column_headers = $tab_reader->get_column_headers();
+    
+    my $tab_writer = new DelimParser::Writer(*STDOUT, "\t", \@column_headers);
+    
+    while (my $row = $tab_reader->get_row()) {
+        
+        my $splice_type = $row->{SpliceType};
+        my $J = $row->{JunctionReadCount};
+        my $S = $row->{SpanningFragCount};
+        my $large_breakpoint_anchored = $row->{LargeAnchorSupport};
+        
         if ($splice_type ne 'ONLY_REF_SPLICE') {
             unless ($J >= $min_novel_junction_support && $large_breakpoint_anchored eq 'YES') {
                 next;
             }
         }
-
+        
         # require big anchors when no spanning support exists.
         if ($S == 0 && $large_breakpoint_anchored eq 'NO') {
             next;
@@ -84,12 +85,11 @@ main: {
         my $sum_JS = $J + $S;
         
         if ($J >= $min_junction_reads && $sum_JS >= $min_sum_frags) {
-
-            print $line;
+            $tab_writer->write_row($row);
         }
     }
     close $fh;
-
+    
     
     exit(0);
 }
