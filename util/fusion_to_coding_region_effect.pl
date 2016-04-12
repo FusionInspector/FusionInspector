@@ -78,7 +78,7 @@ main: {
         }
         
         # ensure we have the fields we need:
-        my @fields_need = ('#fusion_name', 'LeftGene', 'LeftBreakpoint', 'RightGene', 'RightBreakpoint');
+        my @fields_need = ('#FusionName', 'LeftGene', 'LeftBreakpoint', 'RightGene', 'RightBreakpoint');
         my $missing_field = 0;
         foreach my $field (@fields_need) {
             unless (exists $header_to_index{$field}) {
@@ -114,7 +114,7 @@ main: {
 
         my @x = split(/\t/);
 
-        my $fusion_name = $x[ $header_to_index{'#fusion_name'} ];
+        my $fusion_name = $x[ $header_to_index{'#FusionName'} ];
         my $gene_left = $x[ $header_to_index{'LeftGene'}];
         my $break_left = $x[ $header_to_index{'LeftBreakpoint'} ];
                 
@@ -133,7 +133,7 @@ main: {
             #my $result = shift @results;
             
             foreach my $result (@results) {
-                print join("\t", #"CODING_EFFECT:", $fusion_name, 
+                print join("\t", 
                            $line,
                            $result->{cds_left_id}, $result->{cds_left_range},
                            $result->{cds_right_id}, $result->{cds_right_range},

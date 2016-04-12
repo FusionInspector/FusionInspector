@@ -119,7 +119,6 @@ main: {
         }
         
         my $cmd = "$star_prog --runThreadN $CPU --runMode genomeGenerate --genomeDir $star_index "
-            # . " --twopassMode Basic "
             . " --genomeFastaFiles $genome "
             . " --limitGenomeGenerateRAM 40419136213 ";
         if ($gtf_file) {
@@ -147,16 +146,13 @@ main: {
         . " --genomeDir $star_index "
         . " --outSAMtype BAM SortedByCoordinate "
         . " --readFilesIn $reads "
-        #. " --chimJunctionOverhangMin 12 "
-        #. " --chimSegmentMin 12 "
         . " --twopassMode Basic "
         . " --alignSJDBoverhangMin 10 "
-        #. " --chimSegmentReadGapMax parameter 3 "
-        . " --limitBAMsortRAM 20000000000";
-
+        . " --limitBAMsortRAM 50000000000"; # was set to 20
+    
     if ($patch) {
         $cmd .= " --genomeFastaFiles $patch "
-            . " --outSAMfilter KeepOnlyAddedReferences "
+            # . " --outSAMfilter KeepOnlyAddedReferences "
             ;
     }
     if ($gtf_file) {
