@@ -152,7 +152,7 @@ main: {
     
     if ($patch) {
         $cmd .= " --genomeFastaFiles $patch "
-            # . " --outSAMfilter KeepOnlyAddedReferences "
+            . " --outSAMfilter KeepOnlyAddedReferences "
             ;
     }
     if ($gtf_file) {
@@ -168,8 +168,7 @@ main: {
 
     $pipeliner->add_commands( new Command($cmd, "star_align.ok") );
     
-
-
+    
     my $bam_outfile = "Aligned.sortedByCoord.out.bam";
     my $renamed_bam_outfile = "$out_prefix.sortedByCoord.out.bam";
     $pipeliner->add_commands( new Command("mv $bam_outfile $renamed_bam_outfile", "$renamed_bam_outfile.ok") );
