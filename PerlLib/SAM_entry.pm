@@ -122,6 +122,25 @@ sub get_genome_span {
 
 
 ####
+sub get_alignment_length {
+    my $self = shift;
+   
+    my ($genome_coords_aref, $read_coords_aref) = $self->get_alignment_coords();
+
+    my $sum_len = 0;
+
+    my @genome_coords = @$genome_coords_aref;
+    foreach my $coords (@genome_coords) {
+        my ($genome_lend, $genome_rend) = @$coords;
+
+        $sum_len += abs($genome_rend - $genome_lend) + 1;
+    }
+
+    return($sum_len);
+}
+
+
+####
 sub get_alignment_coords {
 	my $self = shift;
 

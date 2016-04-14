@@ -14,8 +14,10 @@ use Set::IntervalTree;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 
 
+
+my $MIN_ALIGN_PER_ID = 97;
+
 my $MIN_SMALL_ANCHOR = 12;
-my $MAX_MISMATCHES = 2;
 my $MIN_LARGE_ANCHOR = 25;
 my $MAX_END_CLIP = 3;
 
@@ -32,7 +34,8 @@ my $usage = <<__EOUSAGE__;
 #
 # Optional:
 #
-#  --MAX_MISMATCHES <int>     default: $MAX_MISMATCHES
+#  --MIN_ALIGN_PER_ID <int>   default: $MIN_ALIGN_PER_ID
+#
 #  --MIN_SMALL_ANCHOR <int>   default: $MIN_SMALL_ANCHOR
 #  --MIN_LARGE_ANCHOR <int>   default: $MIN_LARGE_ANCHOR
 #  --MAX_END_CLIP <int>       default: $MAX_END_CLIP
@@ -52,8 +55,9 @@ my $help_flag;
 &GetOptions('help|h' => \$help_flag,
             'gtf_file=s' => \$gtf_file,
             'bam=s' => \$bam_file,
-
-            'MAX_MISMATCHES=i' => \$MAX_MISMATCHES,
+            
+            'MIN_ALIGN_PER_ID=i' => \$MIN_ALIGN_PER_ID,
+            
             'MAX_END_CLIP=i' => \$MAX_END_CLIP,
             'MIN_SMALL_ANCHOR=i' => \$MIN_SMALL_ANCHOR,
             'MIN_LARGE_ANCHOR=i' => \$MIN_LARGE_ANCHOR,
@@ -95,12 +99,15 @@ main: {
         }
 
         ## examine number of mismatches in read alignment
+        my $mismatch_count = 0;
         my $line = $sam_entry->get_original_line();
         if ($line =~ /NM:i:(\d+)/) {
-            my $mismatch_count = $1;
-            if ($mismatch_count > $MAX_MISMATCHES) {
-                next;
-            }
+            $mismatch_count = $1;
+        }
+        my $alignment_length = $sam_entry->get_alignment_length();
+        my $per_id = ($alignment_length - $mismatch_count) / $alignment_length * 100;
+        if ($per_id < $MIN_ALIGN_PER_ID) {
+            next;
         }
         
         ## check end clipping of alignment

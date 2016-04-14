@@ -18,7 +18,8 @@ my $bam_file;
 my $junction_info_file;
 
 my $MAX_END_CLIP = 10;
-my $MAX_MISMATCHES = 2;
+
+my $MIN_ALIGN_PER_ID = 97;
 
 my $usage = <<__EOUSAGE__;
 
@@ -32,10 +33,12 @@ my $usage = <<__EOUSAGE__;
 #
 # Optional:
 #
-#  --MAX_MISMATCHES <int>     default: $MAX_MISMATCHES
-#  --MAX_END_CLIP <int>       default: $MAX_END_CLIP
+#  --MIN_ALIGN_PER_ID <int>     default: $MIN_ALIGN_PER_ID
+#  --MAX_END_CLIP <int>         default: $MAX_END_CLIP
 #
 ##############################################################
+
+
 
 __EOUSAGE__
 
@@ -49,7 +52,7 @@ my $help_flag;
             'bam=s' => \$bam_file,
             'junction_info=s' => \$junction_info_file,
             
-            'MAX_MISMATCHES=i' => \$MAX_MISMATCHES,
+            'MIN_ALIGN_PER_ID=i' => \$MIN_ALIGN_PER_ID,
             'MAX_END_CLIP=i' => \$MAX_END_CLIP,
             
     );
@@ -174,13 +177,16 @@ main: {
 
             ## examine number of mismatches in read alignment
             my $line = $sam_entry->get_original_line();
+            my $mismatch_count = 0;
             if ($line =~ /NM:i:(\d+)/) {
-                my $mismatch_count = $1;
-                if ($mismatch_count > $MAX_MISMATCHES) {
-                    next;
-                }
+                $mismatch_count = $1;
             }
-
+            my $alignment_length = $sam_entry->get_alignment_length();
+            my $per_id = ($alignment_length - $mismatch_count) / $alignment_length * 100;
+            if ($per_id < $MIN_ALIGN_PER_ID) {
+                next;
+            }
+            
             ## check end clipping of alignment
             my $cigar = $sam_entry->get_cigar_alignment();
             if ($cigar =~ /^(\d+)[SH]/) {

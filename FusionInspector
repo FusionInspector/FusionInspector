@@ -52,7 +52,8 @@ class FusionInspector( ParentScript.ParentScript ):
         arg_raw.add_argument("--min_novel_junction_support", dest="min_novel_junction_support", type=int, required=False, default=3, help="(minimum number of junction reads required if breakpoint lacks involvement of only reference junctions")
         arg_raw.add_argument("--max_promiscuity", dest='max_promiscuity', type=int, required=False, default=3, help="maximum number of partners allowed for a given fusion")
         arg_raw.add_argument("-E", "--Evalue", dest='Evalue', type=float, required=False, default=0.001, help="E-value threshold for blast searches")
-        
+        arg_raw.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=97, help='minimum percent identity for a fusion-supporting read alignment')
+
                 
         arg_raw.add_argument("--include_Trinity", dest="include_Trinity", required=False, action = "store_true", default=False, help="include fusion-guided Trinity assembly")
 
@@ -749,6 +750,7 @@ class FusionInspector( ParentScript.ParentScript ):
         
         cmdstr = str(os.sep.join([UTILDIR, "get_fusion_JUNCTION_reads_from_fusion_contig_bam.pl"]) +
                      " --gtf_file " + mergedContig_gtf_filename +
+                     " --MIN_ALIGN_PER_ID " + str(args_parsed.min_per_id) +
                      " --bam " + bam_file + " > " + fusion_junction_reads_sam_file)
 
         lcmd_commands.append( Command.Command (str_cur_command = cmdstr,
@@ -777,6 +779,7 @@ class FusionInspector( ParentScript.ParentScript ):
 
         cmdstr = str(os.sep.join([UTILDIR, "get_fusion_SPANNING_reads_from_bam.from_chim_summary.pl"]) + 
                      " --gtf_file " + mergedContig_gtf_filename +
+                     " --MIN_ALIGN_PER_ID " + str(args_parsed.min_per_id) +
                      " --bam " + bam_file +
                      " --junction_info " + fusion_junction_info_file + 
                      " > " + fusion_spanning_reads_sam_file)
