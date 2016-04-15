@@ -15,11 +15,12 @@ use Getopt::Long qw(:config no_ignore_case bundling pass_through);
 
 my $usage = <<__EOUSAGE__;
 
-######################################################################
+#################################################################################################
 #
 #  Required:
 #  --genome <string>           target genome to align to
 #  --reads  <string>           fastq files. If pairs, indicate both in quotes, ie. "left.fq right.fq"
+#  --patch <string>            genomic targets to patch the genome fasta with.
 #
 #  Optional:
 #  -G <string>                 GTF file for incorporating reference splice site info.
@@ -27,10 +28,10 @@ my $usage = <<__EOUSAGE__;
 #  --out_prefix <string>       output prefix (default: star)
 #  --out_dir <string>          output directory (default: current working directory)
 #  --star_path <string>        full path to the STAR program to use.
-#  --patch <string>            genomic targets to patch the genome fasta with.
 #  --prep_reference_only       build the genome index and then stop.
-#
-#######################################################################
+#  --incl_genome_aln           include genome alignments in addition to fusion contig alignments.
+# 
+#################################################################################################
 
 
 __EOUSAGE__
@@ -52,10 +53,12 @@ my $ADV = 0;
 my $star_path = "STAR";
 my $patch;
 my $prep_reference_only = 0;
-
+my $incl_genome_aln_flag = 0;
 
 &GetOptions( 'h' => \$help_flag,
              'genome=s' => \$genome,
+             'patch=s' => \$patch,
+             
              'reads=s' => \$reads,
              'CPU=i' => \$CPU,
              'out_prefix=s' => \$out_prefix,
@@ -63,13 +66,13 @@ my $prep_reference_only = 0;
              'out_dir=s' => \$out_dir,
              'ADV' => \$ADV,
              'star_path=s' => \$star_path,
-             'patch=s' => \$patch,
              'prep_reference_only' => \$prep_reference_only,
-
+             'incl_genome_aln' => \$incl_genome_aln_flag,
+             
     );
 
 
-unless ($genome && $reads) {
+unless ($genome && $reads && $patch) {
     die $usage;
 }
 
@@ -144,17 +147,17 @@ main: {
     my $cmd = "$star_prog "
         . " --runThreadN $CPU "
         . " --genomeDir $star_index "
+        . " --genomeFastaFiles $patch "
         . " --outSAMtype BAM SortedByCoordinate "
         . " --readFilesIn $reads "
         . " --twopassMode Basic "
         . " --alignSJDBoverhangMin 10 "
         . " --limitBAMsortRAM 50000000000"; # was set to 20
     
-    if ($patch) {
-        $cmd .= " --genomeFastaFiles $patch "
-            . " --outSAMfilter KeepOnlyAddedReferences "
-            ;
+    unless ($incl_genome_aln_flag) {
+        $cmd .= " --outSAMfilter KeepOnlyAddedReferences ";
     }
+    
     if ($gtf_file) {
         $cmd .= " --sjdbGTFfile $gtf_file ";
     }

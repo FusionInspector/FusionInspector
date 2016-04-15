@@ -39,34 +39,53 @@ class FusionInspector( ParentScript.ParentScript ):
         arg_raw.prog = "FusionInspector"
         arg_raw.description = "Extracts a pair of genes from the genome, creates a mini-contig, aligns reads to the mini-contig, and extracts the fusion reads as a separate tier for vsiualization."
 
-        arg_raw.add_argument("--fusions", dest="chim_summary_files", type=str, default="", required=True, help="fusions summary files (list, comma-delimited and no spaces)")
-        arg_raw.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default="", required=True, help="genome lib directory - see http://FusionFilter.github.io for details")
+        arg_raw.add_argument("--fusions", dest="chim_summary_files", type=str, default="", required=True,
+                             help="fusions summary files (list, comma-delimited and no spaces)")
+        arg_raw.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default="", required=True,
+                             help="genome lib directory - see http://FusionFilter.github.io for details")
         arg_raw.add_argument("--left_fq", dest="left_fq_filename", type=str, required=True, help="left fastq file")
         arg_raw.add_argument("--right_fq", dest="right_fq_filename", type=str, required=True, help="right fastq file")
         arg_raw.add_argument("--out_dir", dest="out_dirname", type=str, required=True, help="output directory")
         arg_raw.add_argument("--out_prefix", dest="out_prefix", type=str, required=True, help="output filename prefix")
-        arg_raw.add_argument("--align_utils", dest="align_utils", type=str, required=False, default="STAR", help="alignment utilities to use.") # Comma-delimited selection of: STAR,GSNAP,HISAT")
+        arg_raw.add_argument("--align_utils", dest="align_utils", type=str, required=False, default="STAR",
+                             help="alignment utilities to use.") # Comma-delimited selection of: STAR,GSNAP,HISAT")
         
-        arg_raw.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=1, help="minimum number of junction-spanning reads required")
-        arg_raw.add_argument("--min_sum_frags", dest="min_sum_frags", type=int, required=False, default=2, help="minimum fusion support = ( # junction_reads + # spanning_frags )")
-        arg_raw.add_argument("--min_novel_junction_support", dest="min_novel_junction_support", type=int, required=False, default=3, help="(minimum number of junction reads required if breakpoint lacks involvement of only reference junctions")
-        arg_raw.add_argument("--max_promiscuity", dest='max_promiscuity', type=int, required=False, default=3, help="maximum number of partners allowed for a given fusion")
-        arg_raw.add_argument("-E", "--Evalue", dest='Evalue', type=float, required=False, default=0.001, help="E-value threshold for blast searches")
-        arg_raw.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=97, help='minimum percent identity for a fusion-supporting read alignment')
-
+        arg_raw.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=1,
+                             help="minimum number of junction-spanning reads required")
+        arg_raw.add_argument("--min_sum_frags", dest="min_sum_frags", type=int, required=False, default=2,
+                             help="minimum fusion support = ( # junction_reads + # spanning_frags )")
+        arg_raw.add_argument("--min_novel_junction_support", dest="min_novel_junction_support", type=int, required=False, default=3,
+                             help="(minimum number of junction reads required if breakpoint lacks involvement of only reference junctions")
+        arg_raw.add_argument("--max_promiscuity", dest='max_promiscuity', type=int, required=False, default=3,
+                             help="maximum number of partners allowed for a given fusion")
+        arg_raw.add_argument("-E", "--Evalue", dest='Evalue', type=float, required=False, default=0.001,
+                             help="E-value threshold for blast searches")
+        arg_raw.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=97,
+                             help='minimum percent identity for a fusion-supporting read alignment')
+        
+        arg_raw.add_argument("--incl_genome_aln", dest="incl_genome_aln", type=bool, default=False,
+                             help="include all genome alignments in output, not just those matching the fusion contigs uniquely")
                 
-        arg_raw.add_argument("--include_Trinity", dest="include_Trinity", required=False, action = "store_true", default=False, help="include fusion-guided Trinity assembly")
+        arg_raw.add_argument("--include_Trinity", dest="include_Trinity", required=False, action = "store_true", default=False,
+                             help="include fusion-guided Trinity assembly")
 
-        arg_raw.add_argument("--prep_for_IGV", dest="prep_for_IGV", required=False, action="store_true", default=False, help="generate bam, bed, etc., for use with IGV")
-        arg_raw.add_argument("--write_intermediate_results", dest="write_intermediate_results", required=False, action="store_true", default=False, help="generate bam, bed, etc., for intermediate aligner outputs")
+        arg_raw.add_argument("--prep_for_IGV", dest="prep_for_IGV", required=False, action="store_true", default=False,
+                             help="generate bam, bed, etc., for use with IGV")
+        arg_raw.add_argument("--write_intermediate_results", dest="write_intermediate_results", required=False, action="store_true",
+                             default=False, help="generate bam, bed, etc., for intermediate aligner outputs")
 
-        arg_raw.add_argument("--no_cleanup", dest="no_cleanup", required=False, action="store_true", default=False, help="do not cleanup the fusion inspector workspace, retain intermediate output files")
+        arg_raw.add_argument("--no_cleanup", dest="no_cleanup", required=False, action="store_true", default=False,
+                             help="do not cleanup the fusion inspector workspace, retain intermediate output files")
 
-        arg_raw.add_argument("--version", dest='version', required=False, action='store_true', default=False, help="show version string: " + VERSION)
+        arg_raw.add_argument("--version", dest='version', required=False, action='store_true', default=False,
+                             help="show version string: " + VERSION)
 
-        arg_raw.add_argument("--CPU", dest="CPU", required=False, type=int, default=4, help="Number of threads for running the aligner")
+        arg_raw.add_argument("--CPU", dest="CPU", required=False, type=int, default=4,
+                             help="Number of threads for running the aligner")
 
-        arg_raw.add_argument("--dirty", action='store_true', default=False, help='turn off FP filtering for non-STAR methods (increases speed, reduces RAM, mostly restricted for testing purposes)')
+        arg_raw.add_argument("--dirty", action='store_true', default=False,
+                             help='turn off FP filtering for non-STAR methods (increases speed, reduces RAM, mostly restricted for testing purposes)')
+
         
     def func_make_commands( self, args_parsed, cur_pipeline ):
         """
@@ -283,6 +302,10 @@ class FusionInspector( ParentScript.ParentScript ):
                          " --out_prefix " + args_parsed.out_prefix + ".star2" +
                           # " --star_path /seq/regev_genome_portal/SOFTWARE/STAR/STAR_FIenabled/STAR-master/source/STAR " +
                          " --out_dir " + workdir )   
+
+            if args_parsed.incl_genome_aln:
+                cmdstr += " --incl_genome_aln "
+            
             
             star_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star2.sortedByCoord.out.bam"])
 
@@ -310,100 +333,6 @@ class FusionInspector( ParentScript.ParentScript ):
                                                workdir_mergedContig_fasta_filename, star_rmdup_bam_file, lcmd_commands)
 
             bam_files_list.append(star_rmdup_bam_file)
-
-
-
-        if (re.search("orig", args_parsed.align_utils, re.IGNORECASE)): # earlier way of using STAR
-            
-            filter_FP_reads_flag = True
-
-            ###############
-            ## Create a combined hg19 + fusion-genome for STAR
-            ###############
-
-            
-            star_target_genome_filename = workdir_mergedContig_fasta_filename + ".wHg.fasta"
-            cmdstr = str("cat " + args_parsed.genome_fasta_filename + " " + workdir_mergedContig_fasta_filename + " > " + star_target_genome_filename)
-            
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ args_parsed.genome_fasta_filename, workdir_mergedContig_fasta_filename],
-                                                   lstr_cur_products = [ star_target_genome_filename ] ) )
-            
-            
-
-            #######################################################
-            ## align the reads against the fusion contig using STAR
-            #######################################################
-
-            # just prep reference
-            cmdstr = str(UTILDIR + "/run_FI_STAR.pl --genome " + star_target_genome_filename +
-                         " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\"" +
-                         " -G " + workdir_mergedContig_gtf_filename + " --CPU 4 " +  
-                         " --out_prefix " + args_parsed.out_prefix + ".star"
-                         + " --out_dir " + workdir + " --prep_reference_only ")   
-
-
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                       lstr_cur_dependencies = [ args_parsed.left_fq_filename,
-                                                                             args_parsed.right_fq_filename,
-                                                                             workdir_mergedContig_gtf_filename,
-                                                                             workdir_mergedContig_fasta_filename],
-                                                   lstr_cur_products = [ star_target_genome_filename + ".star.idx" ] ) )
-            
-            # do alignment
-            
-            cmdstr = str(UTILDIR + "/run_FI_STAR.pl --genome " + star_target_genome_filename +
-                         " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\"" +
-                         " -G " + workdir_mergedContig_gtf_filename + " --CPU 4 " +  
-                         " --out_prefix " + args_parsed.out_prefix + ".star"
-                         + " --out_dir " + workdir)   
-            
-
-            
-            star_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.sortedByCoord.out.bam"])
-
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ args_parsed.left_fq_filename,
-                                                                             args_parsed.right_fq_filename,
-                                                                             workdir_mergedContig_gtf_filename,
-                                                                             workdir_mergedContig_fasta_filename],
-                                                   lstr_cur_products = [ star_bam_file ] ) )
-
-
-
-            
-            ###############################################################################################
-            ## Clean up after the alignment, as the star index and custom genome take up a *lot* of storage
-            ###############################################################################################
-
-       
-            star_genome_index_dir = star_target_genome_filename + ".star.idx"
-            
-            cmdstr = ("/bin/rm -rf " + star_target_genome_filename + " " + star_genome_index_dir +
-                      " && touch " + star_genome_index_dir + ".chkpt" )
-            
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ star_target_genome_filename, star_genome_index_dir ],
-                                                   lstr_cur_products = [ star_genome_index_dir + ".chkpt" ] ) )
-            
-            
-            # remove duplicate reads
-            star_rmdup_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.cSorted.rmdup.bam"])
-
-            cmdstr = str("samtools rmdup " + star_bam_file + " " + star_rmdup_bam_file + " 2>/dev/null ")
-
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ star_bam_file ],
-                                                   lstr_cur_products = [ star_rmdup_bam_file ] ) )
-
-
-
-            self.get_fusion_and_spanning_reads(args_parsed, workdir_mergedContig_gtf_filename,
-                                               workdir_mergedContig_fasta_filename, star_rmdup_bam_file, lcmd_commands)
-
-            bam_files_list.append(star_rmdup_bam_file)
-
-
 
         
 
