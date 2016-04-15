@@ -63,7 +63,7 @@ class FusionInspector( ParentScript.ParentScript ):
         arg_raw.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=97,
                              help='minimum percent identity for a fusion-supporting read alignment')
         
-        arg_raw.add_argument("--incl_genome_aln", dest="incl_genome_aln", type=bool, default=False,
+        arg_raw.add_argument("--incl_genome_aln", dest="incl_genome_aln", default=False, action='store_true',
                              help="include all genome alignments in output, not just those matching the fusion contigs uniquely")
                 
         arg_raw.add_argument("--include_Trinity", dest="include_Trinity", required=False, action = "store_true", default=False,
