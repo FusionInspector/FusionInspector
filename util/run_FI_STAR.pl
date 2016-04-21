@@ -29,7 +29,7 @@ my $usage = <<__EOUSAGE__;
 #  --out_dir <string>          output directory (default: current working directory)
 #  --star_path <string>        full path to the STAR program to use.
 #  --prep_reference_only       build the genome index and then stop.
-#  --incl_genome_aln           include genome alignments in addition to fusion contig alignments.
+#  --only_fusion_reads         restrict alignments only to the fusion-supporting reads
 # 
 #################################################################################################
 
@@ -53,7 +53,7 @@ my $ADV = 0;
 my $star_path = "STAR";
 my $patch;
 my $prep_reference_only = 0;
-my $incl_genome_aln_flag = 0;
+my $only_fusion_reads_flag = 0;
 
 &GetOptions( 'h' => \$help_flag,
              'genome=s' => \$genome,
@@ -67,7 +67,7 @@ my $incl_genome_aln_flag = 0;
              'ADV' => \$ADV,
              'star_path=s' => \$star_path,
              'prep_reference_only' => \$prep_reference_only,
-             'incl_genome_aln' => \$incl_genome_aln_flag,
+             'only_fusion_reads' => \$only_fusion_reads_flag,
              
     );
 
@@ -154,8 +154,11 @@ main: {
         . " --alignSJDBoverhangMin 10 "
         . " --limitBAMsortRAM 50000000000"; # was set to 20
     
-    unless ($incl_genome_aln_flag) {
+    if ($only_fusion_reads_flag) {
         $cmd .= " --outSAMfilter KeepOnlyAddedReferences ";
+    }
+    else {
+        $cmd .= " --outSAMfilter KeepAllAddedReferences ";
     }
     
     if ($gtf_file) {
