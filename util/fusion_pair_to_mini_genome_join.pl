@@ -20,11 +20,11 @@ my $usage = <<__EOUSAGE__;
 #
 #  Required:
 #
-#  --fusions <string>               file containing list of fusion pairs (format:  geneA--geneB)
+#  --fusions <string>               input file containing list of fusion pairs (format:  geneA--geneB)
 #
-#  --gtf <string>                   genome annotation in gtf format
+#  --gtf <string>                   output filename for genome annotation in gtf format 
 #
-#  --genome_fa <string>             genome sequence in fasta format
+#  --genome_fa <string>             output filename genome sequence in fasta format
 #
 # Optional:
 #
@@ -179,9 +179,9 @@ main: {
 
 
 
-    open (my $out_genome_ofh, ">$out_prefix.fa") or die "Error, cannot write to $out_prefix.fa";
-    open (my $out_gtf_ofh, ">$out_prefix.gtf") or die "Error, cannot write to $out_prefix.gtf";
-
+    open (my $out_genome_ofh, ">$out_prefix.fa.tmp") or die "Error, cannot write to $out_prefix.fa.tmp";
+    open (my $out_gtf_ofh, ">$out_prefix.gtf.tmp") or die "Error, cannot write to $out_prefix.gtf.tmp";
+    
     my %seen;
     
     
@@ -246,6 +246,14 @@ main: {
     close $out_genome_ofh;
     close $out_gtf_ofh;
 
+    if (! -s "$out_prefix.fa.tmp") {
+        die "Error, no fusion contigs written";
+    }
+    else {
+        rename("$out_prefix.fa.tmp", "$out_prefix.fa");
+        rename("$out_prefix.gtf.tmp", "$out_prefix.gtf");
+    }
+    
     exit(0);
     
 

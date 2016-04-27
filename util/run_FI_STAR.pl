@@ -152,7 +152,7 @@ main: {
         . " --readFilesIn $reads "
         . " --twopassMode Basic "
         . " --alignSJDBoverhangMin 10 "
-        . " --limitBAMsortRAM 50000000000"; # was set to 20
+        . " --limitBAMsortRAM 20000000000";
     
     if ($only_fusion_reads_flag) {
         $cmd .= " --outSAMfilter KeepOnlyAddedReferences ";
