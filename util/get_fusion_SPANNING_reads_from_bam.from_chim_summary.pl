@@ -182,6 +182,9 @@ main: {
                 $mismatch_count = $1;
             }
             my $alignment_length = $sam_entry->get_alignment_length();
+            unless ($alignment_length) {
+                next;
+            }
             my $per_id = ($alignment_length - $mismatch_count) / $alignment_length * 100;
             if ($per_id < $MIN_ALIGN_PER_ID) {
                 next;
