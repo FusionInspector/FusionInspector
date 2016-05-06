@@ -7,6 +7,7 @@ use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 use FindBin;
 use lib ("$FindBin::Bin/../PerlLib");
 use DelimParser;
+use Data::Dumper;
 
 my $usage = <<__EOUSAGE__;
 
@@ -65,28 +66,44 @@ main: {
     
     while (my $row = $tab_reader->get_row()) {
         
-        my $splice_type = $row->{SpliceType};
         my $J = $row->{JunctionReadCount};
         my $S = $row->{SpanningFragCount};
-        my $large_breakpoint_anchored = $row->{LargeAnchorSupport};
+
         
-        if ($splice_type ne 'ONLY_REF_SPLICE') {
-            unless ($J >= $min_novel_junction_support && $large_breakpoint_anchored eq 'YES') {
-                next;
-            }
+        unless (defined($J)) {
+            die "Error, JunctionReadCount not defined for entry: " . Dumper($row);
+        }
+        unless (defined($S)) {
+            die "Error, SpanningFragCount not defined for entry: " . Dumper($row);
         }
         
-        # require big anchors when no spanning support exists.
-        if ($S == 0 && $large_breakpoint_anchored eq 'NO') {
+        
+        if ($J < $min_junction_reads) {
+            next; 
+            
+        }
+
+        my $sum_JS = $J + $S;
+        if ($sum_JS < $min_sum_frags) {
             next;
         }
         
-        
-        my $sum_JS = $J + $S;
-        
-        if ($J >= $min_junction_reads && $sum_JS >= $min_sum_frags) {
-            $tab_writer->write_row($row);
+        my $splice_type = $row->{SpliceType};
+        if ($splice_type ne 'ONLY_REF_SPLICE' && $J < $min_novel_junction_support) {
+            next;
         }
+        
+        # require big anchors when no spanning support exists.
+        my $large_breakpoint_anchored = $row->{LargeAnchorSupport};
+        if ($S == 0 && $large_breakpoint_anchored !~ /YES/) {
+            next;
+        }
+        
+        #######################################
+        # if got here, passed all requirements.
+        
+        $tab_writer->write_row($row);
+        
     }
     close $fh;
     
