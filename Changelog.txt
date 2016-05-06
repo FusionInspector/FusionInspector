@@ -1,3 +1,8 @@
+
+next:
+	-compute FFPM values correctly when using gzipped fastq files
+
+
 ## FusionInspector Release v0.5.0 (Mar 5, 2016)
 Update to FusionFilter v0.1.0
 removed unnecessary env vars, further cleanup, and documentation in sample data area.
