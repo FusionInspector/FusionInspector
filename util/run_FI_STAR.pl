@@ -152,6 +152,7 @@ main: {
         . " --readFilesIn $reads "
         . " --twopassMode Basic "
         . " --alignSJDBoverhangMin 10 "
+        . " --genomeSuffixLengthMax 10000"
         . " --limitBAMsortRAM 20000000000";
     
     if ($only_fusion_reads_flag) {
