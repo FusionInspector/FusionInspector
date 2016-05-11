@@ -96,7 +96,7 @@ main: {
         }
         
         my $splice_type = $row->{SpliceType};
-        if ($splice_type ne 'ONLY_REF_SPLICE' && $J < $min_novel_junction_support) {
+        if ($splice_type eq 'INCL_NON_REF_SPLICE' && $J < $min_novel_junction_support) {
             next;
         }
         
