@@ -22,6 +22,11 @@ my $usage = <<__EOUSAGE__;
 #
 #  --fusion_preds <string>               fusion predictions in star-F-ftm
 #
+#  Optional:
+#
+#  --require_LDAS  0|1>                 require long double anchor support for fusion-breakpoint reads
+#                                        when there are no spanning frags.  default: 1 (true)
+# 
 #########################################################################################################
 
 
@@ -38,12 +43,14 @@ my $min_junction_reads;
 my $min_sum_frags;
 my $min_novel_junction_support;
 my $fusion_preds;
+my $REQUIRE_LDAS = 1;
 
 &GetOptions ( 'h' => \$help_flag,
               'min_junction_reads=i' => \$min_junction_reads,
               'min_sum_frags=i' => \$min_sum_frags,
               'min_novel_junction_support=i' => \$min_novel_junction_support,
               'fusion_preds=s' => \$fusion_preds,
+              'require_LDAS=i' => \$REQUIRE_LDAS,
     );
 
 
@@ -95,7 +102,7 @@ main: {
         
         # require big anchors when no spanning support exists.
         my $large_breakpoint_anchored = $row->{LargeAnchorSupport};
-        if ($S == 0 && $large_breakpoint_anchored !~ /YES/) {
+        if ($S == 0 && $REQUIRE_LDAS && $large_breakpoint_anchored !~ /YES/) {
             next;
         }
         

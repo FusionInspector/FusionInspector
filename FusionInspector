@@ -56,6 +56,10 @@ class FusionInspector( ParentScript.ParentScript ):
                              help="minimum fusion support = ( # junction_reads + # spanning_frags )")
         arg_raw.add_argument("--min_novel_junction_support", dest="min_novel_junction_support", type=int, required=False, default=3,
                              help="(minimum number of junction reads required if breakpoint lacks involvement of only reference junctions")
+        arg_raw.add_argument("--require_LDAS", type=int, required=False, default=1,
+                             help = "require long double anchor support for split reads when no spanning frags are found")
+        
+
         arg_raw.add_argument("--max_promiscuity", dest='max_promiscuity', type=int, required=False, default=3,
                              help="maximum number of partners allowed for a given fusion")
         arg_raw.add_argument("-E", "--Evalue", dest='Evalue', type=float, required=False, default=0.001,
@@ -422,15 +426,13 @@ class FusionInspector( ParentScript.ParentScript ):
                                         " --min_sum_frags " + str(args_parsed.min_sum_frags) +
                                         " --min_novel_junction_support " + str(args_parsed.min_novel_junction_support) +
                                         " --fusion_preds " + fusion_summary_file +
+                                        " --require_LDAS " + str(args_parsed.require_LDAS) +
                                         " > " + fusion_summary_min_score_thresh_file)
-
+        
         lcmd_commands.append( Command.Command( str_cur_command = filter_by_frag_thresh_cmd,
                                                lstr_cur_dependencies = [fusion_summary_file],
                                                lstr_cur_products = [ fusion_summary_min_score_thresh_file] ) )
 
-        
-        
-        
         
         if args_parsed.include_Trinity or args_parsed.prep_for_IGV:
 
