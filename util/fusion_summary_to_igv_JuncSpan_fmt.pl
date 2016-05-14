@@ -43,8 +43,8 @@ main: {
             my $num_spanning_frags = $row->{SpanningFragCount};
             my @spanning_frags = split(/,/, $row->{SpanningFrags});
             
-            my $fusion_name = $row->{'#FusionName'};
-            
+            my $fusion_name = join("--", $geneA, $geneB);
+                        
             foreach my $spanning_frag (@spanning_frags) {
                 
                 my $spanning_read_token = join("$;", $fusion_name, $spanning_frag);
