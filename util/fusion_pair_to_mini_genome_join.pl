@@ -482,6 +482,9 @@ sub extract_gene_gtfs {
         unless (/\w/) { next; }
         my $line = $_;
         
+        my @x = split(/\t/, $line);
+        my $feat_type = $x[2];
+        unless ($feat_type eq 'exon') { next; } # only exon records of gtf file
 
         my $gene_id = "";
         my $gene_name = "";
@@ -499,7 +502,6 @@ sub extract_gene_gtfs {
         unless ($gene_want_href->{$gene_id} || $gene_want_href->{$gene_name}) { next; }
 
         
-        my @x = split(/\t/, $line);
         my $chr = $x[0];
         my $lend = $x[3];
         my $rend = $x[4];
