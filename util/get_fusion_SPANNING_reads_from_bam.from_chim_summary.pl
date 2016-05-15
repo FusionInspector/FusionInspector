@@ -21,6 +21,8 @@ my $MAX_END_CLIP = 10;
 
 my $MIN_ALIGN_PER_ID = 97;
 
+my $FUZZ = 5; # small fuzzy alignment bounds for spanning frags around breakpoint
+
 my $usage = <<__EOUSAGE__;
 
 ###############################################################
@@ -283,8 +285,11 @@ main: {
                     
                     @pair_coords = sort {$a->[0] <=> $b->[0]} @pair_coords;
                     
+                    my $left_read_lend = $pair_coords[0]->[0];
                     my $left_read_rend = $pair_coords[0]->[1];
+
                     my $right_read_lend = $pair_coords[1]->[0];
+                    my $right_read_rend = $pair_coords[1]->[1];
                     
                     my $left_read_orient = $pair_coords[0]->[2];
                     my $right_read_orient = $pair_coords[1]->[2];
@@ -300,7 +305,8 @@ main: {
                         $is_fusion_spanning_fragment_flag = 1;
                         $spanning_read_want{"$scaffold|$fragment"}++; # capture for SAM-retreival next.
                     }
-    
+                    
+                    
                     #################
                     ## assign spanning frags to the specific breakpoints
                     
@@ -310,7 +316,9 @@ main: {
                         foreach my $fusion_breakpoint (@{$candidate_fusion_breakpoints_aref}) {
                             my ($break_lend, $break_rend) = split(/-/, $fusion_breakpoint);
                             
-                            if ($left_read_rend < $break_lend && $break_rend < $right_read_lend) {
+                            #print STDERR "r1: $left_read_lend-$left_read_rend   r2: $right_read_lend-$right_read_rend  brk: $fusion_breakpoint\n";
+
+                            if ($left_read_rend < $break_lend + $FUZZ && $break_rend - $FUZZ < $right_read_lend) {
                                 
                                 # junction-specific spanning fragment support assignment
                                 push (@{$fusion_to_spanning_reads{"$scaffold|$fusion_breakpoint"}}, $fragment);
@@ -429,12 +437,6 @@ main: {
                 $SpliceType) = split(/\t/, $fusion_info);
 
             
-
-            print $ofh join("\t", $fusion_info, $num_spanning) . "\t" . join(",", @spanning_reads)
-                . "\t$num_left_contrary_support\t$contrary_left_support_txt"
-                . "\t$num_right_contrary_support\t$contrary_right_support_txt"
-                . "\n";
-        
             $tab_writer->write_row( { LeftGene => $LeftGene,
                                       LeftLocalBreakpoint => $LeftLocalBreakpoint,
                                       LeftBreakpoint => $LeftBreakpoint,
