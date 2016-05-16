@@ -45,7 +45,7 @@ class FusionInspector( ParentScript.ParentScript ):
                              help="genome lib directory - see http://FusionFilter.github.io for details")
         arg_raw.add_argument("--left_fq", dest="left_fq_filename", type=str, required=True, help="left fastq file")
         arg_raw.add_argument("--right_fq", dest="right_fq_filename", type=str, required=True, help="right fastq file")
-        arg_raw.add_argument("--out_dir", dest="out_dirname", type=str, required=True, help="output directory")
+        arg_raw.add_argument("--out_dir", dest="str_out_dir", type=str, required=True, help="output directory")
         arg_raw.add_argument("--out_prefix", dest="out_prefix", type=str, required=True, help="output filename prefix")
         arg_raw.add_argument("--align_utils", dest="align_utils", type=str, required=False, default="STAR",
                              help="alignment utilities to use.") # Comma-delimited selection of: STAR,GSNAP,HISAT")
@@ -112,19 +112,17 @@ class FusionInspector( ParentScript.ParentScript ):
                 
         
         genome_lib_dir = args_parsed.genome_lib_dir
-        genome_lib_dir = ensure_full_path(genome_lib_dir)
+        genome_lib_dir = os.path.abspath(genome_lib_dir)
         
         args_parsed.gtf_filename = os.path.sep.join([genome_lib_dir, "ref_annot.gtf"])
         args_parsed.genome_fasta_filename = os.path.sep.join([genome_lib_dir, "ref_genome.fa"])
         args_parsed.cdna_fasta_filename = os.path.sep.join([genome_lib_dir, "ref_cdna.fasta"])
 
-        args_parsed.out_dirname = ensure_full_path(args_parsed.out_dirname)
-                
-        workdir = args_parsed.out_dirname + "/fi_workdir";
-        workdir = ensure_full_path(workdir)
+        args_parsed.str_out_dir = os.path.abspath(args_parsed.str_out_dir)
         
-        cur_pipeline.func_mkdirs( [ args_parsed.out_dirname, workdir ] )
-
+        workdir = args_parsed.str_out_dir + "/fi_workdir";
+        workdir = os.path.abspath(workdir)
+                
         
         chim_summary_files_list = args_parsed.chim_summary_files.split(",")
         
@@ -161,10 +159,10 @@ class FusionInspector( ParentScript.ParentScript ):
                       " --gtf " + args_parsed.gtf_filename +
                       " --genome_fa " + args_parsed.genome_fasta_filename +
                       " --shrink_introns --max_intron_length 1000 " +
-                      " --out_prefix " + os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix] ) )
+                      " --out_prefix " + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix] ) )
         
-        mergedContig_fasta_filename = os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".fa"])
-        mergedContig_gtf_filename = os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".gtf"])
+        mergedContig_fasta_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".fa"])
+        mergedContig_gtf_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".gtf"])
         
         lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                lstr_cur_dependencies = [args_parsed.gtf_filename, args_parsed.genome_fasta_filename] + chim_summary_files,
@@ -186,7 +184,7 @@ class FusionInspector( ParentScript.ParentScript ):
 
         
         ## build a cytoband file
-        cytoband_file = os.sep.join([args_parsed.out_dirname, "cytoBand.txt"])
+        cytoband_file = os.sep.join([args_parsed.str_out_dir, "cytoBand.txt"])
         cmdstr = str( os.sep.join([UTILDIR, "fasta_and_gtf_to_cytoband.pl"]) +
                       " " + mergedContig_fasta_filename + " " + mergedContig_gtf_filename +
                       " > " + cytoband_file )
@@ -198,7 +196,7 @@ class FusionInspector( ParentScript.ParentScript ):
         
 
         ## Convert the gtf to bed format for easier viewing
-        mergedContig_bed_filename = os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".bed"])
+        mergedContig_bed_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".bed"])
         
         cmdstr = str(UTILDIR + "/gtf_gene_to_bed.pl " + mergedContig_gtf_filename +
                      " > " + mergedContig_bed_filename)
@@ -383,8 +381,8 @@ class FusionInspector( ParentScript.ParentScript ):
         
         
         lcmd_commands.append( Command.Command( str_cur_command = coalesce_cmd,
-                                               lstr_cur_dependencies = [ fusion_junction_info_files_list +
-                                                                         fusion_spanning_info_files_list ],
+                                               lstr_cur_dependencies = fusion_junction_info_files_list + 
+                                               fusion_spanning_info_files_list,
                                                lstr_cur_products = [ fusion_summary_pre_read_filter ] ) )
         
 
@@ -447,22 +445,22 @@ class FusionInspector( ParentScript.ParentScript ):
 
             ## Junction reads
 
-            summary_junction_reads_list = fusion_summary_file + ".fusion_junction_read_accs"
+            summary_junctions_reads_list_filename = fusion_summary_file + ".fusion_junction_read_accs"
             cmdstr = str(os.sep.join([UTILDIR, "column_extractions.pl"]) +
                          " " + fusion_summary_file +
                          " LeftGene,RightGene,JunctionReads " +
-                         " > " + summary_junction_reads_list)
+                         " > " + summary_junctions_reads_list_filename)
             
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                    lstr_cur_dependencies = [ fusion_summary_file ],
-                                                   lstr_cur_products = [ summary_junction_reads_list ] ) )
+                                                   lstr_cur_products = [ summary_junctions_reads_list_filename ] ) )
 
 
 
             ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
 
-            consolidated_junction_reads_bam =  os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".junction_reads"])
-            cmdstr = str(UTILDIR + "/retrieve_fusion_junction_reads_by_accession.pl " + summary_junction_reads_list
+            consolidated_junction_reads_bam =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".junction_reads"])
+            cmdstr = str(UTILDIR + "/retrieve_fusion_junction_reads_by_accession.pl " + summary_junctions_reads_list_filename
                          + " " + ",".join(fusion_junction_reads_list) +
                          " | samtools view -bT " + mergedContig_fasta_filename + " - | samtools sort - " + consolidated_junction_reads_bam +
                          " || : ") # cant afford for this to fail due to lack of evidence reads
@@ -470,11 +468,10 @@ class FusionInspector( ParentScript.ParentScript ):
             consolidated_junction_reads_bam += ".bam"
 
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ fusion_junction_reads_list +
-                                                                             [summary_junction_reads_list]
-                                                                             ],
+                                                   lstr_cur_dependencies = fusion_junction_reads_list +
+                                                   [summary_junctions_reads_list_filename],
                                                    lstr_cur_products = [ consolidated_junction_reads_bam ] ) )
-
+            
             lcmd_commands.append ( Command.Command( str_cur_command = "samtools index " + consolidated_junction_reads_bam,
                                                     lstr_cur_dependencies = [ consolidated_junction_reads_bam ],
                                                     lstr_cur_products = [ consolidated_junction_reads_bam + ".bai" ] ) )
@@ -485,20 +482,20 @@ class FusionInspector( ParentScript.ParentScript ):
 
             ## Spanning reads
 
-            summary_spanning_reads_list = fusion_summary_file + ".fusion_spanning_read_accs"
+            summary_spanning_reads_list_filename = fusion_summary_file + ".fusion_spanning_read_accs"
             cmdstr = str(os.sep.join([UTILDIR, "column_extractions.pl"]) +
                          " " + fusion_summary_file +
                          " LeftGene,RightGene,SpanningFrags " +
-                         " > " + summary_spanning_reads_list)
+                         " > " + summary_spanning_reads_list_filename)
             
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                    lstr_cur_dependencies = [ fusion_summary_file ],
-                                                   lstr_cur_products = [ summary_spanning_reads_list ] ) )
+                                                   lstr_cur_products = [ summary_spanning_reads_list_filename ] ) )
             
             ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
 
-            consolidated_spanning_reads_bam =  os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".spanning_reads"])
-            cmdstr = str(UTILDIR + "/retrieve_fusion_spanning_reads_by_accession.pl " + summary_spanning_reads_list
+            consolidated_spanning_reads_bam =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".spanning_reads"])
+            cmdstr = str(UTILDIR + "/retrieve_fusion_spanning_reads_by_accession.pl " + summary_spanning_reads_list_filename
                          + " " + ",".join(fusion_spanning_reads_list) +
                          " | samtools view -bT " + mergedContig_fasta_filename + " - | samtools sort - " + consolidated_spanning_reads_bam +
                          " || : ") # again, cant afford for this to fail due to lack of evidence reads.
@@ -506,11 +503,10 @@ class FusionInspector( ParentScript.ParentScript ):
             consolidated_spanning_reads_bam += ".bam"
 
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ fusion_spanning_reads_list +
-                                                                             [summary_spanning_reads_list]
-                                                                             ],
+                                                   lstr_cur_dependencies = fusion_spanning_reads_list +
+                                                   [summary_spanning_reads_list_filename],
                                                    lstr_cur_products = [ consolidated_spanning_reads_bam ] ) )
-
+            
             lcmd_commands.append ( Command.Command( str_cur_command = "samtools index " + consolidated_spanning_reads_bam,
                                                     lstr_cur_dependencies = [ consolidated_spanning_reads_bam ],
                                                     lstr_cur_products = [ consolidated_spanning_reads_bam + ".bai" ] ) )
@@ -520,7 +516,7 @@ class FusionInspector( ParentScript.ParentScript ):
 
 
             # consolidate all fusion-contig aligned reads into a single bam file
-            consolidated_bam_file =  os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix  + ".consolidated"])
+            consolidated_bam_file =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix  + ".consolidated"])
 
             cmdstr = str(UTILDIR + "/consolidate_bams_and_uniq_reads.pl " +
                          workdir_mergedContig_fasta_filename + " " +
@@ -530,10 +526,9 @@ class FusionInspector( ParentScript.ParentScript ):
             consolidated_bam_file += ".cSorted.bam"
 
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ bam_files_list + [workdir_mergedContig_fasta_filename]
-                                                                             ],
+                                                   lstr_cur_dependencies = bam_files_list + [workdir_mergedContig_fasta_filename],
                                                    lstr_cur_products = [ consolidated_bam_file ] ) )
-
+            
 
 
             workdir_consolidated_bam_file = os.sep.join([workdir, args_parsed.out_prefix  + ".consolidated.bam"])
@@ -599,7 +594,7 @@ class FusionInspector( ParentScript.ParentScript ):
                 ## Prep IGV fusion junction view
 
                 frag_coords_file = workdir_consolidated_bam_file + ".frag_coords"
-                igv_junc_view_file = os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".igv.FusionJuncSpan"])
+                igv_junc_view_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.FusionJuncSpan"])
 
                 cmdstr = str(UTILDIR + "/fusion_summary_to_igv_JuncSpan_fmt.pl " + fusion_summary_file + " " +
                             frag_coords_file + " > " + igv_junc_view_file)
@@ -614,7 +609,7 @@ class FusionInspector( ParentScript.ParentScript ):
         ## Score and filter the final fusion predictions
         ################################################
 
-        final_fusions_file = os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".fusion_predictions"])
+        final_fusions_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".fusion_predictions"])
 
         cmdstr = str(UTILDIR + "/BLASTN.filter.pl --fusion_preds " + fusion_summary_min_score_thresh_file +
                      " --out_prefix " + final_fusions_file +
@@ -653,8 +648,8 @@ class FusionInspector( ParentScript.ParentScript ):
             ## generate the fusion-inspector-web galaxy js 
 
             cmdstr = str( os.path.sep.join( [ UTILDIR, "create_fusion_inspector_igvjs.py" ] ) +
-                          " --fusion_inspector_directory " + args_parsed.out_dirname +
-                          " --json_outfile " + os.path.sep.join( [ args_parsed.out_dirname, args_parsed.out_prefix + ".fusion_inspector_web.json" ] ) +
+                          " --fusion_inspector_directory " + args_parsed.str_out_dir +
+                          " --json_outfile " + os.path.sep.join( [ args_parsed.str_out_dir, args_parsed.out_prefix + ".fusion_inspector_web.json" ] ) +
                           " --file_prefix " + args_parsed.out_prefix )
             
             if args_parsed.include_Trinity:
@@ -662,8 +657,8 @@ class FusionInspector( ParentScript.ParentScript ):
 
             
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [args_parsed.out_dirname],
-                                                   lstr_cur_products = [ os.path.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".fusion_inspector_web.json"]) ] ) )
+                                                   lstr_cur_dependencies = [args_parsed.str_out_dir],
+                                                   lstr_cur_products = [ os.path.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".fusion_inspector_web.json"]) ] ) )
 
         
 
@@ -671,7 +666,7 @@ class FusionInspector( ParentScript.ParentScript ):
         ## cleanup
         if not args_parsed.no_cleanup:
 
-            workdir_cleaned_file = os.path.sep.join([args_parsed.out_dirname, "workdir.cleaned"])
+            workdir_cleaned_file = os.path.sep.join([args_parsed.str_out_dir, "workdir.cleaned"])
             cmdstr = "/bin/rm -rf " + workdir + " && touch " + workdir_cleaned_file
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                    lstr_cur_dependencies = [workdir],
@@ -828,7 +823,7 @@ class FusionInspector( ParentScript.ParentScript ):
         
         
         ## extract the Trinity fusion transcripts
-        trinity_fusion_trans_filename = os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".gmap_trinity_GG.fusions.gff3"])
+        trinity_fusion_trans_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".gmap_trinity_GG.fusions.gff3"])
         cmdstr = str(os.sep.join([UTILDIR, "get_Trinity_fusion_alignments_from_gff3.pl"]) + " " + mergedContig_gtf_filename +
                      " " + gmap_gff3_output_filename + " > " + trinity_fusion_trans_filename)
         lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
@@ -838,7 +833,7 @@ class FusionInspector( ParentScript.ParentScript ):
 
 
         ## extract the Trinity Fusion transcripts
-        trinityGG_fusion_fasta = os.sep.join([args_parsed.out_dirname, args_parsed.out_prefix + ".gmap_trinity_GG.fusions.fasta"])
+        trinityGG_fusion_fasta = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".gmap_trinity_GG.fusions.fasta"])
         cmdstr = str(os.sep.join([UTILDIR, "get_Trinity_fusion_fasta_seqs.pl"]) + " " + trinity_fasta_filename + " " + trinity_fusion_trans_filename +
                      " > " + trinityGG_fusion_fasta)
         lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
@@ -868,14 +863,6 @@ class FusionInspector( ParentScript.ParentScript ):
         return (trinity_fusion_trans_filename) # trinGG fusion gff3 file w/ breakpoints encoded
 
 
-def ensure_full_path(file_or_dir):
-
-    if file_or_dir[0] != '/' :
-        file_or_dir = os.path.abspath(file_or_dir)
-
-    return(file_or_dir)
-
-                          
     
 if __name__ == "__main__":
 
