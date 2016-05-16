@@ -69,7 +69,10 @@ class FusionInspector( ParentScript.ParentScript ):
         
         arg_raw.add_argument("--only_fusion_reads", default=False, action='store_true',
                              help="include only read alignments in output that support fusion" )
-                
+        
+        arg_raw.add_argument("--capture_genome_alignments", default=False, action='store_true',
+                             help='reports ref genome alignments too (for debugging only)')
+                        
         arg_raw.add_argument("--include_Trinity", dest="include_Trinity", required=False, action = "store_true", default=False,
                              help="include fusion-guided Trinity assembly")
 
@@ -310,7 +313,9 @@ class FusionInspector( ParentScript.ParentScript ):
 
             if args_parsed.only_fusion_reads:
                 cmdstr += " --only_fusion_reads "
-            
+            elif args_parsed.capture_genome_alignments:
+                cmdstr += " --capture_genome_alignments "
+                        
             if args_parsed.aligner_path:
                 cmdstr += " --star_path " + args_parsed.aligner_path
 

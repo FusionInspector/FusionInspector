@@ -30,6 +30,7 @@ my $usage = <<__EOUSAGE__;
 #  --star_path <string>        full path to the STAR program to use.
 #  --prep_reference_only       build the genome index and then stop.
 #  --only_fusion_reads         restrict alignments only to the fusion-supporting reads
+#  --capture_genome_alignments reports alignments to the reference genome in addition to the fusion contigs. (for debugging)
 # 
 #################################################################################################
 
@@ -54,6 +55,8 @@ my $star_path = "STAR";
 my $patch;
 my $prep_reference_only = 0;
 my $only_fusion_reads_flag = 0;
+my $capture_genome_alignments_flag = 0;
+
 
 &GetOptions( 'h' => \$help_flag,
              'genome=s' => \$genome,
@@ -68,7 +71,7 @@ my $only_fusion_reads_flag = 0;
              'star_path=s' => \$star_path,
              'prep_reference_only' => \$prep_reference_only,
              'only_fusion_reads' => \$only_fusion_reads_flag,
-             
+             'capture_genome_alignments' => \$capture_genome_alignments_flag,
     );
 
 
@@ -157,6 +160,10 @@ main: {
     
     if ($only_fusion_reads_flag) {
         $cmd .= " --outSAMfilter KeepOnlyAddedReferences ";
+    }
+    elsif ($capture_genome_alignments_flag) {
+        # no op
+        # by default, reports all alignments
     }
     else {
         $cmd .= " --outSAMfilter KeepAllAddedReferences ";
