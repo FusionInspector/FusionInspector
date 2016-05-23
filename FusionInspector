@@ -8,7 +8,7 @@ import os, re, sys
 sys.path.append(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR"]))
 sys.path.append(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR", "sciedpiper"]))
 import sciedpiper.Command as Command
-import sciedpiper.ParentScript as ParentScript
+import sciedpiper.PipelineRunner as PipelineRunner
 
 
 VERSION = "v0.5.0"
@@ -24,7 +24,7 @@ if not os.environ.has_key('TRINITY_HOME'):
 TRINITY_HOME = os.environ["TRINITY_HOME"]
     
 
-class FusionInspector( ParentScript.ParentScript ):
+class FusionInspector( PipelineRunner.PipelineRunner ):
     
     def func_update_arguments(self, arg_raw ):
         """
@@ -94,6 +94,8 @@ class FusionInspector( ParentScript.ParentScript ):
                              help='turn off FP filtering for non-STAR methods (increases speed, reduces RAM, mostly restricted for testing purposes)')
 
         arg_raw.add_argument("--aligner_path", default=None, type=str, help="path to the aligner tool (default: uses PATH setting)")
+
+        return(arg_raw)
 
         
     def func_make_commands( self, args_parsed, cur_pipeline ):
