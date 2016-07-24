@@ -9,6 +9,7 @@ use lib ("$FindBin::Bin/../PerlLib");
 use SAM_reader;
 use SAM_entry;
 use DelimParser;
+use SeqUtil;
 use Data::Dumper;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 
@@ -20,6 +21,7 @@ my $junction_info_file;
 my $MAX_END_CLIP = 10;
 
 my $MIN_ALIGN_PER_ID = 97;
+my $MIN_SEQ_ENTROPY = 1;
 
 my $FUZZ = 5; # small fuzzy alignment bounds for spanning frags around breakpoint
 
@@ -37,6 +39,7 @@ my $usage = <<__EOUSAGE__;
 #
 #  --MIN_ALIGN_PER_ID <int>     default: $MIN_ALIGN_PER_ID
 #  --MAX_END_CLIP <int>         default: $MAX_END_CLIP
+#  --MIN_SEQ_ENTROPY <float>    default: $MIN_SEQ_ENTROPY
 #
 ##############################################################
 
@@ -56,7 +59,7 @@ my $help_flag;
             
             'MIN_ALIGN_PER_ID=i' => \$MIN_ALIGN_PER_ID,
             'MAX_END_CLIP=i' => \$MAX_END_CLIP,
-            
+            'MIN_SEQ_ENTROPY=f' => \$MIN_SEQ_ENTROPY,
     );
 
 if ($help_flag) {
@@ -231,7 +234,11 @@ main: {
             my $full_read_name = $sam_entry->reconstruct_full_read_name();            
 
             if ($junction_reads_ignore{$full_read_name}) { next; }
-            
+
+            my $read_seq = $sam_entry->get_sequence();
+            my $entropy = &SeqUtil::compute_entropy($read_seq);
+            unless ($entropy >= $MIN_SEQ_ENTROPY) { next; }
+                        
         
             my ($genome_coords_aref, $read_coords_aref) = $sam_entry->get_alignment_coords();
             unless (&overlaps_exon($genome_coords_aref, $exon_bounds{$scaffold}) ) { 
