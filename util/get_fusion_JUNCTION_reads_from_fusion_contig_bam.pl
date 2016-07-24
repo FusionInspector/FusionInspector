@@ -184,8 +184,17 @@ main: {
             if ($junction_coord_token) {
                 
                 my ($gene_A, $brkpt_A, $gene_B, $brkpt_B, $splice_token) = split(/\t/, $junction_coord_token);
-                my ($left_brkpt_length, $right_brkpt_length,
-                    $left_read_segments_aref, $right_read_segments_aref) = &divide_junction_read_at_breakpoint($genome_coords_aref, $read_coords_aref, $brkpt_A);
+                my ($left_read_segments_aref, $right_read_segments_aref) = &divide_junction_read_at_breakpoint($genome_coords_aref, $read_coords_aref, $brkpt_A);
+                
+                # coordinate sets based on read as reference coordinates
+                my @left_read_coordsets = sort {$a->[0]<=>$b->[0]} @$left_read_segments_aref;
+                my @right_read_coordsets = sort {$a->[0]<=>$b->[0]} @$right_read_segments_aref;
+
+                my $left_immediate_breakpoint_segment = pop @left_read_coordsets;
+                my $right_immediate_breakpoint_segment = shift @right_read_coordsets;
+
+                my $left_brkpt_length = abs($left_immediate_breakpoint_segment->[1] - $left_immediate_breakpoint_segment->[0]) + 1;
+                my $right_brkpt_length = abs($right_immediate_breakpoint_segment->[1] - $right_immediate_breakpoint_segment->[0]) + 1;
                 
                 print STDERR "LEFT_read_seg: $left_brkpt_length, RIGHT_read_seg: $right_brkpt_length\n" if $DEBUG;
 
@@ -197,10 +206,10 @@ main: {
                 }
 
                 ## anchor sequence entropy check
-                unless (&has_min_anchor_seq_entropy(\$read_sequence, $left_read_segments_aref, 'left', $MIN_SEQ_ENTROPY)
+                unless (&has_min_anchor_seq_entropy(\$read_sequence, $left_immediate_breakpoint_segment, $MIN_SEQ_ENTROPY)
                         &&
-                        &has_min_anchor_seq_entropy(\$read_sequence, $right_read_segments_aref, 'right', $MIN_SEQ_ENTROPY) ) {
-
+                        &has_min_anchor_seq_entropy(\$read_sequence, $right_immediate_breakpoint_segment, $MIN_SEQ_ENTROPY) ) {
+                    
                     next;
                 }
                 
@@ -521,9 +530,6 @@ sub parse_gtf_file {
 sub divide_junction_read_at_breakpoint {
     my ($genome_coords_aref, $read_coords_aref, $brkpt_A) = @_;
 
-    my $left_read_length = 0;
-    my $right_read_length = 0;
-
     my @left_read_segments;
     my @right_read_segments;
 
@@ -534,20 +540,16 @@ sub divide_junction_read_at_breakpoint {
         my ($genome_lend, $genome_rend) = @$g_coords_aref;
         my ($read_lend, $read_rend) = @$r_coords_aref;
 
-        my $read_segment_length = abs($read_rend - $read_lend) + 1;
-        
         if ($genome_rend <= $brkpt_A) {
-            $left_read_length += $read_segment_length;
             push (@left_read_segments, $r_coords_aref);
         }
         else {
-            $right_read_length += $read_segment_length;
             push (@right_read_segments, $r_coords_aref);
         }
 
     }
 
-    return($left_read_length, $right_read_length, \@left_read_segments, \@right_read_segments);
+    return(\@left_read_segments, \@right_read_segments);
     
 }
 
@@ -578,28 +580,22 @@ sub alignment_has_excessive_soft_clipping {
 
 ####
 sub has_min_anchor_seq_entropy {
-    my ($read_seq_sref, $segments_aref, $direction, $min_entropy) = @_;
+    my ($read_seq_sref, $segment_aref, $min_entropy) = @_;
 
-    my @coordsets = sort {$a->[0]<=>$b->[0]} @$segments_aref;
+    my ($read_lend, $read_rend) = sort {$a<=>$b} @$segment_aref; # sorting is important as (-) strand alignment reads are ordered oppositely
     
-    my $coordset_to_check_aref;
-    if ($direction eq 'left') {
-        $coordset_to_check_aref = pop @coordsets;
-    }
-    else {
-        $coordset_to_check_aref = shift @coordsets;
-    }
-
-    my ($read_lend, $read_rend) = @$coordset_to_check_aref;
     
     my $read_subseq = substr($$read_seq_sref, $read_lend - 1, $read_rend - $read_lend + 1);
 
     my $entropy = &SeqUtil::compute_entropy($read_subseq);
     
+    
     if ($entropy >= $min_entropy) {
+        #print "$read_subseq : $entropy : OK\n";
         return(1);
     }
     else {
+        #print "$read_subseq : $entropy : FAIL\n";
         return(0);
     }
 }
