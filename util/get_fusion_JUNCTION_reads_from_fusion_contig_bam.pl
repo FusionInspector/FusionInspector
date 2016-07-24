@@ -98,10 +98,14 @@ main: {
             print STDERR "\r[$counter]   ";
         }
 
+        my $qual_val = $sam_entry->get_mapping_quality();
+        unless ($qual_val > 0) { next; }
+        
+
         ## examine number of mismatches in read alignment
         my $mismatch_count = 0;
         my $line = $sam_entry->get_original_line();
-        if ($line =~ /NM:i:(\d+)/) {
+        if ($line =~ /NM:i:(\d+)/i) {
             $mismatch_count = $1;
         }
         my $alignment_length = $sam_entry->get_alignment_length();
@@ -115,11 +119,8 @@ main: {
         
         ## check end clipping of alignment
         my $cigar = $sam_entry->get_cigar_alignment();
-        if ($cigar =~ /^(\d+)[SH]/) {
-            my $clip_len = $1;
-            if ($clip_len > $MAX_END_CLIP) {
-                next;
-            }
+        if (&alignment_has_excessive_soft_clipping($cigar)) {
+            next;
         }
         
         my $read_name = $sam_entry->reconstruct_full_read_name();
@@ -523,4 +524,29 @@ sub divide_junction_read_at_breakpoint {
 
     return($left_read_length, $right_read_length);
     
+}
+
+
+####
+sub alignment_has_excessive_soft_clipping {
+    my ($cigar, $max_end_clip) = @_;
+    
+    ## check left soft clip
+    if ($cigar =~ /^(\d+)[SH]/) {
+        my $clip_len = $1;
+        if ($clip_len > $MAX_END_CLIP) {
+            return(1);
+        }
+    }
+    
+    ## check right soft clip
+    if ($cigar =~ /(\d+)[SH]$/) {
+        my $clip_len = $1;
+        if ($clip_len > $MAX_END_CLIP) {
+            return(1);
+        }
+    }
+
+
+    return(0); #ok
 }

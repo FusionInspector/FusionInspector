@@ -176,11 +176,14 @@ main: {
             print STDERR "\r[$counter]   " if $counter % 1000 == 0;
             
             #print STDERR Dumper($sam_entry);
-
+            
+            my $qual_val = $sam_entry->get_mapping_quality();
+            unless ($qual_val > 0) { next; }
+            
             ## examine number of mismatches in read alignment
             my $line = $sam_entry->get_original_line();
             my $mismatch_count = 0;
-            if ($line =~ /NM:i:(\d+)/) {
+            if ($line =~ /NM:i:(\d+)/i) {
                 $mismatch_count = $1;
             }
             my $alignment_length = $sam_entry->get_alignment_length();
@@ -194,17 +197,11 @@ main: {
             
             ## check end clipping of alignment
             my $cigar = $sam_entry->get_cigar_alignment();
-            if ($cigar =~ /^(\d+)[SH]/) {
-                my $clip_len = $1;
-                if ($clip_len > $MAX_END_CLIP) {
-                    next;
-                }
+            if (&alignment_has_excessive_soft_clipping($cigar)) {
+                next;
             }
             
-            my $qual_val = $sam_entry->get_mapping_quality();
-            #unless ($qual_val >= $MIN_QUALITY) { next; }
             
-
             my $scaffold = $sam_entry->get_scaffold_name();
             unless (exists $scaffold_to_gene_breaks{$scaffold}) { next; } # StarFI includes the whole genome, not just the fusion scaffs
 
@@ -362,11 +359,7 @@ main: {
     if (%spanning_read_want) {
         my $sam_reader = new SAM_reader($bam_file);
         while (my $sam_entry = $sam_reader->get_next()) {
-            
-            my $qual_val = $sam_entry->get_mapping_quality();
-            #unless ($qual_val >= $MIN_QUALITY) { next; }
-            
-            
+                        
             my $scaffold = $sam_entry->get_scaffold_name();
             my $core_read_name = $sam_entry->get_core_read_name();
             if ($spanning_read_want{"$scaffold|$core_read_name"}) {
@@ -537,3 +530,26 @@ sub parse_gtf_file {
 }
 
 
+####
+sub alignment_has_excessive_soft_clipping {
+    my ($cigar, $max_end_clip) = @_;
+    
+    ## check left soft clip
+    if ($cigar =~ /^(\d+)[SH]/) {
+        my $clip_len = $1;
+        if ($clip_len > $MAX_END_CLIP) {
+            return(1);
+        }
+    }
+    
+    ## check right soft clip
+    if ($cigar =~ /(\d+)[SH]$/) {
+        my $clip_len = $1;
+        if ($clip_len > $MAX_END_CLIP) {
+            return(1);
+        }
+    }
+
+
+    return(0); #ok
+}
