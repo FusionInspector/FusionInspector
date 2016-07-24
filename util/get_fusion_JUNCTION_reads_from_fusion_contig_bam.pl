@@ -11,6 +11,7 @@ use DelimParser;
 use Carp;
 use Data::Dumper;
 use Set::IntervalTree;
+use SeqUtil;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 
 
@@ -20,6 +21,7 @@ my $MIN_ALIGN_PER_ID = 97;
 my $MIN_SMALL_ANCHOR = 12;
 my $MIN_LARGE_ANCHOR = 25;
 my $MAX_END_CLIP = 3;
+my $MIN_SEQ_ENTROPY = 1;
 
 my $DEBUG = 0;
 
@@ -39,6 +41,7 @@ my $usage = <<__EOUSAGE__;
 #  --MIN_SMALL_ANCHOR <int>   default: $MIN_SMALL_ANCHOR
 #  --MIN_LARGE_ANCHOR <int>   default: $MIN_LARGE_ANCHOR
 #  --MAX_END_CLIP <int>       default: $MAX_END_CLIP
+#  --MIN_SEQ_ENTROPY <float>    default: $MIN_SEQ_ENTROPY
 #
 ##############################################################
 
@@ -61,7 +64,10 @@ my $help_flag;
             'MAX_END_CLIP=i' => \$MAX_END_CLIP,
             'MIN_SMALL_ANCHOR=i' => \$MIN_SMALL_ANCHOR,
             'MIN_LARGE_ANCHOR=i' => \$MIN_LARGE_ANCHOR,
-    );
+            'MIN_SEQ_ENTROPY=f' => \$MIN_SEQ_ENTROPY,
+            
+  );
+
 
 if ($help_flag) {
     die $usage;
@@ -124,7 +130,8 @@ main: {
         }
         
         my $read_name = $sam_entry->reconstruct_full_read_name();
-
+        my $read_sequence = $sam_entry->get_sequence();
+        
         my $scaffold = $sam_entry->get_scaffold_name();
         if ($scaffold ne $prev_scaff) {
             
@@ -177,26 +184,39 @@ main: {
             if ($junction_coord_token) {
                 
                 my ($gene_A, $brkpt_A, $gene_B, $brkpt_B, $splice_token) = split(/\t/, $junction_coord_token);
-                my ($left_brkpt_length, $right_brkpt_length) = &divide_junction_read_at_breakpoint($genome_coords_aref, $read_coords_aref, $brkpt_A);
+                my ($left_brkpt_length, $right_brkpt_length,
+                    $left_read_segments_aref, $right_read_segments_aref) = &divide_junction_read_at_breakpoint($genome_coords_aref, $read_coords_aref, $brkpt_A);
                 
                 print STDERR "LEFT_read_seg: $left_brkpt_length, RIGHT_read_seg: $right_brkpt_length\n" if $DEBUG;
 
-                if ($left_brkpt_length >= $MIN_SMALL_ANCHOR
+                # anchor length check
+                unless ($left_brkpt_length >= $MIN_SMALL_ANCHOR
                     &&
                     $right_brkpt_length >= $MIN_SMALL_ANCHOR) {
-                    # calling it a fusion read.
-                    
-                    push (@{$fusion_junctions{$junction_coord_token}}, $read_name);
-                    print $sam_entry->get_original_line() . "\n";
-                
-                    if ($left_brkpt_length >= $MIN_LARGE_ANCHOR) {
-                        $fusion_large_anchors{$junction_coord_token}->{LEFT_LARGE_ANCHOR}++;
-                    }
-                    if ($right_brkpt_length >= $MIN_LARGE_ANCHOR) {
-                        $fusion_large_anchors{$junction_coord_token}->{RIGHT_LARGE_ANCHOR}++;
-                    }
-                    
+                    next;
                 }
+
+                ## anchor sequence entropy check
+                unless (&has_min_anchor_seq_entropy(\$read_sequence, $left_read_segments_aref, 'left', $MIN_SEQ_ENTROPY)
+                        &&
+                        &has_min_anchor_seq_entropy(\$read_sequence, $right_read_segments_aref, 'right', $MIN_SEQ_ENTROPY) ) {
+
+                    next;
+                }
+                
+                # calling it a fusion read.
+                    
+                push (@{$fusion_junctions{$junction_coord_token}}, $read_name);
+                print $sam_entry->get_original_line() . "\n";
+                
+                if ($left_brkpt_length >= $MIN_LARGE_ANCHOR) {
+                    $fusion_large_anchors{$junction_coord_token}->{LEFT_LARGE_ANCHOR}++;
+                }
+                if ($right_brkpt_length >= $MIN_LARGE_ANCHOR) {
+                    $fusion_large_anchors{$junction_coord_token}->{RIGHT_LARGE_ANCHOR}++;
+                }
+                
+                
                 
             }
         }
@@ -504,6 +524,9 @@ sub divide_junction_read_at_breakpoint {
     my $left_read_length = 0;
     my $right_read_length = 0;
 
+    my @left_read_segments;
+    my @right_read_segments;
+
     while (@$genome_coords_aref) {
         my $g_coords_aref = shift @$genome_coords_aref;
         my $r_coords_aref = shift @$read_coords_aref;
@@ -515,14 +538,16 @@ sub divide_junction_read_at_breakpoint {
         
         if ($genome_rend <= $brkpt_A) {
             $left_read_length += $read_segment_length;
+            push (@left_read_segments, $r_coords_aref);
         }
         else {
             $right_read_length += $read_segment_length;
+            push (@right_read_segments, $r_coords_aref);
         }
 
     }
 
-    return($left_read_length, $right_read_length);
+    return($left_read_length, $right_read_length, \@left_read_segments, \@right_read_segments);
     
 }
 
@@ -550,3 +575,34 @@ sub alignment_has_excessive_soft_clipping {
 
     return(0); #ok
 }
+
+####
+sub has_min_anchor_seq_entropy {
+    my ($read_seq_sref, $segments_aref, $direction, $min_entropy) = @_;
+
+    my @coordsets = sort {$a->[0]<=>$b->[0]} @$segments_aref;
+    
+    my $coordset_to_check_aref;
+    if ($direction eq 'left') {
+        $coordset_to_check_aref = pop @coordsets;
+    }
+    else {
+        $coordset_to_check_aref = shift @coordsets;
+    }
+
+    my ($read_lend, $read_rend) = @$coordset_to_check_aref;
+    
+    my $read_subseq = substr($$read_seq_sref, $read_lend - 1, $read_rend - $read_lend + 1);
+
+    my $entropy = &SeqUtil::compute_entropy($read_subseq);
+    
+    if ($entropy >= $min_entropy) {
+        return(1);
+    }
+    else {
+        return(0);
+    }
+}
+
+
+    
