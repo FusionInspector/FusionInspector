@@ -21,7 +21,7 @@ my $MIN_ALIGN_PER_ID = 97;
 my $MIN_SMALL_ANCHOR = 12;
 my $MIN_LARGE_ANCHOR = 25;
 my $MAX_END_CLIP = 3;
-my $MIN_SEQ_ENTROPY = 1;
+my $MIN_SEQ_ENTROPY = 1.5;
 
 my $DEBUG = 0;
 
