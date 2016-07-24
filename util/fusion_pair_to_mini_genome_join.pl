@@ -185,7 +185,7 @@ main: {
     my %seen;
     
     
-    foreach my $chim_pair (@chim_pairs) {
+    foreach my $chim_pair (sort @chim_pairs) {
         
         if ($seen{$chim_pair}) {
             next; 
