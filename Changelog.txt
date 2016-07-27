@@ -1,7 +1,8 @@
 
 next:
 	-compute FFPM values correctly when using gzipped fastq files
-
+	-upgraded SciedPiper and FusionFilter
+	-updated FusionFilter better handles overlapping genes in the ref annotation
 
 ## FusionInspector Release v0.5.0 (Mar 5, 2016)
 Update to FusionFilter v0.1.0

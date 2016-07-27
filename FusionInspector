@@ -748,6 +748,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
     def sort_and_index_bed(self, bed_file, lcmd_commands):
 
+
         # sort by contig name followed by coordinate
         sorted_bed_file = bed_file + ".sorted.bed"
 
