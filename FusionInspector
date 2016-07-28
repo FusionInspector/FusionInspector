@@ -11,7 +11,7 @@ import sciedpiper.Command as Command
 import sciedpiper.PipelineRunner as PipelineRunner
 
 
-VERSION = "v0.5.0"
+VERSION = "v0.8.0"
 
 
 UTILDIR = os.sep.join([os.path.dirname(__file__), "util"])
