@@ -266,8 +266,14 @@ main: {
                 
             }
         }
-    }
+    
+        if ($DEBUG) {
+            print STDERR "scaffold read pair to read bounds: " . Dumper(\%scaffold_read_pair_to_read_bounds);
+        }
+        
 
+    }
+    
 
     ##########################################
     # determine which reads are spanning reads
@@ -290,7 +296,7 @@ main: {
             foreach my $fragment (keys %{$scaffold_read_pair_to_read_bounds{$scaffold}}) {
                 
                 if ($core_counter{"$scaffold|$fragment"} != 2) { next; } # ignore those fragments that have multiply-mapping reads to this contig.
-
+                
                 my @pair_coords = grep { defined $_ } @{$scaffold_read_pair_to_read_bounds{$scaffold}->{$fragment}};
                 
                 ## data structure format: $scaffold_read_pair_to_read_bounds{$scaffold}->{$core}->[$pair_end-1] = [$span_lend, $span_rend, $strand];
@@ -327,11 +333,14 @@ main: {
                     
                     my $candidate_fusion_breakpoints_aref = $fusion_junctions{$scaffold};
                     if (ref $candidate_fusion_breakpoints_aref) {
-                                        
+                        
+                        print STDERR "Candidate fusion breakpoints for scaffold: $scaffold: " . Dumper($candidate_fusion_breakpoints_aref) if $DEBUG;
+        
                         foreach my $fusion_breakpoint (@{$candidate_fusion_breakpoints_aref}) {
                             my ($break_lend, $break_rend) = split(/-/, $fusion_breakpoint);
+                            print STDERR "** Breakpoitn: $break_lend, $break_rend\n" if $DEBUG;
                             
-                            #print STDERR "r1: $left_read_lend-$left_read_rend   r2: $right_read_lend-$right_read_rend  brk: $fusion_breakpoint\n";
+                            print STDERR "r1: $left_read_lend-$left_read_rend   r2: $right_read_lend-$right_read_rend  brk: $fusion_breakpoint\n" if $DEBUG;
 
                             if ($left_read_rend < $break_lend + $FUZZ && $break_rend - $FUZZ < $right_read_lend) {
                                 
@@ -340,14 +349,32 @@ main: {
                                                               
                             }
                             else {
-                                if ($left_read_rend < $break_lend && $break_lend < $right_read_lend
+
+                                ## TODO: make overlap criteria less restrictive, instead allow for sufficient non-fusion fragment overlap.
+                                
+
+                                if ($left_read_rend < $break_lend 
+                                    && $break_lend < $right_read_lend
                                     && $right_read_lend < $gene_bound_right) {
                                     
+                                    # <=======>   <=======>   # reads
+                                    #           |------------------------------------------------|   # breakpoints on scaffold
+                                    
+                                   
+
                                     ## contrary support at left junction
                                     push (@{$fusion_to_contrary_support{"$scaffold|$fusion_breakpoint"}->{left}}, $fragment);
                                 }
-                                elsif ($left_read_rend < $break_rend && $break_rend < $right_read_lend
+                                elsif ($left_read_rend < $break_rend 
+                                       && $break_rend < $right_read_lend
                                        && $left_read_rend > $gene_bound_left) {
+                                    
+
+                                    #                                                  <=======>   <=======>   # reads
+                                    #           |------------------------------------------------|   # breakpoints on scaffold
+                                    
+
+
                                     ## contrary support at right junction
                                     push (@{$fusion_to_contrary_support{"$scaffold|$fusion_breakpoint"}->{right}}, $fragment);
                                 }
