@@ -50,6 +50,8 @@ __EOUSAGE__
     ;
 
 my $help_flag;
+my $DEBUG = 0;
+
 
 &GetOptions('help|h' => \$help_flag,
             
@@ -60,6 +62,8 @@ my $help_flag;
             'MIN_ALIGN_PER_ID=i' => \$MIN_ALIGN_PER_ID,
             'MAX_END_CLIP=i' => \$MAX_END_CLIP,
             'MIN_SEQ_ENTROPY=f' => \$MIN_SEQ_ENTROPY,
+
+            'DEBUG|d' => \$DEBUG,
     );
 
 if ($help_flag) {
@@ -121,6 +125,8 @@ main: {
         }
     }
     
+
+    
     #####################################
     ## Capture the fusion breakpoint info
     
@@ -163,6 +169,11 @@ main: {
             
         }
         close $fh;
+    
+
+        if ($DEBUG) {
+            print STDERR "Fusion breakpoint info: " . Dumper(\%fusion_breakpoint_info);
+        }
     }
 
     ####################################################
