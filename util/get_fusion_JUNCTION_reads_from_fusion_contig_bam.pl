@@ -472,7 +472,7 @@ sub parse_gtf_file {
         
         
         # get original coordinate mapping info
-        $info =~ /orig_coord_info \"(\w+),(\d+),(\d+),([+-])\"/ or die "Error, cannot parse original coordinate info from $info";
+        $info =~ /orig_coord_info \"([^,]+),(\d+),(\d+),([+-])\"/ or die "Error, cannot parse original coordinate info from $info";
         my $orig_chr = $1;
         my $orig_lend = $2;
         my $orig_rend = $3;
