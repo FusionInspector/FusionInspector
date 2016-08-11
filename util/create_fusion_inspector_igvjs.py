@@ -61,11 +61,15 @@ C_SPLICE_REFERENCE = "INCL_NON_REF_SPLICE"
 C_SPLICE_REFERENCE_ENG = "Includes Reference"
 C_SPLICE_NOT_REFERENCE = "ONLY_REF_SPLICE"
 C_SPLICE_NOT_REFERENCE_ENG = "DOES NOT Include Reference"
+C_SPLICE_NO_JUNCTION_READS = "NO_JUNCTION_READS_IDENTIFIED"
+C_SPLICE_NO_JUNCTION_READS_ENG = "No junction/split reads identified, only spanning fragments"
+
 
 # Change splice info to plain english 
 convert_splice_type_to_eng = {
     C_SPLICE_REFERENCE : C_SPLICE_REFERENCE_ENG,
-    C_SPLICE_NOT_REFERENCE : C_SPLICE_NOT_REFERENCE_ENG
+    C_SPLICE_NOT_REFERENCE : C_SPLICE_NOT_REFERENCE_ENG,
+    C_SPLICE_NO_JUNCTION_READS : C_SPLICE_NO_JUNCTION_READS_ENG
 }
 
 # Change headers to more readable headers for the data table
