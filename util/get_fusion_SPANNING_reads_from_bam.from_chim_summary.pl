@@ -95,8 +95,6 @@ main: {
     {
         foreach my $scaffold (keys %scaffold_to_gene_structs) {
 
-            my ($geneA, $geneB) = split(/--/, $scaffold);
-
             my @gene_structs = @{$scaffold_to_gene_structs{$scaffold}};
             if (scalar @gene_structs != 2) {
                 die "Error, didn't find only 2 genes in the gtf file: " . Dumper(\@gene_structs);
@@ -106,6 +104,8 @@ main: {
             
             my $left_gene = $gene_structs[0];
             my $right_gene = $gene_structs[1];
+            
+            my ($geneA, $geneB) = ($left_gene->{gene_id}, $right_gene->{gene_id});
             
             my $gene_bound_left = $left_gene->{rend};
             my $gene_bound_right = $right_gene->{lend};
