@@ -495,12 +495,19 @@ sub extract_gene_gtfs {
             $gene_name = $1;
             
             if ($gene_id) {
+                # for viewing purposes
                 $line =~ s/$gene_id/$gene_name\.$gene_id/;
             }
         }
 
         unless ($gene_want_href->{$gene_id} || $gene_want_href->{$gene_name}) { next; }
 
+        # define a gene identifier to use in downstream processes
+        my $gene_id_use = $gene_id;
+        if ($gene_name && $gene_id ne $gene_name) {
+            $gene_id_use = "$gene_name^$gene_id";
+        }
+        $line .= " FI_gene_label \"$gene_id_use\";";
         
         my $chr = $x[0];
         my $lend = $x[3];

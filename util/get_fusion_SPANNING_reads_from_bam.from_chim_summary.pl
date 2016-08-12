@@ -532,7 +532,7 @@ sub parse_gtf_file {
         unless ($type eq 'exon') { next; }
         
         my $info = $x[8];
-        $info =~ /gene_name \"([^\"]+)\"/ or die "Error, cannot parse gene_name from $info";
+        $info =~ /FI_gene_label \"([^\"]+)\"/ or die "Error, cannot parse FI_gene_label from $info";
         my $gene_id = $1;
 
         my ($lend, $rend) = ($x[3], $x[4]);
