@@ -503,10 +503,9 @@ sub extract_gene_gtfs {
         unless ($gene_want_href->{$gene_id} || $gene_want_href->{$gene_name}) { next; }
 
         # define a gene identifier to use in downstream processes
-        my $gene_id_use = $gene_id;
-        if ($gene_name && $gene_id ne $gene_name) {
-            $gene_id_use = "$gene_name^$gene_id";
-        }
+        # use the ID given by the user
+        my $gene_id_use = ($gene_want_href->{$gene_id}) ? $gene_id : $gene_name;
+        
         $line .= " FI_gene_label \"$gene_id_use\";";
         
         my $chr = $x[0];
