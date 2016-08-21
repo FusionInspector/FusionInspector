@@ -10,19 +10,15 @@ use Fasta_reader;
 use DelimParser;
 use Nuc_translator;
 
-my $usage = "usage: $0 fusion_prediction_summary.dat genome_lib_dir\n\n";
+my $usage = "usage: $0 FI_fusion_prediction_summary.dat FI.contigs.fa\n\n";
 
 my $fusion_dat_file = $ARGV[0] or die $usage;
-my $genome_lib_dir = $ARGV[1] or die $usage;
+my $fi_contigs_fa_file = $ARGV[1] or die $usage;
 
 my $ANCHOR_SEQ_LENGTH = 15;
 
 main : {
 
-    my $genome_fasta = "$genome_lib_dir/ref_genome.fa";
-    unless (-s $genome_fasta) {
-        die "Error, cannot locate genome fasta file: $genome_fasta";
-    }
     
     open (my $fh, $fusion_dat_file) or die $!;
     my $tab_reader = new DelimParser::Reader($fh, "\t");
@@ -34,25 +30,30 @@ main : {
     my $tab_writer = new DelimParser::Writer(*STDOUT, "\t", \@column_headers);
 
 
-    my $fasta_reader = new Fasta_reader($genome_fasta);
+    my $fasta_reader = new Fasta_reader($fi_contigs_fa_file);
     
     my %seqs = $fasta_reader->retrieve_all_seqs_hash();
 
 
     while (my $row = $tab_reader->get_row()) {
-        
-        my $break_left = $row->{LeftBreakpoint};
-        my $break_right = $row->{RightBreakpoint};
-        
-        my ($left_splice, $left_entropy) = &examine_breakpoint_seq($break_left, \%seqs, 'left');
+    
 
-        my ($right_splice, $right_entropy) = &examine_breakpoint_seq($break_right, \%seqs, 'right');
+        my $fusion_name = $row->{'#FusionName'};
+        
+        my $fusion_contig_seq = $seqs{$fusion_name} or die "Error, cannot find fusion contig genomic sequence for [$fusion_name] ";
+        
+        my $break_left = $row->{LeftLocalBreakpoint};
+        my $break_right = $row->{RightLocalBreakpoint};
+        
+        my ($left_splice, $left_entropy) = &examine_breakpoint_seq($break_left, $fusion_contig_seq, 'left');
+
+        my ($right_splice, $right_entropy) = &examine_breakpoint_seq($break_right, $fusion_contig_seq, 'right');
         
         $row->{LeftBreakDinuc} = $left_splice;
-        $row->{LeftBreakEntropy} = $left_entropy;
+        $row->{LeftBreakEntropy} = sprintf("%.4f", $left_entropy);
 
         $row->{RightBreakDinuc} = $right_splice;
-        $row->{RightBreakEntropy} = $right_entropy;
+        $row->{RightBreakEntropy} = sprintf("%.4f", $right_entropy);
         
         $tab_writer->write_row($row);
     }
@@ -65,72 +66,35 @@ main : {
 
 ####
 sub examine_breakpoint_seq {
-    my ($breakpoint_info, $seqs_href, $side) = @_;
+    my ($coord, $fusion_contig_seq, $side) = @_;
 
     unless ($side eq 'left' || $side eq 'right') { 
         die "Error, cannot parse side ($side) as 'left|right' ";
     }
-    
-    my ($chr, $coord, $orient) = split(/:/, $breakpoint_info);
-    
-    my ($dinuc, $anchor_seq);
-
-    if ($orient eq '+') {
- 
-        my $subseq;
-        if ($side eq 'left') {
-            my $coord_start = $coord - $ANCHOR_SEQ_LENGTH + 1;
-            
-            $subseq = substr($seqs_href->{$chr}, $coord_start -1, $ANCHOR_SEQ_LENGTH + 2);
-            $dinuc = substr($subseq, -2);
-            $anchor_seq = substr($subseq, 0, $ANCHOR_SEQ_LENGTH);
-
-        }
-        elsif ($side eq 'right') {
-            my $coord_start = $coord - 2;
-            
-            $subseq = substr($seqs_href->{$chr}, $coord_start -1, $ANCHOR_SEQ_LENGTH + 2);
-            $dinuc = substr($subseq, 0, 2);
-            $anchor_seq = substr($subseq, 2);
-        }
         
-        print STDERR "+:$side:$subseq|$dinuc|$anchor_seq\n";
+    my ($dinuc, $anchor_seq, $subseq);
+
+    if ($side eq 'left') {
+        my $coord_start = $coord - $ANCHOR_SEQ_LENGTH + 1;
+        
+        $subseq = substr($fusion_contig_seq, $coord_start -1, $ANCHOR_SEQ_LENGTH + 2);
+        $dinuc = substr($subseq, -2);
+        $anchor_seq = substr($subseq, 0, $ANCHOR_SEQ_LENGTH);
         
     }
-    else {
-        # (-) orient
+    elsif ($side eq 'right') {
+        my $coord_start = $coord - 2;
         
-        my $subseq;
-
-        if ($side eq 'left') {
-            my $coord_start = $coord - 2;
-            
-            $subseq = substr($seqs_href->{$chr}, $coord_start -1, $ANCHOR_SEQ_LENGTH + 2);
-            $dinuc = substr($subseq, 0, 2);
-            $anchor_seq = substr($subseq, 2);
-
-            
-        }
-        elsif ($side eq 'right') {
-            my $coord_start = $coord - $ANCHOR_SEQ_LENGTH + 1;
-            
-            $subseq = substr($seqs_href->{$chr}, $coord_start -1, $ANCHOR_SEQ_LENGTH + 2);
-            $dinuc = substr($subseq, -2);
-            $anchor_seq = substr($subseq, 0, $ANCHOR_SEQ_LENGTH);
-
-
-
-        }
-
-        print STDERR "-:$side:$subseq|$dinuc|$anchor_seq\n";
-
-        $dinuc = &reverse_complement($dinuc);
-        $anchor_seq = &reverse_complement($anchor_seq);
+        $subseq = substr($fusion_contig_seq, $coord_start -1, $ANCHOR_SEQ_LENGTH + 2);
+        $dinuc = substr($subseq, 0, 2);
+        $anchor_seq = substr($subseq, 2);
     }
-
     
+    print STDERR "+:$side:$subseq|$dinuc|$anchor_seq\n";
+    
+        
     my $anchor_seq_entropy = &SeqUtil::compute_entropy($anchor_seq);
-    
+        
 
     return($dinuc, $anchor_seq_entropy);
 }
