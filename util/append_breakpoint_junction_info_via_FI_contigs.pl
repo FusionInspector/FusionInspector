@@ -90,7 +90,7 @@ sub examine_breakpoint_seq {
         $anchor_seq = substr($subseq, 2);
     }
     
-    print STDERR "+:$side:$subseq|$dinuc|$anchor_seq\n";
+    #print STDERR "+:$side:$subseq|$dinuc|$anchor_seq\n";
     
         
     my $anchor_seq_entropy = &SeqUtil::compute_entropy($anchor_seq);
