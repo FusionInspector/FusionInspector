@@ -6,6 +6,7 @@ use FindBin;
 use lib ("$FindBin::Bin/../../PerlLib");
 use Fastq_reader;
 use Process_cmd;
+use DelimParser;
 
 my $usage = "\n\n\tusage: $0 finspector.fusion_predictions.final  left.fq right.fq output_dir\n\n";
 
@@ -21,14 +22,17 @@ main: {
     
     my %core_frag_name_to_fusion_name;
     
-    open (my $fh, $fusion_results_file) or die "Error, cannot open file $fusion_results_file";
-    while (<$fh>) {
-        chomp;
-        my @x = split(/\t/);
-        my $fusion_name = $x[0];
-        my $junction_reads_list_txt = $x[8];
-        my $spanning_frags_list_txt = $x[9];
 
+
+    open (my $fh, $fusion_results_file) or die "Error, cannot open file $fusion_results_file";
+
+    my $tab_reader = new DelimParser::Reader($fh, "\t");
+
+    while (my $row = $tab_reader->get_row()) {
+        my $fusion_name = $row->{'#FusionName'};
+        my $junction_reads_list_txt = $row->{JunctionReads};
+        my $spanning_frags_list_txt = $row->{SpanningFrags};
+        
         my %reads = &parse_core_frag_names(join(",", $junction_reads_list_txt, $spanning_frags_list_txt));
         
         &append_reads_to_fusion($fusion_name, \%core_frag_name_to_fusion_name, \%reads);
