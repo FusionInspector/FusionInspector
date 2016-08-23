@@ -30,7 +30,7 @@ unless ($ENV{CTAT_GENOME_LIB}) {
 main: {
 
     
-    my $pipeliner = new Pipeliner(-verbose => 1);
+    my $pipeliner = new Pipeliner(-verbose => 2);
     
     ####################
     ## FusionInspector #

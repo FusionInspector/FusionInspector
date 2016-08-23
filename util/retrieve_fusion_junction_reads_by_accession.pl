@@ -8,6 +8,7 @@ use SAM_reader;
 use SAM_entry;
 use Data::Dumper;
 use Carp;
+use DelimParser;
 
 my $usage = "usage: $0 read_names.accs  fileA.bam,fileB.bam,...\n\n";
 
@@ -18,15 +19,14 @@ main: {
     
     my %reads_want;
     {
-        my @read_infos = `cat $read_name_accs_list | egrep -v ^\#`;
-        if ($read_infos[0] =~ /^LeftGene/) {
-            # remove header
-            shift @read_infos;
-        }
+        open(my $fh, $read_name_accs_list) or die "Error, cannot open file $read_name_accs_list";
+        my $tab_reader = new DelimParser::Reader($fh, "\t");
         
-        chomp @read_infos;
-        foreach my $read_info (@read_infos) {
-            my ($geneA, $geneB, $reads_list) = split(/\t/, $read_info);
+        while (my $row = $tab_reader->get_row()) {
+            my $geneA = $row->{LeftGene};
+            my $geneB = $row->{RightGene};
+            my $reads_list = $row->{JunctionReads};
+            
             my $fusion_contig = "$geneA--$geneB";
             foreach my $read_name (split(/,/, $reads_list)) {
                 $read_name =~ s/\/[12]$//;

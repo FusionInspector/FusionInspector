@@ -7,6 +7,7 @@ use lib ("$FindBin::Bin/../PerlLib");
 use SAM_reader;
 use SAM_entry;
 use Data::Dumper;
+use DelimParser;
 
 my $usage = "usage: $0 read_names.accs  fileA.bam,fileB.bam,...\n\n";
 
@@ -17,10 +18,15 @@ main: {
     
     my %cores_want;
     {
-        my @read_infos = `cat $read_name_accs_list | egrep -v ^\#`;
-        chomp @read_infos;
-        foreach my $read_info (@read_infos) {
-            my ($geneA, $geneB, $reads_list) = split(/\t/, $read_info);
+        open(my $fh, $read_name_accs_list) or die "Error, cannot open file $read_name_accs_list";
+        my $tab_reader = new DelimParser::Reader($fh, "\t");
+        
+        while (my $row = $tab_reader->get_row()) {
+            
+            my $geneA = $row->{LeftGene};
+            my $geneB = $row->{RightGene};
+            my $reads_list = $row->{SpanningFrags};
+            
             my $fusion_contig = "$geneA--$geneB";
             foreach my $read_name (split(/,/, $reads_list)) {
                 $cores_want{"$fusion_contig|$read_name"} = 1;
@@ -28,7 +34,7 @@ main: {
         }
                 
     }
-
+    
     
     my %reads_seen;
 
