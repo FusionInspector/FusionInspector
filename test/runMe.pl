@@ -18,8 +18,10 @@ unless ($method =~ /GSNAP|HISAT|STAR|orig/) {
 }
 
 
-my $left_fq = "reads.left.simPE.fq.gz";
-my $right_fq = "reads.right.simPE.fq.gz";
+my $left_fq = "test.reads_1.fastq.gz";
+my $right_fq = "test.reads_2.fastq.gz";
+
+my $fusion_files_list = "fusion_targets.A.txt,fusion_targets.B.txt,fusion_targets.C.txt";
 
 my $INSTALL_DIR = "$FindBin::Bin/../";
 
@@ -38,7 +40,7 @@ main: {
 
     my $outdir = "Fusion_Inspector-" . join("-", split(/,/, $method));
     
-    my $cmd = "$INSTALL_DIR/FusionInspector --fusions test_fusions.list,test_fusions.list2,test_fusions.list3 --genome_lib $ENV{CTAT_GENOME_LIB} --left_fq $left_fq --right $right_fq --out_dir $outdir --out_prefix finspector --align_utils $method --prep_for_IGV --no_cleanup ";
+    my $cmd = "$INSTALL_DIR/FusionInspector --fusions $fusion_files_list --genome_lib $ENV{CTAT_GENOME_LIB} --left_fq $left_fq --right $right_fq --out_dir $outdir --out_prefix finspector --align_utils $method --prep_for_IGV --no_cleanup ";
     
     if ($INCLUDE_TRINITY_FLAG) {
         $cmd .= " --include_Trinity"

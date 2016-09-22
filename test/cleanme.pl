@@ -12,16 +12,17 @@ chdir $FindBin::Bin or die "error, cannot cd to $FindBin::Bin";
 
 
 my @files_to_keep = qw (cleanme.pl 
-                        reads.left.simPE.fq.gz
-                        reads.right.simPE.fq.gz
                         runMe.pl
-                        test_fusions.list
-                        test_fusions.list2
-                        test_fusions.list3
-
 runMe.hisat.pl
 runMe.ALL.pl
 README.txt
+
+test.reads_1.fastq.gz
+test.reads_2.fastq.gz
+fusion_targets.A.txt
+fusion_targets.B.txt
+fusion_targets.C.txt
+
                         );
 
 
