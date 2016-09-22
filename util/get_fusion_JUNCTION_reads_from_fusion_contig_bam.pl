@@ -90,7 +90,8 @@ main: {
 
     my ($left_gene, $right_gene, $gene_bound_left, $gene_bound_right);
     
-
+    my %fusion_split_reads;
+    
     my %fusion_junctions;
     my %fusion_large_anchors;
     
@@ -111,6 +112,14 @@ main: {
         ## examine number of mismatches in read alignment
         my $mismatch_count = 0;
         my $line = $sam_entry->get_original_line();
+        
+        ## ensure the match is unique
+        $line =~ /NH:i:(\d+)/ or die "Error, cannot extract hit count (NH:i:) from sam entry: $line";
+        my $num_hits = $1;
+        if ($num_hits != 1) {
+            next;
+        }
+        
         if ($line =~ /NM:i:(\d+)/i) {
             $mismatch_count = $1;
         }
@@ -130,6 +139,9 @@ main: {
         }
         
         my $read_name = $sam_entry->reconstruct_full_read_name();
+        
+        my $core_read_name = $sam_entry->get_core_read_name();
+        
         my $read_sequence = $sam_entry->get_sequence();
         
         my $scaffold = $sam_entry->get_scaffold_name();
@@ -214,9 +226,9 @@ main: {
                 }
                 
                 # calling it a fusion read.
-                    
+                $fusion_split_reads{$core_read_name} = 1;
                 push (@{$fusion_junctions{$junction_coord_token}}, $read_name);
-                print $sam_entry->get_original_line() . "\n";
+                
                 
                 if ($left_brkpt_length >= $MIN_LARGE_ANCHOR) {
                     $fusion_large_anchors{$junction_coord_token}->{LEFT_LARGE_ANCHOR}++;
@@ -230,8 +242,27 @@ main: {
             }
         }
         
+
     }
     
+
+    {
+        # capture the alignments involving identified junction / split reads:
+
+        my $sam_reader = new SAM_reader($bam_file);
+        while (my $sam_entry = $sam_reader->get_next()) {
+            
+            my $core_read_name = $sam_entry->get_core_read_name();
+            # want both reads in the pair
+            if ($fusion_split_reads{$core_read_name}) {
+                print $sam_entry->get_original_line() . "\n";
+            }
+        }
+    
+    }
+    
+
+
     {
         
         print STDERR "-writing fusion junction support info.\n";
