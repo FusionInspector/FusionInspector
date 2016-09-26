@@ -1,17 +1,25 @@
 #!/usr/bin/env python
+# encoding: utf-8
+
+
+from __future__ import (absolute_import, division,
+                                                print_function, unicode_literals)
+
+
+import os, re, sys
+sys.path.insert(0, os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR"]))
+sys.path.insert(0, os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR", "sciedpiper"]))
+print(sys.path, file=sys.stderr)
+import sciedpiper.Command as Command
+import sciedpiper.PipelineRunner as PipelineRunner
+
 
 __example__ = "FusionInspector --left_fq ../BT474--ACACA--STAC2.left.fq --right_fq ../BT474--ACACA--STAC2.right.fq \
               --align_utils STAR,GSNAP,HISAT --fusions fusion_gene_candidates.dat --out_dir myoutdir --out_prefix ladeda"
 
 
-import os, re, sys
-sys.path.append(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR"]))
-sys.path.append(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR", "sciedpiper"]))
-import sciedpiper.Command as Command
-import sciedpiper.PipelineRunner as PipelineRunner
 
-
-VERSION = "v0.8.0"
+VERSION = "v0.9.0beta"
 
 
 UTILDIR = os.sep.join([os.path.dirname(__file__), "util"])
