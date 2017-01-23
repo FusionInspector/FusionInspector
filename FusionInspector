@@ -564,7 +564,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                 trinity_fasta_filename = trinity_out_dir + "/Trinity-GG.fasta"
 
                 cmdstr = str(TRINITY_HOME + "/Trinity --genome_guided_bam " + workdir_consolidated_bam_file +
-                             " --max_memory 20G --genome_guided_max_intron 1000000 --CPU " +  str(args_parsed.CPU) + " --min_contig_length 100 " +
+                             " --max_memory 30G --genome_guided_max_intron 1000000 --CPU " +  str(args_parsed.CPU) + " --min_contig_length 50 " +
                              " --output " + trinity_out_dir)
 
                 lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
