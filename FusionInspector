@@ -9,7 +9,7 @@ from __future__ import (absolute_import, division,
 import os, re, sys
 sys.path.insert(0, os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR"]))
 sys.path.insert(0, os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR", "sciedpiper"]))
-print(sys.path, file=sys.stderr)
+#print(sys.path, file=sys.stderr)
 import sciedpiper.Command as Command
 import sciedpiper.PipelineRunner as PipelineRunner
 
