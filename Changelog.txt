@@ -1,6 +1,7 @@
-## v1.0.0 (Feb 1, 2017)
+## v1.0.1 (Feb 2, 2017)
 include splice dinucleotides in report
 stricter requirements for fusion evidence w/ NH and qual, and more sensible overlap definition for fusion-contrasting pairs
+uses samtools v1.3
 
 
 ## FusionInspector Release v0.8.0 (July 28, 2016)
