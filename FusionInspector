@@ -469,13 +469,11 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
             ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
 
-            consolidated_junction_reads_bam =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".junction_reads"])
+            consolidated_junction_reads_bam =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".junction_reads.bam"])
             cmdstr = str(UTILDIR + "/retrieve_fusion_junction_reads_by_accession.pl " + summary_junctions_reads_list_filename
                          + " " + ",".join(fusion_junction_reads_list) +
-                         " | samtools view -bT " + mergedContig_fasta_filename + " - | samtools sort - " + consolidated_junction_reads_bam +
+                         " | samtools view -bT " + mergedContig_fasta_filename + " - | samtools sort - -o " + consolidated_junction_reads_bam +
                          " || : ") # cant afford for this to fail due to lack of evidence reads
-
-            consolidated_junction_reads_bam += ".bam"
 
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                    lstr_cur_dependencies = fusion_junction_reads_list +
@@ -504,13 +502,11 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             
             ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
 
-            consolidated_spanning_reads_bam =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".spanning_reads"])
+            consolidated_spanning_reads_bam =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".spanning_reads.bam"])
             cmdstr = str(UTILDIR + "/retrieve_fusion_spanning_reads_by_accession.pl " + summary_spanning_reads_list_filename
                          + " " + ",".join(fusion_spanning_reads_list) +
-                         " | samtools view -bT " + mergedContig_fasta_filename + " - | samtools sort - " + consolidated_spanning_reads_bam +
+                         " | samtools view -bT " + mergedContig_fasta_filename + " - | samtools sort - -o " + consolidated_spanning_reads_bam +
                          " || : ") # again, cant afford for this to fail due to lack of evidence reads.
-
-            consolidated_spanning_reads_bam += ".bam"
 
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                    lstr_cur_dependencies = fusion_spanning_reads_list +
@@ -830,7 +826,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
     def sort_sam_to_bam(self, fusion_junction_reads_sam_file, mergedContig_fasta_filename, lcmd_commands):
 
         cmdstr = str("set -o pipefail & samtools view -bT " + mergedContig_fasta_filename + " " + fusion_junction_reads_sam_file +
-                     " | samtools sort - " + fusion_junction_reads_sam_file)
+                     " | samtools sort - -o " + fusion_junction_reads_sam_file + ".bam")
 
         lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                lstr_cur_dependencies = [ fusion_junction_reads_sam_file ],
