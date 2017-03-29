@@ -584,7 +584,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
                 fusion_summary_min_score_thresh_file = fusion_summary_w_trinity  ## NOTE, VARIABLE REPLACEMENT HERE INCL TRINITY RESULTS
 
-            elif args_parsed.prep_for_IGV:
+            if args_parsed.prep_for_IGV:
                 ## just make the coords file
 
                 cmdstr = str(TRINITY_HOME + "/util/support_scripts/SAM_to_frag_coords.pl --sam " + workdir_consolidated_bam_file +
