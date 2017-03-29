@@ -65,12 +65,44 @@ sub get_num_columns {
 }
 
 
+###
+sub reconstruct_header_line {
+    my $self = shift;
+    my @column_headers = $self->get_column_headers();
+
+    my $header_line = join("\t", @column_headers);
+    return($header_line);
+}
+
+###
+sub reconstruct_line_from_row {
+    my $self = shift;
+    my $row_href = shift;
+    unless ($row_href && ref $row_href) {
+        confess "Error, must set row_href as param";
+    }
+
+    my @column_headers = $self->get_column_headers();
+
+    my @vals;
+    foreach my $col_header (@column_headers) {
+        my $val = $row_href->{$col_header};
+        push (@vals, $val);
+    }
+
+    my $row_text = join("\t", @vals);
+
+    return($row_text);
+        
+}
+
 
 ##################################################
 package DelimParser::Reader;
 use strict;
 use warnings;
 use Carp;
+use Data::Dumper;
 
 our @ISA;
 push (@ISA, 'DelimParser');
@@ -153,15 +185,18 @@ push (@ISA, 'DelimParser');
 
 sub new {
     my ($packagename) = shift;
-    my ($ofh, $delim, $column_fields_aref) = @_;
+    my ($ofh, $delim, $column_fields_aref, $FLAGS) = @_;
         
+    ## FLAGS can be:
+    #  NO_WRITE_HEADER|...
+
     unless (ref $column_fields_aref eq 'ARRAY') {
         confess "Error, need constructor params: ofh, delim, column_fields_aref";
     }
     
     my $self = $packagename->DelimParser::new($ofh, $delim);
  
-    $self->_initialize($column_fields_aref);
+    $self->_initialize($column_fields_aref, $FLAGS);
     
     return($self);
 }
@@ -171,6 +206,7 @@ sub new {
 sub _initialize {
     my $self = shift;
     my $column_fields_aref = shift;
+    my $FLAGS = shift;
     
     unless (ref $column_fields_aref eq 'ARRAY') {
         confess "Error, require column_fields_aref as param";
@@ -181,13 +217,14 @@ sub _initialize {
     my $delim = $self->get_delim();
 
     
-
-    $self->set_column_headers(@$column_fields_aref);
-
-    my $output_line = join($delim, @$column_fields_aref);
-    print $ofh "$output_line\n";
     
-        
+    $self->set_column_headers(@$column_fields_aref);
+    
+    unless (defined($FLAGS) && $FLAGS =~ /NO_WRITE_HEADER/) {
+        my $output_line = join($delim, @$column_fields_aref);
+        print $ofh "$output_line\n";
+    }
+    
     
     return;
 }
@@ -206,12 +243,24 @@ sub write_row {
     
     my @column_headers = $self->get_column_headers();
         
+    
+    my $delim = $self->get_delim();
+
     my @out_fields;
     for my $column_header (@column_headers) {
         my $field = $dict_href->{$column_header};
         unless (defined $field) {
             confess "Error, missing value for required column field: $column_header";
         }
+        if ($field =~ /$delim/) {
+            # don't allow any delimiters to contaminate the field value, otherwise it'll introduce offsets.
+            $field =~ s/$delim/ /g;
+        }
+        # also avoid newlines, which will also break the output formatting.
+        if ($field =~ /\n/) {
+            $field =~ s/\n/ /g;
+        }
+        
         push (@out_fields, $field);
     }
 

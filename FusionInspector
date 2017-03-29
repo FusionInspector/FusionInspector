@@ -913,9 +913,33 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         return (trinity_fusion_trans_filename) # trinGG fusion gff3 file w/ breakpoints encoded
 
 
+
+def contains_fusions (fusion_file):
+
+    with open(fusion_file) as f:
+        for line in f:
+            if line[0] != '#' and re.search("--", line):
+                return True
+
+    return False # no fusions listed
+
+
+
+
     
 if __name__ == "__main__":
 
+    # quickly check and see if there are fusions to explore... if not, then exit gracefully
+    for i, item in enumerate(sys.argv):
+        if item == "--fusions":
+            fusion_file = sys.argv[i+1]
+            if not contains_fusions(fusion_file):
+                print("No fusions listed in input file: {}, exiting gracefully.".format(fusion_file), file=sys.stderr)
+                sys.exit(0)
+
+
     # Needed to run, calls the script
     FusionInspector().func_run_pipeline()
+
+
 
