@@ -914,12 +914,17 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
 
 
-def contains_fusions (fusion_file):
+def contains_fusions (fusion_files):
 
-    with open(fusion_file) as f:
-        for line in f:
-            if line[0] != '#' and re.search("--", line):
-                return True
+    # just need to find one file that contains at least one fusion.
+
+    for fusion_file in fusion_files.split(","):
+
+        with open(fusion_file) as f:
+            for line in f:
+                if line[0] != '#' and re.search("--", line):
+                    return True
+
 
     return False # no fusions listed
 
