@@ -472,7 +472,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             consolidated_junction_reads_bam =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".junction_reads.bam"])
             cmdstr = str(UTILDIR + "/retrieve_fusion_junction_reads_by_accession.pl " + summary_junctions_reads_list_filename
                          + " " + ",".join(fusion_junction_reads_list) +
-                         " | samtools view -bT -@ " + str(args_parsed.CPU) + " " + mergedContig_fasta_filename + " - " +
+                         " | samtools view -@ " + str(args_parsed.CPU) + " -bT " + mergedContig_fasta_filename + " - " +
                          " | samtools sort -@ " + str(args_parsed.CPU) + " - -o " + consolidated_junction_reads_bam)
             #+ " || : ") # cant afford for this to fail due to lack of evidence reads
             
@@ -506,7 +506,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             consolidated_spanning_reads_bam =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".spanning_reads.bam"])
             cmdstr = str(UTILDIR + "/retrieve_fusion_spanning_reads_by_accession.pl " + summary_spanning_reads_list_filename
                          + " " + ",".join(fusion_spanning_reads_list) +
-                         " | samtools view -bT -@ " + str(args_parsed.CPU) + " " + mergedContig_fasta_filename + " - " +
+                         " | samtools view -@ " + str(args_parsed.CPU) + " -bT " + mergedContig_fasta_filename + " - " +
                          " | samtools sort -@ " + str(args_parsed.CPU) + " - -o " + consolidated_spanning_reads_bam)
             # + " || : ") # again, cant afford for this to fail due to lack of evidence reads.
             
