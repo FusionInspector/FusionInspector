@@ -114,7 +114,7 @@ main: {
     push (@tmpfiles, "$out_prefix.bam");
     
 
-    $cmd = "samtools sort -@ $CPU $out_prefix.bam $out_prefix.cSorted";
+    $cmd = "samtools sort -@ $CPU $out_prefix.bam -o $out_prefix.cSorted";
     $pipeliner->add_commands( new Command($cmd, "$out_prefix.cSorted.bam.ok") );
     
 

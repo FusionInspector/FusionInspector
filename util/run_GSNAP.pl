@@ -123,7 +123,7 @@ main: {
         
     &process_cmd($cmd) unless (-s "$out_prefix.gsnap.bam");
     
-    $cmd = "samtools sort -@ $CPU $out_prefix.gsnap.bam $out_prefix.cSorted";
+    $cmd = "samtools sort -@ $CPU $out_prefix.gsnap.bam -o $out_prefix.cSorted.bam";
     &process_cmd($cmd) unless (-s "$out_prefix.cSorted.bam");
     
     unlink("$out_prefix.gsnap.bam"); # no longer needed now that we have the sorted version.
