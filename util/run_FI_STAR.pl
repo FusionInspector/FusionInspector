@@ -154,6 +154,8 @@ main: {
         . " --outSAMtype BAM SortedByCoordinate "
         . " --readFilesIn $reads "
         . " --twopassMode Basic "
+        . " --alignMatesGapMax 100000 "
+        . " --alignIntronMax 100000 "
         . " --alignSJDBoverhangMin 10 "
         . " --genomeSuffixLengthMax 10000"
         . " --limitBAMsortRAM 20000000000";
