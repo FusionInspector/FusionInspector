@@ -31,6 +31,7 @@ my $usage = <<__EOUSAGE__;
 #  --prep_reference_only       build the genome index and then stop.
 #  --only_fusion_reads         restrict alignments only to the fusion-supporting reads
 #  --capture_genome_alignments reports alignments to the reference genome in addition to the fusion contigs. (for debugging)
+#  --chim_search               include Chimeric.junction outputs
 # 
 #################################################################################################
 
@@ -56,7 +57,7 @@ my $patch;
 my $prep_reference_only = 0;
 my $only_fusion_reads_flag = 0;
 my $capture_genome_alignments_flag = 0;
-
+my $chim_search;
 
 &GetOptions( 'h' => \$help_flag,
              'genome=s' => \$genome,
@@ -72,10 +73,12 @@ my $capture_genome_alignments_flag = 0;
              'prep_reference_only' => \$prep_reference_only,
              'only_fusion_reads' => \$only_fusion_reads_flag,
              'capture_genome_alignments' => \$capture_genome_alignments_flag,
+             'chim_search' => \$chim_search,
+             
     );
 
 
-unless ($genome && $reads && $patch) {
+unless ($genome && $reads) {
     die $usage;
 }
 
@@ -118,7 +121,8 @@ main: {
     
 
     my $star_index = "$genome.star.idx";
-    if ($prep_reference_only) {
+    if (! -e "$star_index/build.ok") {
+        
         ## build star index
         unless (-d $star_index) {
             mkdir($star_index) or die "Error, cannot mkdir $star_index";
@@ -135,9 +139,12 @@ main: {
         
         &process_cmd($cmd);
         
-        print STDERR "done building genome index.  stopping here.\n";
-        exit(0);
+        &process_cmd("touch $star_index/build.ok");
         
+        if ($prep_reference_only) {
+            print STDERR "done building genome index.  stopping here.\n";
+            exit(0);
+        }
     }
 
         
@@ -150,7 +157,6 @@ main: {
     my $cmd = "$star_prog "
         . " --runThreadN $CPU "
         . " --genomeDir $star_index "
-        . " --genomeFastaFiles $patch "
         . " --outSAMtype BAM SortedByCoordinate "
         . " --readFilesIn $reads "
         . " --twopassMode Basic "
@@ -159,6 +165,14 @@ main: {
         . " --alignSJDBoverhangMin 10 "
         . " --genomeSuffixLengthMax 10000"
         . " --limitBAMsortRAM 20000000000";
+
+
+    if ($chim_search) {
+        $cmd .= " --chimJunctionOverhangMin 12 "
+            .  " --chimSegmentMin 12 "
+            .  " --chimSegmentReadGapMax parameter 3 "
+    }
+    
     
     if ($only_fusion_reads_flag) {
         $cmd .= " --outSAMfilter KeepOnlyAddedReferences ";
@@ -174,6 +188,11 @@ main: {
     if ($gtf_file) {
         $cmd .= " --sjdbGTFfile $gtf_file ";
     }
+
+    if ($patch) {
+        $cmd .= " --genomeFastaFiles $patch ";
+    }
+    
     
     $cmd .= " --alignSJstitchMismatchNmax 5 -1 5 5 ";  #which allows for up to 5 mismatches for non-canonical GC/AG, and AT/AC junctions, and any number of mismatches for canonical junctions (the default values 0 -1 0 0 replicate the old behavior (from AlexD)
     
