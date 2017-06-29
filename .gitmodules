@@ -4,3 +4,6 @@
 [submodule "FusionInspector.wiki"]
 	path = FusionInspector.wiki
 	url = https://github.com/FusionInspector/FusionInspector.wiki.git
+[submodule "SciEDPipeR"]
+	path = SciEDPipeR
+	url = git@github.com:trinityrnaseq/SciEDPipeR.git
