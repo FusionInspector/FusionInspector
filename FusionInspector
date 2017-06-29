@@ -102,6 +102,8 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                              help='turn off FP filtering for non-STAR methods (increases speed, reduces RAM, mostly restricted for testing purposes)')
 
         arg_raw.add_argument("--aligner_path", default=None, type=str, help="path to the aligner tool (default: uses PATH setting)")
+        
+        arg_raw.add_argument("--fusion_contigs_only", action='store_true', default=False, help="align reads only to the fusion contigs") 
 
         return(arg_raw)
 
@@ -304,31 +306,45 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
 
         if (re.search("STAR", args_parsed.align_utils, re.IGNORECASE)):
-        
+            
             filter_FP_reads_flag = False
 
-            ###############
-            ## patched fusion-genome for STAR
-            ###############
+            cmdstr = None
 
-            cmdstr = str( os.path.sep.join([UTILDIR, "run_FI_STAR.pl"]) +
-                         " --genome " + args_parsed.genome_fasta_filename +
-                         " --patch " + workdir_mergedContig_fasta_filename +
+            if args_parsed.fusion_contigs_only:
+                cmdstr = str(os.path.sep.join([UTILDIR, "run_FI_STAR.pl"]) +
+                         " --genome " + workdir_mergedContig_fasta_filename +
                          " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\"" +
                          " -G " + workdir_mergedContig_gtf_filename + " --CPU " + str(args_parsed.CPU) +  
-                         " --out_prefix " + args_parsed.out_prefix + ".star2" +
-                         " --out_dir " + workdir )   
+                         " --out_prefix " + args_parsed.out_prefix + ".star" +
+                         " --out_dir " + workdir )
+            else:
 
-            if args_parsed.only_fusion_reads:
-                cmdstr += " --only_fusion_reads "
-            elif args_parsed.capture_genome_alignments:
-                cmdstr += " --capture_genome_alignments "
-                        
+                ###############
+                ## patched fusion-genome for STAR
+                ###############
+                
+                cmdstr = str( os.path.sep.join([UTILDIR, "run_FI_STAR.pl"]) +
+                              " --genome " + args_parsed.genome_fasta_filename +
+                              " --patch " + workdir_mergedContig_fasta_filename +
+                              " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\"" +
+                              " -G " + workdir_mergedContig_gtf_filename + " --CPU " + str(args_parsed.CPU) +  
+                              " --out_prefix " + args_parsed.out_prefix + ".star" +
+                              " --out_dir " + workdir )   
+
+            
+                if args_parsed.only_fusion_reads:
+                    cmdstr += " --only_fusion_reads "
+                elif args_parsed.capture_genome_alignments:
+                    cmdstr += " --capture_genome_alignments "
+
+
+            
             if args_parsed.aligner_path:
                 cmdstr += " --star_path " + args_parsed.aligner_path
 
             
-            star_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star2.sortedByCoord.out.bam"])
+            star_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.sortedByCoord.out.bam"])
 
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                    lstr_cur_dependencies = [ args_parsed.left_fq_filename,
@@ -339,7 +355,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
             
             # remove duplicate reads
-            star_rmdup_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star2.cSorted.rmdup.bam"])
+            star_rmdup_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.cSorted.rmdup.bam"])
 
             cmdstr = str("(samtools rmdup " + star_bam_file + " " + star_rmdup_bam_file + " 2>/dev/null) " +
                          " || (cp " + star_bam_file + " " + star_rmdup_bam_file + ")")

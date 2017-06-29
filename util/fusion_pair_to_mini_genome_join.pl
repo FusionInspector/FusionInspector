@@ -20,11 +20,11 @@ my $usage = <<__EOUSAGE__;
 #
 #  Required:
 #
-#  --fusions <string>               input file containing list of fusion pairs (format:  geneA--geneB)
+#  --fusions <string>               file containing list of fusion pairs (format:  geneA--geneB)
 #
-#  --gtf <string>                   output filename for genome annotation in gtf format 
+#  --gtf <string>                   genome annotation in gtf format 
 #
-#  --genome_fa <string>             output filename genome sequence in fasta format
+#  --genome_fa <string>             genome sequence in fasta format
 #
 # Optional:
 #
