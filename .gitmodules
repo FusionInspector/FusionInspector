@@ -1,9 +1,6 @@
 [submodule "FusionFilter"]
 	path = FusionFilter
 	url = https://github.com/FusionFilter/FusionFilter.git
-[submodule "SciEDPipeR"]
-	path = SciEDPipeR
-	url = https://github.com/SciEDPipeR/SciEDPipeR.git
 [submodule "FusionInspector.wiki"]
 	path = FusionInspector.wiki
 	url = https://github.com/FusionInspector/FusionInspector.wiki.git
