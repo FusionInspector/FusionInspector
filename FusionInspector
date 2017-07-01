@@ -54,7 +54,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         arg_raw.add_argument("--left_fq", dest="left_fq_filename", type=str, required=True, help="left fastq file")
         arg_raw.add_argument("--right_fq", dest="right_fq_filename", type=str, required=True, help="right fastq file")
         arg_raw.add_argument("--out_dir", dest="str_out_dir", type=str, required=True, help="output directory")
-        arg_raw.add_argument("--out_prefix", dest="out_prefix", type=str, required=True, help="output filename prefix")
+        arg_raw.add_argument("--out_prefix", dest="out_prefix", type=str, default='finspector', help="output filename prefix")
         arg_raw.add_argument("--align_utils", dest="align_utils", type=str, required=False, default="STAR",
                              help="alignment utilities to use.") # Comma-delimited selection of: STAR,GSNAP,HISAT")
         
@@ -89,8 +89,8 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         arg_raw.add_argument("--write_intermediate_results", dest="write_intermediate_results", required=False, action="store_true",
                              default=False, help="generate bam, bed, etc., for intermediate aligner outputs")
 
-        arg_raw.add_argument("--no_cleanup", dest="no_cleanup", required=False, action="store_true", default=False,
-                             help="do not cleanup the fusion inspector workspace, retain intermediate output files")
+        arg_raw.add_argument("--cleanup", dest="cleanup", required=False, action="store_true", default=False,
+                             help="cleanup the fusion inspector workspace, remove intermediate output files")
 
         arg_raw.add_argument("--version", dest='version', required=False, action='store_true', default=False,
                              help="show version string: " + VERSION)
@@ -731,7 +731,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
 
         ## cleanup
-        if not args_parsed.no_cleanup:
+        if args_parsed.cleanup:
 
             workdir_cleaned_file = os.path.sep.join([args_parsed.str_out_dir, "workdir.cleaned"])
             cmdstr = "/bin/rm -rf " + workdir + " && touch " + workdir_cleaned_file
