@@ -43,6 +43,8 @@ my $usage = <<__EOUSAGE__;
 #  --MAX_END_CLIP <int>       default: $MAX_END_CLIP
 #  --MIN_SEQ_ENTROPY <float>    default: $MIN_SEQ_ENTROPY
 #
+#  -d                         debug mode
+#
 ##############################################################
 
 
@@ -65,7 +67,8 @@ my $help_flag;
             'MIN_SMALL_ANCHOR=i' => \$MIN_SMALL_ANCHOR,
             'MIN_LARGE_ANCHOR=i' => \$MIN_LARGE_ANCHOR,
             'MIN_SEQ_ENTROPY=f' => \$MIN_SEQ_ENTROPY,
-            
+
+            'd' => \$DEBUG,
   );
 
 
@@ -99,14 +102,21 @@ main: {
     ## find the reads that matter:
     my $sam_reader = new SAM_reader($bam_file);
     while (my $sam_entry = $sam_reader->get_next()) {
-            
+
+        if ($DEBUG) {
+            print $sam_entry->get_original_line() . "\n";
+        }
+        
         $counter++;
         if ($counter % 10000 == 0) { 
             print STDERR "\r[$counter]   ";
         }
 
         my $qual_val = $sam_entry->get_mapping_quality();
-        unless ($qual_val > 0) { next; }
+        unless ($qual_val > 0) { 
+            if ($DEBUG) { print STDERR "-skipping due to mapping qual <= 0\n"; }
+            next; 
+        }
         
 
         ## examine number of mismatches in read alignment
@@ -117,6 +127,7 @@ main: {
         $line =~ /NH:i:(\d+)/ or die "Error, cannot extract hit count (NH:i:) from sam entry: $line";
         my $num_hits = $1;
         if ($num_hits != 1) {
+            if ($DEBUG) { print STDERR "-skipping, num hits ($num_hits) indicates not unique\n"; }
             next;
         }
         
@@ -125,16 +136,19 @@ main: {
         }
         my $alignment_length = $sam_entry->get_alignment_length();
         unless ($alignment_length) {
+            if ($DEBUG) { print STDERR "-skipping, no alignment length\n"; }
             next;
         }
         my $per_id = ($alignment_length - $mismatch_count) / $alignment_length * 100;
         if ($per_id < $MIN_ALIGN_PER_ID) {
+            if ($DEBUG) { print STDERR "-skipping, per_id $per_id < min required: $MIN_ALIGN_PER_ID\n";}
             next;
         }
         
         ## check end clipping of alignment
         my $cigar = $sam_entry->get_cigar_alignment();
         if (&alignment_has_excessive_soft_clipping($cigar)) {
+            if ($DEBUG) { print STDERR "-skipping, excessive soft clipping ($cigar)\n";  }
             next;
         }
         
@@ -147,8 +161,10 @@ main: {
         my $scaffold = $sam_entry->get_scaffold_name();
         if ($scaffold ne $prev_scaff) {
             
-            if (! exists $scaffold_to_gene_structs{$scaffold}) { next; } # STAR aligns to the whole genome + fusion contigs.
-
+            if (! exists $scaffold_to_gene_structs{$scaffold}) { 
+                if ($DEBUG) { print STDERR "-skipping, not a known fusion contig target\n"; }
+                next;  # STAR aligns to the whole genome + fusion contigs.
+            }
             my @gene_structs = @{$scaffold_to_gene_structs{$scaffold}};
             if (scalar @gene_structs != 2) {
                 die "Error, didn't find only 2 genes in the gtf file: " . Dumper(\@gene_structs);
