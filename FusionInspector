@@ -72,7 +72,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                              help="maximum number of partners allowed for a given fusion")
         arg_raw.add_argument("-E", "--Evalue", dest='Evalue', type=float, required=False, default=0.001,
                              help="E-value threshold for blast searches")
-        arg_raw.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=97,
+        arg_raw.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=96,
                              help='minimum percent identity for a fusion-supporting read alignment')
         
         arg_raw.add_argument("--only_fusion_reads", default=False, action='store_true',
