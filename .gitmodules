@@ -6,4 +6,4 @@
 	url = https://github.com/FusionInspector/FusionInspector.wiki.git
 [submodule "SciEDPipeR"]
 	path = SciEDPipeR
-	url = https://github.com:trinityrnaseq/SciEDPipeR.git
+	url = https://github.com/trinityrnaseq/SciEDPipeR.git
