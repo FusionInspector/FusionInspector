@@ -166,11 +166,14 @@ main: {
                 next;  # STAR aligns to the whole genome + fusion contigs.
             }
             my @gene_structs = @{$scaffold_to_gene_structs{$scaffold}};
-            if (scalar @gene_structs != 2) {
-                die "Error, didn't find only 2 genes in the gtf file: " . Dumper(\@gene_structs);
-            }
             
             @gene_structs = sort {$a->{lend} <=> $b->{lend}} @gene_structs;
+
+            if (scalar @gene_structs > 2) {
+                @gene_structs = &partition_gene_structs(@gene_structs);
+            }
+            
+            
             
             $left_gene = $gene_structs[0];
             $right_gene = $gene_structs[1];
@@ -647,5 +650,48 @@ sub has_min_anchor_seq_entropy {
     }
 }
 
+
+####
+sub partition_gene_structs {
+    my (@gene_structs) = @_;
+
+    # should already be sorted by lend.
+
+    my $left_gene_struct = shift @gene_structs;
+    my @left_gene_structs = ($left_gene_struct);
+
+    my $left_gene_id = $left_gene_struct->{gene_id};
+    my $left_gene_symbol = $left_gene_id;
+    $left_gene_symbol =~ s/\^.*$//;
+
+    my @right_gene_structs;
+
+    foreach my $gene_struct (@gene_structs) {
+        my $gene_id = $gene_struct->{gene_id};
+        my ($gene_sym, $rest) = split(/\^/, $gene_id);
+
+        if ($gene_sym eq $left_gene_symbol) {
+            push (@left_gene_structs, $gene_struct);
+        }
+        else {
+            push (@right_gene_structs, $gene_struct);
+        }
+    }
+
+    unless (@left_gene_structs && @right_gene_structs) {
+        die "Error, couldn't partition gene structs across contig breakpoint: " . Dumper(\@gene_structs);
+    }
+    
+    @left_gene_structs = sort {$a->{rend}<=>$b->{rend}} @left_gene_structs;
+    @right_gene_structs = sort {$a->{lend}<=>$b->{lend}} @right_gene_structs;
+
+    # want those that are most adjacent to the central fusion contig join
+    my @gene_struct_tuple = ($left_gene_structs[$#left_gene_structs], $right_gene_structs[0]);
+
+    return(@gene_struct_tuple);
+}
+
+                                
+    
 
     
