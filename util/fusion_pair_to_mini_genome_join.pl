@@ -36,8 +36,6 @@ my $usage = <<__EOUSAGE__;
 #
 #  --out_prefix <string>            output prefix for output files (gtf and fasta) default: geneMergeContig.\${process_id}
 #
-#  --exclude_paralogs               excludes those fusion candidates that have a 'PARALOG' annotation added.
-#
 ###############################################################################################
 
 
@@ -52,7 +50,6 @@ my $gtf_file;
 my $genome_fasta_file;
 my $out_prefix = "geneMergeContig.$$";
 my $shrink_introns_flag = 0;
-my $exclude_paralogs_flag = 0;
 
 &GetOptions ( 'h' => \$help_flag,
               
@@ -67,7 +64,6 @@ my $exclude_paralogs_flag = 0;
               
               'out_prefix=s' => \$out_prefix,
               
-              'exclude_paralogs' => \$exclude_paralogs_flag,
 
     );
 
@@ -93,7 +89,6 @@ main: {
           
           open (my $fh, $file) or die "Error, cannot open file $file";
           while (<$fh>) {
-              if ($exclude_paralogs_flag && /PARALOG/) { next; }
               if (/^\#/) { next; }
               unless (/\w/) { next; }
               
@@ -399,12 +394,12 @@ sub set_gtf_scaffold_name {
         my @x = split(/\t/, $line);
         $x[0] = $scaffold_name;
         
-        $x[8] =~ s/transcript_id \"/transcript_id \"$scaffold_name\./;
-        $x[8] =~ s/gene_id \"/gene_id \"$scaffold_name\./;
+        $x[8] =~ s/transcript_id \"/transcript_id \"$scaffold_name\^/;
+        $x[8] =~ s/gene_id \"/gene_id \"$scaffold_name\^/;
         
         $new_gtf .= join("\t", @x) . "\n";
     }
-
+    
     return($new_gtf);
 }
 
@@ -496,7 +491,7 @@ sub extract_gene_gtfs {
             
             if ($gene_id) {
                 # for viewing purposes
-                $line =~ s/$gene_id/$gene_name\.$gene_id/;
+                $line =~ s/$gene_id/$gene_name\^$gene_id/;
             }
         }
 
