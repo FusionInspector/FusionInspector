@@ -22,7 +22,8 @@ __example__ = "FusionInspector --left_fq ../BT474--ACACA--STAC2.left.fq --right_
 VERSION = "v0.9.0beta"
 
 
-UTILDIR = os.sep.join([os.path.dirname(__file__), "util"])
+BASEDIR = os.path.dirname(__file__)
+UTILDIR = os.sep.join([BASEDIR, "util"])
 
 ## Trinity is required, as we use the kmer counting functionality in the read filter step.
 if not os.environ.has_key('TRINITY_HOME'):
@@ -96,7 +97,14 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                              help="show version string: " + VERSION)
 
         arg_raw.add_argument("--CPU", dest="CPU", required=False, type=int, default=4,
-                             help="Number of threads for running the aligner")
+                             help="number of threads for multithreaded processes")
+        
+        arg_raw.add_argument("--annotate", dest="annotate", required=False, action='store_true', default=False,
+                             help="annotate fusions based on known cancer fusions and those found in normal tissues")
+
+        arg_raw.add_argument("--examine_coding_effect", dest='examine_coding_effect', required=False, action='store_true', default=False,
+                             help='explore impact of fusions on coding sequences')
+        
 
         arg_raw.add_argument("--dirty", action='store_true', default=False,
                              help='turn off FP filtering for non-STAR methods (increases speed, reduces RAM, mostly restricted for testing purposes)')
@@ -727,8 +735,44 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                                                    lstr_cur_dependencies = [args_parsed.str_out_dir],
                                                    lstr_cur_products = [ os.path.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".fusion_inspector_web.json"]) ] ) )
 
-        
 
+
+        final_fusions_file = final_fusions_file + ".final.abridged.FFPM"
+
+        ## annotate
+        
+        if (args_parsed.annotate):
+
+            annotated_fusions_file = final_fusions_file + ".annotated"
+            
+            cmdstr = str(os.path.sep.join( [BASEDIR, "FusionAnnotator", "FusionAnnotator"] ) +
+                         " --annotate {} ".format(final_fusions_file) +
+                         " --genome_lib_dir {}".format(genome_lib_dir) +
+                         " > {} ".format(annotated_fusions_file) )
+
+
+            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                   lstr_cur_dependencies = [ final_fusions_file ],
+                                                   lstr_cur_products = [ annotated_fusions_file ] ) )
+
+
+            final_fusions_file = annotated_fusions_file
+
+
+        if (args_parsed.examine_coding_effect):
+            
+            coding_effect_file = final_fusions_file + ".coding_effect"
+            
+            cmdstr = str(os.path.sep.join( [BASEDIR, "FusionAnnotator", "util", "fusion_to_coding_region_effect.pl"] ) +
+                         " --fusions {} ".format(final_fusions_file) +
+                         " --genome_lib_dir {}".format(genome_lib_dir) +
+                         " > {} ".format(coding_effect_file) )
+
+            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                   lstr_cur_dependencies = [ final_fusions_file ],
+                                                   lstr_cur_products = [ coding_effect_file ] ) )
+
+            final_fusions_file = coding_effect_file
 
         ## cleanup
         if args_parsed.cleanup:
