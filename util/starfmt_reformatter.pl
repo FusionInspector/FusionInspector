@@ -69,8 +69,15 @@ main: {
     my $tab_writer = new DelimParser::Writer(*STDOUT, "\t", \@adj_column_headers);
     
     while (my $row = $tab_reader->get_row()) {
+
+        my $left_gene = $row->{LeftGene};
+        $left_gene =~ s/\^.*$//;  # just get the gene symbol if it's a compound gene_sym^gene_id
+
+        my $right_gene = $row->{RightGene};
+        $right_gene =~ s/\^.*$//;
         
-        my $fusion_name = join("--", $row->{LeftGene}, $row->{RightGene});
+        
+        my $fusion_name = join("--", $left_gene, $right_gene);
         $row->{'#FusionName'} = $fusion_name;
         
         $tab_writer->write_row($row);
