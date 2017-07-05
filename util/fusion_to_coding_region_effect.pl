@@ -20,7 +20,7 @@ my $usage = <<__EOUSAGE__;
 #
 #  --fusions <string>                : fusion predictions
 #
-#  --prot_info_db <string>           :  prot_info_db.idx - path to file.
+#  --genome_lib_dir <string>         : CTAT genome lib
 #                                      
 #  optional:
 #
@@ -37,19 +37,25 @@ __EOUSAGE__
 
 my $help_flag;
 my $fusions_file;
-my $prot_info_db;
+my $genome_lib_dir;
 my $show_all_flag = 0;
 
 &GetOptions ( 'h' => \$help_flag,
               'fusions=s' => \$fusions_file,
-              'prot_info_db=s' => \$prot_info_db,
+              'genome_lib_dir=s' => \$genome_lib_dir,
    
               'show_all' => \$show_all_flag,
     );
 
-unless ($fusions_file && $prot_info_db) {
+unless ($fusions_file && $genome_lib_dir) {
     
     die $usage;
+}
+
+my $prot_info_db = "$genome_lib_dir/ref_annot.prot_info.dbm";
+
+unless (-s $prot_info_db) {
+    confess "Error, cannot locate $prot_info_db - be sure to use the latest version of the CTAT genome lib";
 }
 
 
@@ -106,8 +112,15 @@ main: {
         ) . "\n";
         
     
-    my $tied_hash = new TiedHash( { 'use' => $prot_info_db } );
+    my $prot_info_db_tied_hash = new TiedHash( { 'use' => $prot_info_db } );
 
+    my $pfam_domain_dbm = "$genome_lib_dir/pfam_domains.dbm";
+    my $pfam_domain_db_tied_hash = undef;
+    if (-s $pfam_domain_dbm) {
+        $pfam_domain_db_tied_hash = new TiedHash( { 'use' => $pfam_domain_dbm } );
+    }
+    
+    
     while (<$fh>) {
         chomp;        
         my $line = $_;
@@ -121,7 +134,13 @@ main: {
         my $gene_right = $x[ $header_to_index{'RightGene'} ];
         my $break_right = $x[ $header_to_index{'RightBreakpoint'} ];
         
-        my @results = &examine_fusion_coding_effect($gene_left, $break_left, $gene_right, $break_right, $tied_hash);
+
+        # remove gene symbol, just want gene ID
+        $gene_left =~ s/^.*\^//;
+        $gene_right =~ s/^.*\^//;
+        
+
+        my @results = &examine_fusion_coding_effect($gene_left, $break_left, $gene_right, $break_right, $prot_info_db_tied_hash, $pfam_domain_db_tied_hash);
         
         if (@results) {
             ## just take the single 'best' one, arbitrarily chosen as the one with the longest fusion sequence.
@@ -167,10 +186,10 @@ main: {
 
 ####
 sub examine_fusion_coding_effect {
-    my ($gene_left, $break_left, $gene_right, $break_right, $tied_hash) = @_;
+    my ($gene_left, $break_left, $gene_right, $break_right, $prot_info_db_tied_hash, $pfam_domain_db_tied_hash) = @_;
     
-    my $gene_left_aref = &decode_gene_json($gene_left, $tied_hash);
-    my $gene_right_aref = &decode_gene_json($gene_right, $tied_hash);
+    my $gene_left_aref = &decode_my_json($gene_left, $prot_info_db_tied_hash, 1);
+    my $gene_right_aref = &decode_my_json($gene_right, $prot_info_db_tied_hash, 1);
     
     unless ($gene_left_aref && $gene_right_aref) {
         return();
@@ -226,8 +245,8 @@ sub examine_fusion_coding_effect {
                 my $left_segs_string = &segments_to_string(@$left_fuse_segments_aref);
                 my $right_segs_string = &segments_to_string(@$right_fuse_segments_aref);
 
-                my $left_domains_string = &get_pfam_domains($cds_left_obj, $left_rel_rend, "left") || ".";
-                my $right_domains_string = &get_pfam_domains($cds_right_obj, $right_rel_lend, "right") || ".";
+                my $left_domains_string = &get_pfam_domains($cds_left_id, $left_rel_rend, "left", $pfam_domain_db_tied_hash) || ".";
+                my $right_domains_string = &get_pfam_domains($cds_right_id, $right_rel_lend, "right", $pfam_domain_db_tied_hash) || ".";
                 
                 
                 push (@results, { cds_left_id => $cds_left_id,
@@ -484,10 +503,18 @@ sub segments_to_string {
 
 ####
 sub get_pfam_domains {
-    my ($cds_obj, $cds_coord, $left_or_right_side) = @_;
+    my ($cds_id, $cds_coord, $left_or_right_side, $pfam_domain_db_tied_hash) = @_;
 
-    my @pfam_hits = @{$cds_obj->{pfam_hits}};
+    unless ($pfam_domain_db_tied_hash) {
+        return;
+    }
 
+    my $pfam_hits_aref = &decode_my_json($cds_id, $pfam_domain_db_tied_hash);
+
+    unless ($pfam_hits_aref) { return; }
+    
+    my @pfam_hits = @$pfam_hits_aref;
+    
     my @pfam_domains_selected;
 
     foreach my $pfam_hit (@pfam_hits) {
@@ -568,29 +595,31 @@ sub clone {
 
 
 ####
-sub decode_gene_json {
-    my ($gene_id, $tied_hash) = @_;
-
+sub decode_my_json {
+    my ($key, $prot_info_db_tied_hash, $report_failed_retrievals_flag) = @_;
+    
     my $coder = new JSON::XS();
 
     my $decoded = undef;
     my $json = undef;
     
     eval {
-        $json = $tied_hash->get_value($gene_id);
+        $json = $prot_info_db_tied_hash->get_value($key);
 
         if ($json) {
             $decoded = $coder->decode($json);
             #print Dumper($decoded);
         }
         else {
-            print STDERR "WARNING, no entry stored in prot_db for [$gene_id]\n";
+            if ($report_failed_retrievals_flag) {
+                print STDERR "WARNING, no entry stored in dbm for [$key]\n";
+            }
             return(undef);
         }
     };
 
     if ($@) {
-        print STDERR "WARNING, gene_id: $gene_id returns json: $json and error decoding: $@";
+        print STDERR "WARNING, key: $key returns json: $json and error decoding: $@";
     }
 
     return($decoded);

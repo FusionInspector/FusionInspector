@@ -26,7 +26,7 @@ main: {
     ## FusionInspector #
     ####################
     
-    my $cmd = "$INSTALL_DIR/FusionInspector --fusions $fusion_files_list --genome_lib $ENV{CTAT_GENOME_LIB} --left_fq $left_fq --right $right_fq --out_prefix finspector --prep_for_IGV --no_cleanup @ARGV";
+    my $cmd = "$INSTALL_DIR/FusionInspector --fusions $fusion_files_list --genome_lib $ENV{CTAT_GENOME_LIB} --left_fq $left_fq --right $right_fq --out_prefix finspector --prep_for_IGV  @ARGV";
     
     &process_cmd($cmd);
     
