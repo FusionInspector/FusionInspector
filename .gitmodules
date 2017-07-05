@@ -7,3 +7,6 @@
 [submodule "SciEDPipeR"]
 	path = SciEDPipeR
 	url = https://github.com/trinityrnaseq/SciEDPipeR.git
+[submodule "FusionAnnotator"]
+	path = FusionAnnotator
+	url = https://github.com/FusionAnnotator/FusionAnnotator.git
