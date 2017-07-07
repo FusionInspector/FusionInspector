@@ -41,6 +41,8 @@ my $usage = <<__EOUSAGE__;
 #  --MAX_END_CLIP <int>         default: $MAX_END_CLIP
 #  --MIN_SEQ_ENTROPY <float>    default: $MIN_SEQ_ENTROPY
 #
+#  --DEBUG|d
+#
 ##############################################################
 
 
@@ -135,7 +137,6 @@ main: {
     my %junction_reads_ignore;
     my %fusion_junctions;
     my %fusion_breakpoint_info;
-
     
     {
         open (my $fh, "$junction_info_file") or die "error, cannot open file $junction_info_file";
@@ -160,8 +161,15 @@ main: {
             foreach my $fusion_read (split(/,/, $fusion_read_list)) {
                 $junction_reads_ignore{$fusion_read}++;
             }
+
             
-            my $fusion_name = join("--", $geneA, $geneB);
+            my $gene_symA = $geneA;
+            $gene_symA =~ s/\^.*$//;
+
+            my $gene_symB = $geneB;
+            $gene_symB =~ s/\^.*$//;
+            
+            my $fusion_name = join("--", $gene_symA, $gene_symB); # must match fusion scaffold name
             push (@{$fusion_junctions{$fusion_name}}, "$coordA-$coordB");
             
             my $breakpoint = "$coordA-$coordB";
@@ -360,21 +368,33 @@ main: {
                             
                             print STDERR "r1: $left_read_lend-$left_read_rend   r2: $right_read_lend-$right_read_rend  brk: $fusion_breakpoint\n" if $DEBUG;
 
-                            if ($left_read_rend < $break_lend + $FUZZ && $break_rend - $FUZZ < $right_read_lend) {
+                            if($is_fusion_spanning_fragment_flag) {
                                 
-                                # <=======>                                                    <=======>   # reads
-                                #           |------------------------------------------------|   # breakpoints on scaffold
-
-
-                                # junction-specific spanning fragment support assignment
-                                if ($is_fusion_spanning_fragment_flag) {
+                                if ($left_read_rend < $break_lend + $FUZZ && $break_rend - $FUZZ < $right_read_lend) {
+                                    
+                                    # <=======>                                                    <=======>   # reads
+                                    #           |------------------------------------------------|   # breakpoints on scaffold
+                                    
+                                    
+                                    # junction-specific spanning fragment support assignment
+                                    
                                     # must meet the more restrictive criteria wrt qual and NH
                                     push (@{$fusion_to_spanning_reads{"$scaffold|$fusion_breakpoint"}}, $fragment);
+
                                 }
-                                                              
+                                else {
+                                    # still capture it even though there's no junction read to assign it to.
+                                    
+                                    my $fuzzy_breakpoint = join("-", $gene_bound_left, $gene_bound_right);
+                                    push (@{$fusion_to_spanning_reads{"$scaffold|$fuzzy_breakpoint"}}, $fragment);
+                                    
+                                }
+                                                                                              
                             }
                             else {
-
+                                ## Not a fusion-spanning fragment.
+                                ## See if it's fusion-countering evidence
+                                
                                 
                                 if ($left_read_lend + $FUZZ < $break_lend 
                                     && $break_lend < $right_read_rend - $FUZZ
@@ -405,20 +425,12 @@ main: {
                             }
                         }
                     }
-                    elsif($is_fusion_spanning_fragment_flag) {
-                        
-                        # still capture it even though there's no junction read to assign it to.
-                        
-                        my $fuzzy_breakpoint = join("-", $gene_bound_left, $gene_bound_right);
-                        push (@{$fusion_to_spanning_reads{"$scaffold|$fuzzy_breakpoint"}}, $fragment);
-                        
-                    }
+                                        
                     
-                    
-                }
-            }
-        }
-    }
+                } # endif have read pair coords
+            } # end of foreach fragment
+        } # end of foreach scaffold
+    } # just an isolated code block
     
     
     #################################################

@@ -6,6 +6,7 @@ use FindBin;
 use Carp;
 use lib ("$FindBin::Bin/../PerlLib");
 use DelimParser;
+use Data::Dumper;
 
 my $usage = "\n\tusage: $0 junction_info_A.txt,[junction_info_B.txt,...] spanning_info_A.txt,[spanning_info_B.txt,...]\n\n";
 
@@ -43,6 +44,9 @@ main: {
     my $tab_writer = new DelimParser::Writer(*STDOUT, "\t", \@fields);
 
     foreach my $fusion (keys %fusion_info) {
+
+        
+        
         my @junction_reads = keys %{$fusion_info{$fusion}->{'junction'}};
 
         my $has_large_anchor_junction_support = $fusion_large_breakpoint_anchored{$fusion} || "NO";
