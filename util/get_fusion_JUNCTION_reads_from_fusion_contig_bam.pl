@@ -97,6 +97,8 @@ main: {
     
     my %fusion_junctions;
     my %fusion_large_anchors;
+
+    my %sam_index_capture;
     
     my $counter = 0;
     ## find the reads that matter:
@@ -112,6 +114,12 @@ main: {
             print STDERR "\r[$counter]   ";
         }
 
+        if ($sam_entry->is_duplicate()) {
+            
+            if ($DEBUG) { print STDERR "-skipping duplicate mapping\n"; }
+            next;
+        }
+                
         my $qual_val = $sam_entry->get_mapping_quality();
         unless ($qual_val > 0) { 
             if ($DEBUG) { print STDERR "-skipping due to mapping qual <= 0\n"; }
@@ -248,6 +256,7 @@ main: {
                 
                 # calling it a fusion read.
                 $fusion_split_reads{$core_read_name} = 1;
+                $sam_index_capture{$counter} = 1;
                 push (@{$fusion_junctions{$junction_coord_token}}, $read_name);
                 
                 
@@ -271,11 +280,14 @@ main: {
         # capture the alignments involving identified junction / split reads:
 
         my $sam_reader = new SAM_reader($bam_file);
+        my $counter = 0;
         while (my $sam_entry = $sam_reader->get_next()) {
+
+            $counter++;
             
             my $core_read_name = $sam_entry->get_core_read_name();
             # want both reads in the pair
-            if ($fusion_split_reads{$core_read_name}) {
+            if ($fusion_split_reads{$core_read_name} && $sam_index_capture{$counter}) {
                 print $sam_entry->get_original_line() . "\n";
             }
         }

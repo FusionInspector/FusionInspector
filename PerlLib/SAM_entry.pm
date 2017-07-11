@@ -96,6 +96,20 @@ sub get_scaffold_position { # preferred
 }
 
 
+sub get_scaffold_start_position {
+    my $self = shift;
+    my ($lend, $rend) = $self->get_genome_span();
+
+    my $strand = $self->get_query_strand();
+    if ($strand eq '+') {
+        return($lend);
+    }
+    else {
+        return($rend);
+    }
+}
+
+
 ####
 sub get_cigar_alignment {
 	my $self = shift;
@@ -405,6 +419,19 @@ sub set_mate_unmapped {
 	
 	return($self->_set_bit_val(0x0008, $bit_val));
 }
+
+sub is_duplicate {
+    my ($self) = shift;
+    
+    return($self->_get_bit_val(0x0400));
+}
+sub set_duplicate {
+    my $self = shift;
+    my $bit_val = shift;
+
+    return($self->_set_bit_val(0x0400, $bit_val));
+}
+
 
 ####
 sub get_query_strand {
