@@ -200,6 +200,10 @@ main: {
             print STDERR "\r[$counter]   " if $counter % 1000 == 0;
             
             #print STDERR Dumper($sam_entry);
+
+            if ($sam_entry->is_duplicate()) {
+                next;
+            }
             
             my $qual_val = $sam_entry->get_mapping_quality();
             
