@@ -26,7 +26,10 @@ main: {
             my $geneA = $row->{LeftGene};
             my $geneB = $row->{RightGene};
             my $reads_list = $row->{JunctionReads};
-            
+
+            $geneA =~ s/\^.*$//;
+            $geneB =~ s/\^.*$//;
+                        
             my $fusion_contig = "$geneA--$geneB";
             foreach my $read_name (split(/,/, $reads_list)) {
                 $read_name =~ s/\/[12]$//;

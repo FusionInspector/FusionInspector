@@ -26,6 +26,11 @@ main: {
             my $geneA = $row->{LeftGene};
             my $geneB = $row->{RightGene};
             my $reads_list = $row->{SpanningFrags};
+
+
+            $geneA =~ s/\^.*//g;
+            $geneB =~ s/\^.*//g;
+            
             
             my $fusion_contig = "$geneA--$geneB";
             foreach my $read_name (split(/,/, $reads_list)) {

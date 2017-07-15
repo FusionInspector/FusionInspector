@@ -214,13 +214,17 @@ main: {
             
             my %genes_matched;
             foreach my $exon_hit (@exon_hits) {
-                $genes_matched{ $exon_hit->{exon_struct}->{gene_id} }++;
+
+                my $gene_id = $exon_hit->{exon_struct}->{gene_id};
+                $gene_id =~ s/\^.*//;
+                $genes_matched{ $gene_id }++;
             }
             my $num_genes_matched = scalar(keys %genes_matched);
-            print "Genes matched: $num_genes_matched\n" if $DEBUG;
+            print STDERR "Genes matched: $num_genes_matched\n" if $DEBUG;
             unless ($num_genes_matched > 1) { next; }
+
+            print STDERR "Genes matched: " . join(" ", keys %genes_matched) . "\n" if $DEBUG;
             
-                        
             my $junction_coord_token = &get_junction_coord_token(@exon_hits);
             if ($junction_coord_token) {
                 
@@ -368,17 +372,22 @@ sub get_junction_coord_token {
         
         my $exon_hit_i = $exon_hits[$i];
         my $exon_struct_i = $exon_hit_i->{exon_struct};
+
+        my $gene_id_i = $exon_struct_i->{gene_id};
+        $gene_id_i =~ s/\^.*//;
         
         for (my $j = $i+1; $j <= $#exon_hits; $j++) {
             
             my $exon_hit_j = $exon_hits[$j];
             my $exon_struct_j = $exon_hit_j->{exon_struct};
-            
 
+            my $gene_id_j = $exon_struct_j->{gene_id};
+            $gene_id_j =~ s/\^.*//;
+            
             unless ($exon_struct_i->{rend} < $exon_struct_j->{lend}) { next; }
             
             ## see if different genes and properly split alignment
-            if ($exon_struct_i->{gene_id} ne $exon_struct_j->{gene_id}
+            if ($gene_id_i ne $gene_id_j
                 &&
                 ( abs($exon_hit_i->{read_end3} - $exon_hit_j->{read_end5}) == 1 # forward read alignment
                   ||

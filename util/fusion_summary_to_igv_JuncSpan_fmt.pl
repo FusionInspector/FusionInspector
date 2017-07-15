@@ -42,7 +42,11 @@ main: {
 
             my $num_spanning_frags = $row->{SpanningFragCount};
             my @spanning_frags = split(/,/, $row->{SpanningFrags});
-            
+
+
+            $geneA =~ s/\^.*$//;
+            $geneB =~ s/\^.*$//;
+                        
             my $fusion_name = join("--", $geneA, $geneB);
                         
             foreach my $spanning_frag (@spanning_frags) {
