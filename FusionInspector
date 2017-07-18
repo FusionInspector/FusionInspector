@@ -52,8 +52,8 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                              help="fusions summary files (list, comma-delimited and no spaces)")
         arg_raw.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default="", required=True,
                              help="genome lib directory - see http://FusionFilter.github.io for details")
-        arg_raw.add_argument("--left_fq", dest="left_fq_filename", type=str, required=True, help="left fastq file")
-        arg_raw.add_argument("--right_fq", dest="right_fq_filename", type=str, required=True, help="right fastq file")
+        arg_raw.add_argument("--left_fq", dest="left_fq_filename", type=str, required=True, help="left (or single) fastq file")
+        arg_raw.add_argument("--right_fq", dest="right_fq_filename", type=str, required=False, default="",  help="right fastq file (optional)")
         arg_raw.add_argument("--out_dir", dest="str_out_dir", type=str, required=True, help="output directory")
         arg_raw.add_argument("--out_prefix", dest="out_prefix", type=str, default='finspector', help="output filename prefix")
         arg_raw.add_argument("--align_utils", dest="align_utils", type=str, required=False, default="STAR",
@@ -159,10 +159,9 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             print >>sys.stderr, "All fusion files: %s are empty. Exiting gracefully." % args_parsed.chim_summary_files
             sys.exit(0)
 
-        
-        cur_pipeline.func_check_files_exist( [ args_parsed.left_fq_filename, args_parsed.right_fq_filename,
-                                               args_parsed.gtf_filename, args_parsed.genome_fasta_filename,
-                                               args_parsed.left_fq_filename, args_parsed.right_fq_filename] +
+            
+        cur_pipeline.func_check_files_exist( [ args_parsed.left_fq_filename,
+                                               args_parsed.gtf_filename, args_parsed.genome_fasta_filename] +
                                              chim_summary_files_list )
         
 
@@ -256,7 +255,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                          " --out_prefix " + os.sep.join([workdir, args_parsed.out_prefix + ".gsnap"]) )
             
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ args_parsed.left_fq_filename, args_parsed.right_fq_filename,
+                                                   lstr_cur_dependencies = [ args_parsed.left_fq_filename,
                                                                              workdir_mergedContig_fasta_filename, workdir_mergedContig_gtf_filename ],
                                                    lstr_cur_products = [ gsnap_bam_file ] ) )
 
@@ -292,7 +291,6 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                    lstr_cur_dependencies = [ args_parsed.left_fq_filename,
-                                                                             args_parsed.right_fq_filename,
                                                                              workdir_mergedContig_gtf_filename,
                                                                              workdir_mergedContig_fasta_filename],
                                                    lstr_cur_products = [ hisat_bam_file ] ) )
@@ -356,7 +354,6 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                    lstr_cur_dependencies = [ args_parsed.left_fq_filename,
-                                                                             args_parsed.right_fq_filename,
                                                                              workdir_mergedContig_gtf_filename,
                                                                              workdir_mergedContig_fasta_filename],
                                                    lstr_cur_products = [ star_bam_file ] ) )
@@ -365,10 +362,11 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             # mark duplicate reads
             star_dups_marked_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.cSorted.dupsMarked.bam"])
 
-            cmdstr = str("java -jar {} I={} O={} M={}".format(os.sep.join([BASEDIR, "plugins", "MarkDuplicates.jar"]),
-                                                              star_bam_file,
-                                                              star_dups_marked_bam_file,
-                                                              star_dups_marked_bam_file + ".stats"))
+            cmdstr = str("java -jar {} I={} O={} M={} TMP_DIR={}".format(os.sep.join([BASEDIR, "plugins", "MarkDuplicates.jar"]),
+                                                                         star_bam_file,
+                                                                         star_dups_marked_bam_file,
+                                                                         star_dups_marked_bam_file + ".stats",
+                                                                         workdir))
 
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                    lstr_cur_dependencies = [ star_bam_file ],
@@ -393,8 +391,6 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         ## coalesce the fusion info
         ###########################
             
-        fusion_summary_pre_read_filter = os.sep.join([workdir, args_parsed.out_prefix + ".fusion_preds.coalesced.pre_read_filter"]) 
-
         fusion_junction_info_files_list = []
         fusion_junction_reads_list = []
         
@@ -409,51 +405,21 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             fusion_spanning_info_files_list.append(bam_file + ".fusion_spanning_info")
             fusion_spanning_reads_list.append(bam_file + ".fusion_span_reads.sam")
             
-        
+
+
+
+        fusion_summary_file = os.sep.join([workdir, args_parsed.out_prefix + ".fusion_preds.coalesced.summary"]) 
+
         coalesce_cmd = str( os.sep.join([UTILDIR, "coalesce_junction_and_spanning_info.pl"]) + " " +
                             ",".join(fusion_junction_info_files_list) + " " +
                             ",".join(fusion_spanning_info_files_list) +
-                            " > " + fusion_summary_pre_read_filter )
+                            " > " + fusion_summary_file )
         
         
         lcmd_commands.append( Command.Command( str_cur_command = coalesce_cmd,
                                                lstr_cur_dependencies = fusion_junction_info_files_list + 
                                                fusion_spanning_info_files_list,
-                                               lstr_cur_products = [ fusion_summary_pre_read_filter ] ) )
-        
-
-
-        ##############################################
-        ## Filter out false-positive evidence reads ##
-        ##############################################
-
-        fusion_summary_file = os.sep.join([workdir, args_parsed.out_prefix + ".fusion_preds.coalesced.summary"]) 
-
-        if filter_FP_reads_flag:
-            filter_FP_reads_cmd = str(os.sep.join([UTILDIR, "filter_FP_evidence_reads.pl"]) + " " +
-                                      " --left_fq " + args_parsed.left_fq_filename +
-                                      " --right_fq " + args_parsed.right_fq_filename +
-                                      " --cdna_fa " + args_parsed.cdna_fasta_filename +
-                                      " --fusion_summary " + fusion_summary_pre_read_filter +
-                                      " --genome_lib_dir " + genome_lib_dir + 
-                                      " --tmpdir " + workdir +
-                                      " > " + fusion_summary_file)
-
-            lcmd_commands.append( Command.Command( str_cur_command = filter_FP_reads_cmd,
-                                                   lstr_cur_dependencies = [args_parsed.left_fq_filename,
-                                                                            args_parsed.right_fq_filename,
-                                                                            args_parsed.cdna_fasta_filename,
-                                                                            fusion_summary_pre_read_filter
-                                                                            ],
-                                                   lstr_cur_products = [ fusion_summary_file ] ) )
-
-        else:
-            # just symlink it
-            cmdstr = "ln -s " + fusion_summary_pre_read_filter + " " + fusion_summary_file
-
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ fusion_summary_pre_read_filter ],
-                                                   lstr_cur_products = [ fusion_summary_file ] ) )
+                                               lstr_cur_products = [ fusion_summary_file ] ) )
         
 
 

@@ -9,9 +9,6 @@ use Process_cmd;
 use __GLOBALS__;
 
 
-my $left_fq = "test.reads_1.fastq.gz";
-my $right_fq = "test.reads_2.fastq.gz";
-
 my $fusion_files_list = "fusion_targets.A.txt,fusion_targets.B.txt,fusion_targets.C.txt";
 
 my $INSTALL_DIR = "$FindBin::Bin/../";
@@ -26,7 +23,7 @@ main: {
     ## FusionInspector #
     ####################
     
-    my $cmd = "$INSTALL_DIR/FusionInspector --fusions $fusion_files_list --genome_lib $ENV{CTAT_GENOME_LIB} --left_fq $left_fq --right $right_fq --out_prefix finspector --prep_for_IGV  @ARGV";
+    my $cmd = "$INSTALL_DIR/FusionInspector --fusions $fusion_files_list --genome_lib $ENV{CTAT_GENOME_LIB}  --out_prefix finspector --prep_for_IGV  @ARGV";
     
     &process_cmd($cmd);
     
