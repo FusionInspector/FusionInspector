@@ -362,11 +362,11 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             # mark duplicate reads
             star_dups_marked_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.cSorted.dupsMarked.bam"])
 
-            cmdstr = str("java -jar {} I={} O={} M={} TMP_DIR={}".format(os.sep.join([BASEDIR, "plugins", "MarkDuplicates.jar"]),
-                                                                         star_bam_file,
-                                                                         star_dups_marked_bam_file,
-                                                                         star_dups_marked_bam_file + ".stats",
-                                                                         workdir))
+            cmdstr = str("java -Xmx2G -jar {} I={} O={} M={} TMP_DIR={}".format(os.sep.join([BASEDIR, "plugins", "MarkDuplicates.jar"]),
+                                                                                star_bam_file,
+                                                                                star_dups_marked_bam_file,
+                                                                                star_dups_marked_bam_file + ".stats",
+                                                                                        workdir))
 
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                    lstr_cur_dependencies = [ star_bam_file ],
