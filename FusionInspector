@@ -781,7 +781,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
             ## convert the fusion JUNCTION reads sam file to bed format
             fusion_junction_reads_bed_file = bam_file + ".fusion_junc_reads.bed"
-            cmdstr = str(TRINITY_HOME + "/util/misc/SAM_to_bed.pl " + fusion_junction_reads_sam_file +
+            cmdstr = str(UTILDIR + "/SAM_to_bed.pl " + fusion_junction_reads_sam_file +
                          " > " + fusion_junction_reads_bed_file)
 
             lcmd_commands.append( Command.Command ( str_cur_command = cmdstr,
@@ -812,7 +812,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
             ## convert the fusion JUNCTION reads sam file to bed format
             fusion_spanning_reads_bed_file = bam_file + ".fusion_span_reads.bed"
-            cmdstr = str(TRINITY_HOME + "/util/misc/SAM_pair_to_bed.pl " + fusion_spanning_reads_sam_file +
+            cmdstr = str(UTILDIR + "/SAM_pair_to_bed.pl " + fusion_spanning_reads_sam_file +
                          " > " + fusion_spanning_reads_bed_file)
 
             lcmd_commands.append( Command.Command ( str_cur_command = cmdstr,
@@ -880,7 +880,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
     def bam_to_bed(self, bam_file, lcmd_commands):
         ## convert the reads bam file to bed format
-        cmdstr = str(UTILDIR + "/util/misc/SAM_pair_to_bed.pl " + bam_file +
+        cmdstr = str(UTILDIR + "/SAM_pair_to_bed.pl " + bam_file +
                      " > " + bam_file + ".bed")
         
         lcmd_commands.append( Command.Command ( str_cur_command = cmdstr,
