@@ -25,13 +25,7 @@ VERSION = "v0.9.0beta"
 BASEDIR = os.path.dirname(__file__)
 UTILDIR = os.sep.join([BASEDIR, "util"])
 
-## Trinity is required, as we use the kmer counting functionality in the read filter step.
-if not os.environ.has_key('TRINITY_HOME'):
-    print >> sys.stderr, "Error, need TRINITY_HOME environmental variable set and pointing to Trinity installation directory"
-    sys.exit(2)
-
-TRINITY_HOME = os.environ["TRINITY_HOME"]
-    
+TRINITY_HOME = None #init below if --include_Trinity
 
 class FusionInspector( PipelineRunner.PipelineRunner ):
     
@@ -130,6 +124,17 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             print("\n\nFusionInspector Version: " + VERSION + "\n\n")
             sys.exit(0)
                 
+
+        if args_parsed.include_Trinity:
+
+            if not os.environ.has_key('TRINITY_HOME'):
+                print >> sys.stderr, "Error, need TRINITY_HOME environmental variable set and pointing to Trinity installation directory when --include_Trinity is enabled"
+                sys.exit(2)
+    
+            global TRINITY_HOME
+            TRINITY_HOME = os.environ["TRINITY_HOME"]
+    
+
         
         genome_lib_dir = args_parsed.genome_lib_dir
         genome_lib_dir = os.path.abspath(genome_lib_dir)
@@ -581,7 +586,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             if args_parsed.prep_for_IGV:
                 ## just make the coords file
 
-                cmdstr = str(TRINITY_HOME + "/util/support_scripts/SAM_to_frag_coords.pl --sam " + workdir_consolidated_bam_file +
+                cmdstr = str(UTILDIR + "/SAM_to_frag_coords.pl --sam " + workdir_consolidated_bam_file +
                              " --max_insert_size 100000 "); 
 
                 lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
@@ -875,7 +880,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
     def bam_to_bed(self, bam_file, lcmd_commands):
         ## convert the reads bam file to bed format
-        cmdstr = str(TRINITY_HOME + "/util/misc/SAM_pair_to_bed.pl " + bam_file +
+        cmdstr = str(UTILDIR + "/util/misc/SAM_pair_to_bed.pl " + bam_file +
                      " > " + bam_file + ".bed")
         
         lcmd_commands.append( Command.Command ( str_cur_command = cmdstr,
