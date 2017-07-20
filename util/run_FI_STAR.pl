@@ -121,7 +121,7 @@ main: {
     
 
     my $star_index = "$genome.star.idx";
-    if (! -e "$star_index/build.ok") {
+    if (! -d $star_index) {
         
         ## build star index
         unless (-d $star_index) {
