@@ -1,3 +1,9 @@
+## v1.1.0 (July 24, 2017)
+-Now mostly supporting FusionInspector as a submodule integrated into STAR-Fusion
+-works with single-end as well as paired-end reads now.
+-incorporates latest fusion-annotation and coding-effect analysis
+
+
 ## v1.0.1 (Feb 2, 2017)
 include splice dinucleotides in report
 stricter requirements for fusion evidence w/ NH and qual, and more sensible overlap definition for fusion-contrasting pairs
