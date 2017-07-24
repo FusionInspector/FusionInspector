@@ -19,9 +19,6 @@ __example__ = "FusionInspector --left_fq ../BT474--ACACA--STAC2.left.fq --right_
 
 
 
-VERSION = "v0.9.0beta"
-
-
 BASEDIR = os.path.dirname(__file__)
 UTILDIR = os.sep.join([BASEDIR, "util"])
 
@@ -87,9 +84,6 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         arg_raw.add_argument("--cleanup", dest="cleanup", required=False, action="store_true", default=False,
                              help="cleanup the fusion inspector workspace, remove intermediate output files")
 
-        arg_raw.add_argument("--version", dest='version', required=False, action='store_true', default=False,
-                             help="show version string: " + VERSION)
-
         arg_raw.add_argument("--CPU", dest="CPU", required=False, type=int, default=4,
                              help="number of threads for multithreaded processes")
         
@@ -120,10 +114,6 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         To know the variables available from command line look in the ParentScript in func_create_arguments.
         """
 
-        if args_parsed.version:
-            print("\n\nFusionInspector Version: " + VERSION + "\n\n")
-            sys.exit(0)
-                
 
         if args_parsed.include_Trinity:
 
