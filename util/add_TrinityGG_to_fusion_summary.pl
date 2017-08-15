@@ -2,7 +2,11 @@
 
 use strict;
 use warnings;
-
+use FindBin;
+use lib ("$FindBin::Bin/../PerlLib");
+use DelimParser;
+use Data::Dumper;
+use Carp;
 
 my $usage = "\n\tusage: $0 fusion_summary_file TrinGG_fusion_gff3\n\n";
 
@@ -29,24 +33,32 @@ main: {
     }
     
     open (my $fh, $fusion_summary_file) or die "Error, cannot open file $fusion_summary_file";
-    while (<$fh>) {
-        chomp;
-        if (/^\#/) {
-            print "$_\tTrinGG_Fusion\n";
-            next;
-        }
-        my @x = split(/\t/);
-        my ($geneA, $local_brkpt_A, $geneB, $local_brkpt_B) = ($x[0], $x[1], $x[3], $x[4]);
+    my $tabreader = new DelimParser::Reader($fh, "\t");
+    my @column_headers = $tabreader->get_column_headers();
+
+    push (@column_headers, "TrinGG_Fusion");
+
+    my $tabwriter = new DelimParser::Writer(*STDOUT, "\t", \@column_headers);
+
+    while (my $row = $tabreader->get_row()) {
+        
+        my $geneA = $row->{'LeftGene'} or confess "error, no LeftGene in " . Dumper($row);
+        my $local_brkpt_A = $row->{'LeftLocalBreakpoint'} or confess "error, no LeftLocalBreakpoint in " . Dumper($row);
+
+        my $geneB = $row->{'RightGene'} or confess "error, no RightGene in " . Dumper($row);
+        my $local_brkpt_B = $row->{'RightLocalBreakpoint'} or confess "error, no RightLocalBreakpoint in " . Dumper($row);
+        
+        $geneA =~ s/\^.*$//;
+        $geneB =~ s/\^.*//;
+
+        $row->{'TrinGG_Fusion'} = '.';
+                
         my $fusion_name = "$geneA--$geneB";
         my $fusion_brkpt = "$fusion_name:$local_brkpt_A-$local_brkpt_B";
         if (my $trin_list_aref = $breakpoint_info{$fusion_brkpt}) {
-            push (@x, join(",", @$trin_list_aref) );
+            $row->{'TrinGG_Fusion'} = join(",", @$trin_list_aref);
         }
-        else {
-            push (@x, "."); # placeholder
-        }
-
-        print join("\t", @x) . "\n";
+        $tabwriter->write_row($row);
     }
     close $fh;
 
