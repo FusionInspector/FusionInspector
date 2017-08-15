@@ -571,7 +571,9 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                                                        lstr_cur_products = [ fusion_summary_w_trinity ]
                                                        ) )
 
+
                 fusion_summary_min_score_thresh_file = fusion_summary_w_trinity  ## NOTE, VARIABLE REPLACEMENT HERE INCL TRINITY RESULTS
+
 
             if args_parsed.prep_for_IGV:
                 ## just make the coords file
@@ -605,7 +607,6 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         ################################################################
         ## Perform some reformatting to get us to the star fusion format
         ################################################################
-
 
 
 
