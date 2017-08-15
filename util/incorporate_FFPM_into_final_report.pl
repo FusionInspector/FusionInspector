@@ -12,6 +12,8 @@ my $usage = "\n\n\tusage: $0 left.fq finspector.fusion_predictions.final.abridge
 my $fq_filename = $ARGV[0] or die $usage;
 my $finspector_results = $ARGV[1] or die $usage;
 
+## Require at least 100k reads before computing any FFPM value.
+
 main: {
 
     my $num_frags = &get_num_total_frags($fq_filename);
@@ -20,21 +22,25 @@ main: {
     my $tab_reader = new DelimParser::Reader($fh, "\t");
 
     my @column_headers = $tab_reader->get_column_headers();
-    push (@column_headers, "J_FFPM", "S_FFPM");
+    push (@column_headers, "FFPM");
 
     my $tab_writer = new DelimParser::Writer(*STDOUT, "\t", \@column_headers);
     
     while (my $row = $tab_reader->get_row()) {
-        
-        my $J = $row->{JunctionReadCount};
-        my $S = $row->{SpanningFragCount};
-        
-        my $J_FFPM = &compute_FFPM($J, $num_frags);
-        my $S_FFPM = &compute_FFPM($S, $num_frags);
 
-        $row->{J_FFPM} = $J_FFPM;
-        $row->{S_FFPM} = $S_FFPM;
-
+        if ($num_frags >= 100000) {
+            
+            my $J = $row->{JunctionReadCount};
+            my $S = $row->{SpanningFragCount};
+            
+            my $J_FFPM = &compute_FFPM($J, $num_frags);
+            my $S_FFPM = &compute_FFPM($S, $num_frags);
+            
+            $row->{FFPM} = $J_FFPM + $S_FFPM;
+        }
+        else {
+            $row->{FFPM} = "NA";
+        }
         $tab_writer->write_row($row);
     }
     close $fh;
