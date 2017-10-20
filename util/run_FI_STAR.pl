@@ -132,7 +132,7 @@ main: {
         # scale down the --genomeSAindexNbases parameter as log2(GenomeLength)/2 - 1
         
         my $genome_size = -s $genome;
-        my $genomeSAindexNbases = int(log($genome_size) / log(2) / 2 + 0.5); # close enough.
+        my $genomeSAindexNbases = int(log($genome_size) / log(2) / 2); # close enough.
         
         my $cmd = "$star_prog --runThreadN $CPU --runMode genomeGenerate --genomeDir $star_index "
             . " --genomeFastaFiles $genome "
