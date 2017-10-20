@@ -127,13 +127,20 @@ main: {
         unless (-d $star_index) {
             mkdir($star_index) or die "Error, cannot mkdir $star_index";
         }
+
+        # from Alex D.:
+        # scale down the --genomeSAindexNbases parameter as log2(GenomeLength)/2 - 1
+        
+        my $genome_size = -s $genome;
+        my $genomeSAindexNbases = int(log($genome_size) / log(2) + 0.5); # close enough.
         
         my $cmd = "$star_prog --runThreadN $CPU --runMode genomeGenerate --genomeDir $star_index "
             . " --genomeFastaFiles $genome "
+            . " --genomeSAindexNbases $genomeSAindexNbases"
             . " --limitGenomeGenerateRAM 40419136213 ";
         if ($gtf_file) {
             $cmd .= " --sjdbGTFfile $gtf_file "
-                . " --sjdbOverhang 100 ";
+                . " --sjdbOverhang 150 ";
             
         }
         
