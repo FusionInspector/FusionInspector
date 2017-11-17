@@ -12,7 +12,7 @@ all: test fusion_contigs_only incl_Trinity annotate coding_effect single_reads s
 
 
 fusion_contigs_only:
-	./runMe.pl --out_dir FusionInspector-fusionContigOnly --fusion_contigs_only --left_fq ${left_fq} --right_fq ${right_fq}
+	./runMe.pl --out_dir FusionInspector-fusionContigOnly --fusion_contigs_only --left_fq ${left_fq} --right_fq ${right_fq} --extract_fusion_reads_dir FusionInspector-fusionContigsOnly/fusion_reads 
 
 incl_Trinity:
 	./runMe.pl --out_dir FusionInspector-fusionContigOnly-incl_Trinity --fusion_contigs_only --include_Trinity --left_fq ${left_fq} --right_fq ${right_fq}
@@ -25,11 +25,11 @@ coding_effect: fusion_contigs_only
 
 
 single_reads:
-	./runMe.pl --out_dir FusionInspector-single_reads --left_fq ${left_fq}
+	./runMe.pl --out_dir FusionInspector-single_reads --left_fq ${left_fq} --extract_fusion_reads_dir FusionInspector-single_reads/fusion_reads
 
 
 single_reads_fc_only:
-	./runMe.pl --out_dir FusionInspector-single_reads-fc_only --left_fq ${left_fq} --fusion_contigs_only
+	./runMe.pl --out_dir FusionInspector-single_reads-fc_only --left_fq ${left_fq} --fusion_contigs_only --extract_fusion_reads_dir FusionInspector-single_reads/fusion_reads 
 
 
 clean:

@@ -8,7 +8,7 @@ use Fastq_reader;
 use Process_cmd;
 use DelimParser;
 
-my $usage = "\n\n\tusage: $0 finspector.fusion_predictions.final  left.fq right.fq output_dir\n\n";
+my $usage = "\n\n\tusage: $0 finspector.fusion_predictions.final  left.fq (right.fq|NONE) output_dir\n\n";
 
 my $fusion_results_file = $ARGV[0] or die $usage;
 my $left_fq = $ARGV[1] or die $usage;
@@ -46,7 +46,7 @@ main: {
     
     &write_fastq_files("_1", $left_fq, $outdir_name, \%core_frag_name_to_fusion_name);
     
-    &write_fastq_files("_2", $right_fq, $outdir_name, \%core_frag_name_to_fusion_name);
+    &write_fastq_files("_2", $right_fq, $outdir_name, \%core_frag_name_to_fusion_name) unless ($right_fq eq "NONE");
     
 
     print STDERR "\nDone.\n\n";

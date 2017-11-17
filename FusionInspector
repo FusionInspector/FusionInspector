@@ -101,6 +101,8 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         
         arg_raw.add_argument("--fusion_contigs_only", action='store_true', default=False, help="align reads only to the fusion contigs") 
 
+        arg_raw.add_argument("--extract_fusion_reads_dir", default=None, type=str, help="directory to write fusion evidence reads in fastq format")
+
         return(arg_raw)
 
         
@@ -154,7 +156,10 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             print >>sys.stderr, "All fusion files: %s are empty. Exiting gracefully." % args_parsed.chim_summary_files
             sys.exit(0)
 
-            
+        if args.extract_fusion_reads_dir:
+            args.extract_fusion_reads_dir = os.path.abspath(args.extract_fusion_reads_dir)
+
+        
         cur_pipeline.func_check_files_exist( [ args_parsed.left_fq_filename,
                                                args_parsed.gtf_filename, args_parsed.genome_fasta_filename] +
                                              chim_summary_files_list )
@@ -738,6 +743,28 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
             final_fusions_file = coding_effect_file
 
+
+        if args_parsed.extract_fusion_reads_dir:
+
+            fusion_reads_dir = args_parsed.extract_fusion_reads_dir
+            if not os.path.exists(fusion_reads_dir):
+                os.makedirs(fusion_reads_dir)
+
+            cmdstr = str(os.path.sep.join( [BASEDIR, "util", "misc", "get_fusion_evidence_fastqs.pl"]) +
+                         " " + final_fusions_file + ".final" + args_parsed.left_fq_filename + " ")
+
+            if args_parsed.right_fq_filename:
+                cmdstr += args_parsed.right_fq_filename
+            else:
+                cmdstr += "NONE"
+
+            cmdstr += " " + args_parsed.extract_fusion_reads_dir
+
+            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                                   lstr_cur_dependencies = [ final_fusions_file + ".final" ],
+                                                   lstr_cur_products = [] ) )
+                
+        
         ## cleanup
         if args_parsed.cleanup:
 
