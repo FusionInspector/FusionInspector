@@ -22,8 +22,6 @@ main: {
     
     my %core_frag_name_to_fusion_name;
     
-
-
     open (my $fh, $fusion_results_file) or die "Error, cannot open file $fusion_results_file";
 
     my $tab_reader = new DelimParser::Reader($fh, "\t");
@@ -87,6 +85,8 @@ sub write_fastq_files {
         close $ofh;
     }
 
+    `touch $outdir_name/fq_files_written.ok`; 
+    
     print STDERR "\nDone writing to $file_suffix fastq file series.\n\n";
     
     return;

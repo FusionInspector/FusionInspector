@@ -156,9 +156,13 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             print >>sys.stderr, "All fusion files: %s are empty. Exiting gracefully." % args_parsed.chim_summary_files
             sys.exit(0)
 
-        if args.extract_fusion_reads_dir:
-            args.extract_fusion_reads_dir = os.path.abspath(args.extract_fusion_reads_dir)
+        if args_parsed.extract_fusion_reads_dir:
+            args_parsed.extract_fusion_reads_dir = os.path.abspath(args_parsed.extract_fusion_reads_dir)
 
+        args_parsed.left_fq_filename = os.path.abspath(args_parsed.left_fq_filename)
+        if args_parsed.right_fq_filename:
+            args_parsed.right_fq_filename = os.path.abspath(args_parsed.right_fq_filename)
+        
         
         cur_pipeline.func_check_files_exist( [ args_parsed.left_fq_filename,
                                                args_parsed.gtf_filename, args_parsed.genome_fasta_filename] +
@@ -665,7 +669,8 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                lstr_cur_dependencies = [ preds_including_splice_info_file ],
                                                lstr_cur_products = [ final_fusions_file + ".final"] ) )
-        
+
+        unabridged_final_fusions_file = final_fusions_file + ".final"
                 
         ## make an abridged version that lacks the list of supporting reads.
         
@@ -751,8 +756,8 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                 os.makedirs(fusion_reads_dir)
 
             cmdstr = str(os.path.sep.join( [BASEDIR, "util", "misc", "get_fusion_evidence_fastqs.pl"]) +
-                         " " + final_fusions_file + ".final" + args_parsed.left_fq_filename + " ")
-
+                         " " + unabridged_final_fusions_file + " "  + args_parsed.left_fq_filename + " ")
+            
             if args_parsed.right_fq_filename:
                 cmdstr += args_parsed.right_fq_filename
             else:
@@ -761,8 +766,9 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             cmdstr += " " + args_parsed.extract_fusion_reads_dir
 
             lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ final_fusions_file + ".final" ],
-                                                   lstr_cur_products = [] ) )
+                                                   lstr_cur_dependencies = [ unabridged_final_fusions_file ],
+                                                   lstr_cur_products = [ fusion_reads_dir + "/fq_files_written.ok"] #make sciedpiper happy
+                                                   ) )
                 
         
         ## cleanup
