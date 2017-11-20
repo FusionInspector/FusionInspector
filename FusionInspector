@@ -24,6 +24,21 @@ UTILDIR = os.sep.join([BASEDIR, "util"])
 
 TRINITY_HOME = None #init below if --include_Trinity
 
+
+"""
+______         _            _____                          _
+|  ___|       (_)          |_   _|                        | |
+| |_ _   _ ___ _  ___  _ __  | | _ __  ___ _ __   ___  ___| |_ ___  _ __
+|  _| | | / __| |/ _ \| '_ \ | || '_ \/ __| '_ \ / _ \/ __| __/ _ \| '__|
+| | | |_| \__ \ | (_) | | | || || | | \__ \ |_) |  __/ (__| || (_) | |
+\_|  \__,_|___/_|\___/|_| |_\___/_| |_|___/ .__/ \___|\___|\__\___/|_|
+                                          | |
+                                          |_|
+                                                                                    
+
+"""
+
+
 class FusionInspector( PipelineRunner.PipelineRunner ):
     
     def func_update_arguments(self, arg_raw ):
@@ -37,33 +52,45 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         """
 
         arg_raw.prog = "FusionInspector"
+
         arg_raw.description = "Extracts a pair of genes from the genome, creates a mini-contig, aligns reads to the mini-contig, and extracts the fusion reads as a separate tier for vsiualization."
 
         arg_raw.add_argument("--fusions", dest="chim_summary_files", type=str, default="", required=True,
                              help="fusions summary files (list, comma-delimited and no spaces)")
+
         arg_raw.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default="", required=True,
                              help="genome lib directory - see http://FusionFilter.github.io for details")
+
         arg_raw.add_argument("--left_fq", dest="left_fq_filename", type=str, required=True, help="left (or single) fastq file")
+
         arg_raw.add_argument("--right_fq", dest="right_fq_filename", type=str, required=False, default="",  help="right fastq file (optional)")
+
         arg_raw.add_argument("--out_dir", dest="str_out_dir", type=str, required=True, help="output directory")
+
         arg_raw.add_argument("--out_prefix", dest="out_prefix", type=str, default='finspector', help="output filename prefix")
+
         arg_raw.add_argument("--align_utils", dest="align_utils", type=str, required=False, default="STAR",
                              help="alignment utilities to use.") # Comma-delimited selection of: STAR,GSNAP,HISAT")
         
         arg_raw.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=1,
                              help="minimum number of junction-spanning reads required")
+
         arg_raw.add_argument("--min_sum_frags", dest="min_sum_frags", type=int, required=False, default=2,
                              help="minimum fusion support = ( # junction_reads + # spanning_frags )")
+
         arg_raw.add_argument("--min_novel_junction_support", dest="min_novel_junction_support", type=int, required=False, default=3,
                              help="(minimum number of junction reads required if breakpoint lacks involvement of only reference junctions")
+
         arg_raw.add_argument("--require_LDAS", type=int, required=False, default=1,
                              help = "require long double anchor support for split reads when no spanning frags are found")
         
-
-        arg_raw.add_argument("--max_promiscuity", dest='max_promiscuity', type=int, required=False, default=3,
+        arg_raw.add_argument("--max_promiscuity", dest='max_promiscuity', type=int, required=False, default=10,
                              help="maximum number of partners allowed for a given fusion")
-        arg_raw.add_argument("-E", "--Evalue", dest='Evalue', type=float, required=False, default=0.001,
-                             help="E-value threshold for blast searches")
+        
+        arg_raw.add_argument("--min_pct_dom_promiscuity", dest="min_pct_dom_promiscuity", type=int, required=False, default=50,
+                             help="for promiscuous fusions, those with less than this support of the dominant scoring pair " +
+                             "are filtered prior to applying the max_promiscuity filter. ")
+        
         arg_raw.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=96,
                              help='minimum percent identity for a fusion-supporting read alignment')
         
@@ -78,6 +105,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
         arg_raw.add_argument("--prep_for_IGV", dest="prep_for_IGV", required=False, action="store_true", default=False,
                              help="generate bam, bed, etc., for use with IGV")
+
         arg_raw.add_argument("--write_intermediate_results", dest="write_intermediate_results", required=False, action="store_true",
                              default=False, help="generate bam, bed, etc., for intermediate aligner outputs")
 
@@ -664,8 +692,8 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                      " --out_prefix " + final_fusions_file +
                      " --genome_lib_dir " + args_parsed.genome_lib_dir +
                      " --max_promiscuity " + str(args_parsed.max_promiscuity) +
-                     " -E " + str(args_parsed.Evalue) )
-                
+                     " --min_pct_dom_promiscuity " + str(args_parsed.min_pct_dom_promiscuity) )
+        
         lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
                                                lstr_cur_dependencies = [ preds_including_splice_info_file ],
                                                lstr_cur_products = [ final_fusions_file + ".final"] ) )
