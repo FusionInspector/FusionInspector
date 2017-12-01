@@ -20,6 +20,9 @@ my $usage = <<__EOUSAGE__;
 #  --min_novel_junction_support <int>    minimum number of junction reads required if breakpoint 
 #                                          lacks involvement of only reference junctions
 #
+#  --min_spanning_frags_only <int>        minimum number of rna-seq fragments required as fusion evidence if
+#                                          there are no junction reads
+#
 #  --fusion_preds <string>               fusion predictions in star-F-ftm
 #
 #  Optional:
@@ -42,20 +45,26 @@ my $help_flag;
 my $min_junction_reads;
 my $min_sum_frags;
 my $min_novel_junction_support;
+my $min_spanning_frags_only;
 my $fusion_preds;
 my $REQUIRE_LDAS = 1;
+
 
 &GetOptions ( 'h' => \$help_flag,
               'min_junction_reads=i' => \$min_junction_reads,
               'min_sum_frags=i' => \$min_sum_frags,
               'min_novel_junction_support=i' => \$min_novel_junction_support,
+              'min_spanning_frags_only=i' => \$min_spanning_frags_only,
               'fusion_preds=s' => \$fusion_preds,
               'require_LDAS=i' => \$REQUIRE_LDAS,
     );
 
 
 
-foreach my $var ($min_junction_reads, $min_sum_frags, $min_novel_junction_support, $fusion_preds) {
+foreach my $var ($min_junction_reads, $min_sum_frags, 
+                 $min_novel_junction_support, 
+                 $min_spanning_frags_only,
+                 $fusion_preds) {
     unless (defined $var) {
         die $usage;
     }
@@ -75,23 +84,24 @@ main: {
         
         my $J = $row->{JunctionReadCount};
         my $S = $row->{SpanningFragCount};
-
-        
+                
         unless (defined($J)) {
             die "Error, JunctionReadCount not defined for entry: " . Dumper($row);
         }
         unless (defined($S)) {
             die "Error, SpanningFragCount not defined for entry: " . Dumper($row);
         }
-        
-        
+                
         if ($J < $min_junction_reads) {
             next; 
-            
         }
-
+        
         my $sum_JS = $J + $S;
         if ($sum_JS < $min_sum_frags) {
+            next;
+        }
+        
+        if ($J == 0 && $S < $min_spanning_frags_only) {
             next;
         }
         

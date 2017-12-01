@@ -58,9 +58,9 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         arg_raw.add_argument("--fusions", dest="chim_summary_files", type=str, default="", required=True,
                              help="fusions summary files (list, comma-delimited and no spaces)")
 
-        arg_raw.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default="", required=True,
+        arg_raw.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default=os.environ.get('CTAT_GENOME_LIB'),
                              help="genome lib directory - see http://FusionFilter.github.io for details")
-
+        
         arg_raw.add_argument("--left_fq", dest="left_fq_filename", type=str, required=True, help="left (or single) fastq file")
 
         arg_raw.add_argument("--right_fq", dest="right_fq_filename", type=str, required=False, default="",  help="right fastq file (optional)")
@@ -72,15 +72,18 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         arg_raw.add_argument("--align_utils", dest="align_utils", type=str, required=False, default="STAR",
                              help="alignment utilities to use.") # Comma-delimited selection of: STAR,GSNAP,HISAT")
         
-        arg_raw.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=1,
+        arg_raw.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=0,
                              help="minimum number of junction-spanning reads required")
-
+        
         arg_raw.add_argument("--min_sum_frags", dest="min_sum_frags", type=int, required=False, default=2,
                              help="minimum fusion support = ( # junction_reads + # spanning_frags )")
 
         arg_raw.add_argument("--min_novel_junction_support", dest="min_novel_junction_support", type=int, required=False, default=3,
-                             help="(minimum number of junction reads required if breakpoint lacks involvement of only reference junctions")
+                             help="minimum number of junction reads required if breakpoint lacks involvement of only reference junctions")
 
+        arg_raw.add_argument("--min_spanning_frags_only", dest="min_spanning_frags_only", type=int, required=False, default=5,
+                             help="minimum number of spanning frags if no junction reads are found")
+        
         arg_raw.add_argument("--require_LDAS", type=int, required=False, default=1,
                              help = "require long double anchor support for split reads when no spanning frags are found")
         
@@ -157,6 +160,9 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
         
         genome_lib_dir = args_parsed.genome_lib_dir
+        if genome_lib_dir is None:
+            raise RuntimeError("Error, must specify --genome_lib_dir or set env var CTAT_GENOME_LIB")
+        
         genome_lib_dir = os.path.abspath(genome_lib_dir)
         
         args_parsed.gtf_filename = os.path.sep.join([genome_lib_dir, "ref_annot.gtf"])
@@ -462,6 +468,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                                         " --min_junction_reads " + str(args_parsed.min_junction_reads) +
                                         " --min_sum_frags " + str(args_parsed.min_sum_frags) +
                                         " --min_novel_junction_support " + str(args_parsed.min_novel_junction_support) +
+                                        " --min_spanning_frags_only " + str(args_parsed.min_spanning_frags_only) +
                                         " --fusion_preds " + fusion_summary_file +
                                         " --require_LDAS " + str(args_parsed.require_LDAS) +
                                         " > " + fusion_summary_min_score_thresh_file)

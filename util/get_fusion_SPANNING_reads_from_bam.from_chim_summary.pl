@@ -72,7 +72,7 @@ if ($help_flag) {
     die $usage;
 }
 
-unless ($gtf_file && $bam_file) {
+unless ($gtf_file && $bam_file && $junction_info_file) {
     die $usage;
 }
 
@@ -186,6 +186,8 @@ main: {
         }
     }
 
+
+    
     ####################################################
     ## for each paired read, get the bounds of that read
 
@@ -360,6 +362,8 @@ main: {
                     
                     #################
                     ## assign spanning frags to the specific breakpoints
+
+                    my $assigned_to_breakpoint_flag = 0;
                     
                     my $candidate_fusion_breakpoints_aref = $fusion_junctions{$scaffold};
                     if (ref $candidate_fusion_breakpoints_aref) {
@@ -384,16 +388,9 @@ main: {
                                     
                                     # must meet the more restrictive criteria wrt qual and NH
                                     push (@{$fusion_to_spanning_reads{"$scaffold|$fusion_breakpoint"}}, $fragment);
-
+                                    $assigned_to_breakpoint_flag = 1;
                                 }
-                                else {
-                                    # still capture it even though there's no junction read to assign it to.
-                                    
-                                    my $fuzzy_breakpoint = join("-", $gene_bound_left, $gene_bound_right);
-                                    push (@{$fusion_to_spanning_reads{"$scaffold|$fuzzy_breakpoint"}}, $fragment);
-                                    
-                                }
-                                                                                              
+                                                                                                                              
                             }
                             else {
                                 ## Not a fusion-spanning fragment.
@@ -427,10 +424,17 @@ main: {
                                 }
                                 
                             }
-                        }
+                        } # end of foreach breakpoing candidate
+                    } # end of if have candidate breakpoints
+                    
+                    unless ($assigned_to_breakpoint_flag) {
+                        # still capture it even though there's no junction read to assign it to.
+                        
+                        my $fuzzy_breakpoint = join("-", $gene_bound_left, $gene_bound_right);
+                        push (@{$fusion_to_spanning_reads{"$scaffold|$fuzzy_breakpoint"}}, $fragment);
+                        
                     }
                                         
-                    
                 } # endif have read pair coords
             } # end of foreach fragment
         } # end of foreach scaffold
@@ -470,7 +474,8 @@ main: {
                         NumCounterFusionRight CounterFusionRightReads);
 
         my $tab_writer = new DelimParser::Writer($ofh, "\t", \@fields);
-        
+
+
         foreach my $fusion_n_breakpoint (sort keys %fusion_to_spanning_reads) {
             my ($fusion_name, $breakpoint) = split(/\|/, $fusion_n_breakpoint);
             my ($geneA, $geneB) = split(/--/, $fusion_name);
