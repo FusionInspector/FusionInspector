@@ -65,7 +65,7 @@ main: {
             $cellrow{JunctionReadCount} = $cell_junction_reads_count;
             $cellrow{JunctionReads} = $cell_junction_reads_string;
             
-            $cellrow{SpanningFragsCount} = $cell_spanning_frags_count;
+            $cellrow{SpanningFragCount} = $cell_spanning_frags_count;
             $cellrow{SpanningFrags} = $cell_spanning_frags_string;
 
             $cellrow{NumCounterFusionLeft} = $cell_counter_fusion_left_reads_count;
