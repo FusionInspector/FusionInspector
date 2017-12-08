@@ -215,6 +215,12 @@ main: {
             if ($line =~ /NM:i:(\d+)/i) {
                 $mismatch_count = $1;
             }
+
+            my $read_group;
+            if ($line =~ /RG:Z:(\S+)/) {
+                $read_group = $1;
+            }
+            
             my $alignment_length = $sam_entry->get_alignment_length();
             unless ($alignment_length) {
                 next;
@@ -285,6 +291,7 @@ main: {
                                                                                           strand => $strand,
                                                                                           qual => $qual_val,
                                                                                           NH => $hit_count,
+                                                                                          read_group => $read_group,
                 };
                 
                                 
@@ -339,6 +346,8 @@ main: {
                     my $left_read_orient = $pair_coords[0]->{strand};
                     my $right_read_orient = $pair_coords[1]->{strand};
 
+                    my $read_group = $pair_coords[0]->{read_group};
+                    
                     unless ($left_read_orient eq '+' && $right_read_orient eq '-') { next; }  # not proper pairs after all!!
 
                     #####################################################################
@@ -358,7 +367,12 @@ main: {
                         $is_fusion_spanning_fragment_flag = 1;
                         $spanning_read_want{"$scaffold|$fragment"}++; # capture for SAM-retreival next.
                     }
-                    
+
+
+                    ##########
+                    ## encode the read group into the fragment name:
+                    $fragment = "&" . $read_group . "@" . $fragment;
+                                        
                     
                     #################
                     ## assign spanning frags to the specific breakpoints

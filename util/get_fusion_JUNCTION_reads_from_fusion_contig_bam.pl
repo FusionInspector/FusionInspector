@@ -144,6 +144,12 @@ main: {
         if ($line =~ /NM:i:(\d+)/i) {
             $mismatch_count = $1;
         }
+
+        my $read_group;
+        if ($line =~ /RG:Z:(\S+)/) {
+            $read_group = $1;
+        }
+        
         my $alignment_length = $sam_entry->get_alignment_length();
         unless ($alignment_length) {
             if ($DEBUG) { print STDERR "-skipping, no alignment length\n"; }
@@ -261,6 +267,12 @@ main: {
                 # calling it a fusion read.
                 $fusion_split_reads{$core_read_name} = 1;
                 $sam_index_capture{$counter} = 1;
+
+                if ($read_group) {
+                    # encode the read group into the read name:
+                    $read_name = "&" . $read_group . "@" . $read_name;
+                }
+                
                 push (@{$fusion_junctions{$junction_coord_token}}, $read_name);
                 
                 
