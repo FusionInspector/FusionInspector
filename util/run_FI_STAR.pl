@@ -19,8 +19,13 @@ my $usage = <<__EOUSAGE__;
 #
 #  Required:
 #  --genome <string>           target genome to align to
-#  --reads  <string>           fastq files. If pairs, indicate both in quotes, ie. "left.fq right.fq"
+#
+#     --reads  <string>           fastq files. If pairs, indicate both in quotes, ie. "left.fq right.fq"
+#     or
+#     --samples_file <string>     samples file (format:  sample(tab)/path/left.fq(tab)/path/right.fq)
+#
 #  --patch <string>            genomic targets to patch the genome fasta with.
+#
 #
 #  Optional:
 #  -G <string>                 GTF file for incorporating reference splice site info.
@@ -58,12 +63,16 @@ my $prep_reference_only = 0;
 my $only_fusion_reads_flag = 0;
 my $capture_genome_alignments_flag = 0;
 my $chim_search;
+my $samples_file;
+
 
 &GetOptions( 'h' => \$help_flag,
              'genome=s' => \$genome,
              'patch=s' => \$patch,
              
              'reads=s' => \$reads,
+             'samples_file=s' => \$samples_file,
+             
              'CPU=i' => \$CPU,
              'out_prefix=s' => \$out_prefix,
              'G=s' => \$gtf_file,
@@ -78,7 +87,7 @@ my $chim_search;
     );
 
 
-unless ($genome && $reads) {
+unless ($genome && ($reads || $samples_file) ) {
     die $usage;
 }
 
@@ -97,6 +106,10 @@ unless ($star_prog =~ /\w/) {
     die "Error, cannot locate STAR program. Be sure it's in your PATH setting.  ";
 }
 
+if ($samples_file && $reads) {
+    die "Error, must specify --reads or --samples_file, not both";
+}
+
 
 main: {
 	
@@ -104,13 +117,48 @@ main: {
     $genome = &Pipeliner::ensure_full_path($genome);
     $gtf_file = &Pipeliner::ensure_full_path($gtf_file) if $gtf_file;
 
-    my @read_files = split(/\s+/, $reads);
-    foreach my $read_file (@read_files) {
-        if ($read_file) {
-            $read_file = &Pipeliner::ensure_full_path($read_file);
+    my $read_group_ids = "";
+    
+    if ($reads) {
+        my @read_files = split(/\s+/, $reads);
+        foreach my $read_file (@read_files) {
+            if ($read_file) {
+                $read_file = &Pipeliner::ensure_full_path($read_file);
+            }
         }
+        $reads = join(" ", @read_files);
     }
-    $reads = join(" ", @read_files);
+    else {
+
+        my @left_fqs;
+        my @right_fqs;
+        my @read_groups;
+        
+        open(my $fh, "$samples_file") or die "Error, cannot open file: $samples_file";
+        while (<$fh>) {
+            chomp;
+            my ($sample_name, $left_fq, $right_fq) = split(/\t/);
+            push (@read_groups, "ID:$sample_name");
+            unless (-s $left_fq) {
+                confess "Error, cannot locate file: $left_fq";
+            }
+            push (@left_fqs, $left_fq);
+
+            if ($right_fq) {
+                unless (-s $right_fq) {
+                    confess "Error, cannot locate file: $right_fq";
+                }
+                push (@right_fqs, $right_fq);
+            }
+        }
+        close $fh;
+
+        $reads = join(",", @left_fqs);
+        if (@right_fqs) {
+            $reads .= " " . join(",", @right_fqs);
+        }
+        $read_group_ids = join(" , ", @read_groups);
+    }
     
     if ($out_dir) {
         unless (-d $out_dir) {
@@ -119,7 +167,6 @@ main: {
         chdir $out_dir or die "Error, cannot cd to $out_dir";
     }
     
-
     my $star_index = "$genome.star.idx";
     if (! -d $star_index) {
         
@@ -143,7 +190,7 @@ main: {
                 . " --sjdbOverhang 150 ";
             
         }
-        
+    
         &process_cmd($cmd);
         
         &process_cmd("touch $star_index/build.ok");
@@ -207,7 +254,12 @@ main: {
     if ($reads =~ /\.gz$/) {
         $cmd .= " --readFilesCommand 'gunzip -c' ";
     }
-
+    
+    if ($read_group_ids) {
+        $cmd .= " --outSAMattrRGline $read_group_ids ";
+    }
+    
+    
     $pipeliner->add_commands( new Command($cmd, "star_align.ok") );
     
     

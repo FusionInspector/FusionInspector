@@ -15,7 +15,7 @@ import sciedpiper.PipelineRunner as PipelineRunner
 
 
 __example__ = "FusionInspector --left_fq ../BT474--ACACA--STAC2.left.fq --right_fq ../BT474--ACACA--STAC2.right.fq \
-              --align_utils STAR,GSNAP,HISAT --fusions fusion_gene_candidates.dat --out_dir myoutdir --out_prefix ladeda"
+              --fusions fusion_gene_candidates.dat --out_dir myoutdir --out_prefix ladeda"
 
 
 
@@ -54,24 +54,26 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         arg_raw.prog = "FusionInspector"
 
         arg_raw.description = "Extracts a pair of genes from the genome, creates a mini-contig, aligns reads to the mini-contig, and extracts the fusion reads as a separate tier for vsiualization."
-
+        
         arg_raw.add_argument("--fusions", dest="chim_summary_files", type=str, default="", required=True,
                              help="fusions summary files (list, comma-delimited and no spaces)")
-
+    
         arg_raw.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default=os.environ.get('CTAT_GENOME_LIB'),
                              help="genome lib directory - see http://FusionFilter.github.io for details")
         
-        arg_raw.add_argument("--left_fq", dest="left_fq_filename", type=str, required=True, help="left (or single) fastq file")
-
-        arg_raw.add_argument("--right_fq", dest="right_fq_filename", type=str, required=False, default="",  help="right fastq file (optional)")
-
+        arg_raw.add_argument("--left_fq", dest="left_fq_filename", type=str, required=False, default=None,
+                             help="left (or single) fastq file")
+        
+        arg_raw.add_argument("--right_fq", dest="right_fq_filename", type=str, required=False, default="", #intentionally not None
+                             help="right fastq file (optional)")
+        
+        arg_raw.add_argument("--samples_file", dest="samples_file", type=str, required=False, default=None,
+                             help="samples file (format: sample(tab)/path/left.fq(tab)/path/right.fq")
+        
         arg_raw.add_argument("--out_dir", dest="str_out_dir", type=str, required=True, help="output directory")
 
         arg_raw.add_argument("--out_prefix", dest="out_prefix", type=str, default='finspector', help="output filename prefix")
 
-        arg_raw.add_argument("--align_utils", dest="align_utils", type=str, required=False, default="STAR",
-                             help="alignment utilities to use.") # Comma-delimited selection of: STAR,GSNAP,HISAT")
-        
         arg_raw.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=0,
                              help="minimum number of junction-spanning reads required")
         
@@ -125,9 +127,6 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                              help='explore impact of fusions on coding sequences')
         
 
-        arg_raw.add_argument("--dirty", action='store_true', default=False,
-                             help='turn off FP filtering for non-STAR methods (increases speed, reduces RAM, mostly restricted for testing purposes)')
-
         arg_raw.add_argument("--aligner_path", default=None, type=str, help="path to the aligner tool (default: uses PATH setting)")
         
         arg_raw.add_argument("--fusion_contigs_only", action='store_true', default=False, help="align reads only to the fusion contigs") 
@@ -138,15 +137,12 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
         
     def func_make_commands( self, args_parsed, cur_pipeline ):
-        """
-        Allows:
-        - the creation of commands in the child object.
-        - the creation of directories.
-        - checking that files exist.
-        
-        To know the variables available from command line look in the ParentScript in func_create_arguments.
-        """
 
+
+        if not (args_parsed.left_fq_filename or args_parsed.samples_file):
+            print >> sys.stderr, "Error, must specify --left_fq or --samples_file"
+            sys.exit(1)
+        
 
         if args_parsed.include_Trinity:
 
@@ -193,14 +189,22 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         if args_parsed.extract_fusion_reads_dir:
             args_parsed.extract_fusion_reads_dir = os.path.abspath(args_parsed.extract_fusion_reads_dir)
 
-        args_parsed.left_fq_filename = os.path.abspath(args_parsed.left_fq_filename)
+        if args_parsed.left_fq_filename:
+            args_parsed.left_fq_filename = os.path.abspath(args_parsed.left_fq_filename)
+            cur_pipeline.func_check_files_exist( [ args_parsed.left_fq_filename ])
+                                                   
         if args_parsed.right_fq_filename:
             args_parsed.right_fq_filename = os.path.abspath(args_parsed.right_fq_filename)
+            cur_pipeline.func_check_files_exist( [ args_parsed.right_fq_filename ])
+
+        if args_parsed.samples_file:
+            args_parsed.samples_file = os.path.abspath(args_parsed.samples_file)
+            cur_pipeline.func_check_files_exist( [ args_parsed.samples_file ] )
         
         
-        cur_pipeline.func_check_files_exist( [ args_parsed.left_fq_filename,
-                                               args_parsed.gtf_filename, args_parsed.genome_fasta_filename] +
-                                             chim_summary_files_list )
+        cur_pipeline.func_check_files_exist( [ args_parsed.gtf_filename,
+                                               args_parsed.genome_fasta_filename] + 
+                                               chim_summary_files_list )
         
 
         ## Construct the list of pipeline commands
@@ -270,153 +274,77 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                                                lstr_cur_dependencies = [ mergedContig_fasta_filename ],
                                                lstr_cur_products = [ mergedContig_fasta_filename + ".fai" ] ) )
 
-
-
-        filter_FP_reads_flag = True
-        if args_parsed.dirty:
-            filter_FP_reads_flag = False
+        ##########
+        # Run STAR
         
-        bam_files_list = []
+        cmdstr = None
+
+        if args_parsed.fusion_contigs_only:
+            cmdstr = str(os.path.sep.join([UTILDIR, "run_FI_STAR.pl"]) +
+                     " --genome " + workdir_mergedContig_fasta_filename +
+                     " -G " + workdir_mergedContig_gtf_filename + " --CPU " + str(args_parsed.CPU) +  
+                     " --out_prefix " + args_parsed.out_prefix + ".star" +
+                     " --out_dir " + workdir )
+        else:
+
+            ###############
+            ## patched fusion-genome for STAR
+            ###############
+
+            cmdstr = str( os.path.sep.join([UTILDIR, "run_FI_STAR.pl"]) +
+                          " --genome " + args_parsed.genome_fasta_filename +
+                          " --patch " + workdir_mergedContig_fasta_filename +
+                          " -G " + workdir_mergedContig_gtf_filename + " --CPU " + str(args_parsed.CPU) +  
+                          " --out_prefix " + args_parsed.out_prefix + ".star" +
+                          " --out_dir " + workdir )   
+
+
+            if args_parsed.only_fusion_reads:
+                cmdstr += " --only_fusion_reads "
+            elif args_parsed.capture_genome_alignments:
+                cmdstr += " --capture_genome_alignments "
+
+
+        if args_parsed.samples_file:
+            cmdstr += " --samples_file {} ".format(args_parsed.samples_file)
+        else:
+            # reads direct:
+            cmdstr += " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\""
+
         
-        if (re.search("GSNAP", args_parsed.align_utils, re.IGNORECASE)):
-
-            ########################################################
-            ## align the reads against the fusion contig using GSNAP
-            ########################################################
-
-            gsnap_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".gsnap.cSorted.bam"])
-
-            
-            cmdstr = str(UTILDIR + "/run_GSNAP.pl --genome " + workdir_mergedContig_fasta_filename +
-                         " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\"" +
-                         " -G " + workdir_mergedContig_gtf_filename  + " --CPU " +  str(args_parsed.CPU) + " -N 20 --proper_pairs_only " +
-                         " --out_prefix " + os.sep.join([workdir, args_parsed.out_prefix + ".gsnap"]) )
-            
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ args_parsed.left_fq_filename,
-                                                                             workdir_mergedContig_fasta_filename, workdir_mergedContig_gtf_filename ],
-                                                   lstr_cur_products = [ gsnap_bam_file ] ) )
+        if args_parsed.aligner_path:
+            cmdstr += " --star_path " + args_parsed.aligner_path
 
 
-            ## remove duplicate reads
-            gsnap_rmdup_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".gsnap.cSorted.rmdup.bam"])
+        star_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.sortedByCoord.out.bam"])
 
-            cmdstr = str("samtools rmdup " + gsnap_bam_file + " " + gsnap_rmdup_bam_file + " 2>/dev/null ") # it can be noisy
+        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                               lstr_cur_dependencies = [ args_parsed.left_fq_filename,
+                                                                         workdir_mergedContig_gtf_filename,
+                                                                         workdir_mergedContig_fasta_filename],
+                                               lstr_cur_products = [ star_bam_file ] ) )
+        
 
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ gsnap_bam_file ],
-                                                   lstr_cur_products = [ gsnap_rmdup_bam_file ] ) )
+        # mark duplicate reads
+        star_dups_marked_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.cSorted.dupsMarked.bam"])
 
-            self.get_fusion_and_spanning_reads(args_parsed, mergedContig_gtf_filename, mergedContig_fasta_filename, gsnap_rmdup_bam_file, lcmd_commands)
+        cmdstr = str("java -Xmx2G -jar {} I={} O={} M={} TMP_DIR={} VALIDATION_STRINGENCY=SILENT ".format(os.sep.join([BASEDIR, "plugins", "MarkDuplicates.jar"]),
+                                                                            star_bam_file,
+                                                                            star_dups_marked_bam_file,
+                                                                            star_dups_marked_bam_file + ".stats",
+                                                                                    workdir))
 
-            bam_files_list.append(gsnap_rmdup_bam_file)
-
-
-        if (re.search("HISAT", args_parsed.align_utils, re.IGNORECASE)):
-
-            ########################################################
-            ## align the reads against the fusion contig using HISAT
-            ########################################################
-            
-            cmdstr = str(os.path.sep.join([UTILDIR, "run_HISAT.pl"]) +
-                         " --genome " + workdir_mergedContig_fasta_filename +
-                         " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\"" +
-                         " -G " + workdir_mergedContig_gtf_filename +
-                         " --out_prefix " + os.sep.join([workdir, args_parsed.out_prefix + ".hisat"]) +
-                         " --CPU " +  str(args_parsed.CPU) + " -N 20 --no-mixed --no-discordant " ) 
-            
-            hisat_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".hisat.cSorted.bam"])
-
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ args_parsed.left_fq_filename,
-                                                                             workdir_mergedContig_gtf_filename,
-                                                                             workdir_mergedContig_fasta_filename],
-                                                   lstr_cur_products = [ hisat_bam_file ] ) )
-
-            # remove duplicate reads
-            hisat_rmdup_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".hisat.cSorted.rmdup.bam"])
-
-            cmdstr = str("samtools rmdup " + hisat_bam_file + " " + hisat_rmdup_bam_file + " 2>/dev/null ")
-
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ hisat_bam_file ],
-                                                   lstr_cur_products = [ hisat_rmdup_bam_file ] ) )
+        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
+                                               lstr_cur_dependencies = [ star_bam_file ],
+                                               lstr_cur_products = [ star_dups_marked_bam_file ] ) )
 
 
 
-            self.get_fusion_and_spanning_reads(args_parsed, workdir_mergedContig_gtf_filename, workdir_mergedContig_fasta_filename, hisat_rmdup_bam_file, lcmd_commands)
+        self.get_fusion_and_spanning_reads(args_parsed, workdir_mergedContig_gtf_filename,
+                                           workdir_mergedContig_fasta_filename, star_dups_marked_bam_file, lcmd_commands)
 
-            bam_files_list.append(hisat_rmdup_bam_file)
+        bam_files_list.append(star_dups_marked_bam_file)
 
-
-        if (re.search("STAR", args_parsed.align_utils, re.IGNORECASE)):
-            
-            filter_FP_reads_flag = False
-
-            cmdstr = None
-
-            if args_parsed.fusion_contigs_only:
-                cmdstr = str(os.path.sep.join([UTILDIR, "run_FI_STAR.pl"]) +
-                         " --genome " + workdir_mergedContig_fasta_filename +
-                         " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\"" +
-                         " -G " + workdir_mergedContig_gtf_filename + " --CPU " + str(args_parsed.CPU) +  
-                         " --out_prefix " + args_parsed.out_prefix + ".star" +
-                         " --out_dir " + workdir )
-            else:
-
-                ###############
-                ## patched fusion-genome for STAR
-                ###############
-                
-                cmdstr = str( os.path.sep.join([UTILDIR, "run_FI_STAR.pl"]) +
-                              " --genome " + args_parsed.genome_fasta_filename +
-                              " --patch " + workdir_mergedContig_fasta_filename +
-                              " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\"" +
-                              " -G " + workdir_mergedContig_gtf_filename + " --CPU " + str(args_parsed.CPU) +  
-                              " --out_prefix " + args_parsed.out_prefix + ".star" +
-                              " --out_dir " + workdir )   
-
-            
-                if args_parsed.only_fusion_reads:
-                    cmdstr += " --only_fusion_reads "
-                elif args_parsed.capture_genome_alignments:
-                    cmdstr += " --capture_genome_alignments "
-
-
-            
-            if args_parsed.aligner_path:
-                cmdstr += " --star_path " + args_parsed.aligner_path
-
-            
-            star_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.sortedByCoord.out.bam"])
-
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ args_parsed.left_fq_filename,
-                                                                             workdir_mergedContig_gtf_filename,
-                                                                             workdir_mergedContig_fasta_filename],
-                                                   lstr_cur_products = [ star_bam_file ] ) )
-
-            
-            # mark duplicate reads
-            star_dups_marked_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.cSorted.dupsMarked.bam"])
-
-            cmdstr = str("java -Xmx2G -jar {} I={} O={} M={} TMP_DIR={} VALIDATION_STRINGENCY=SILENT ".format(os.sep.join([BASEDIR, "plugins", "MarkDuplicates.jar"]),
-                                                                                star_bam_file,
-                                                                                star_dups_marked_bam_file,
-                                                                                star_dups_marked_bam_file + ".stats",
-                                                                                        workdir))
-
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ star_bam_file ],
-                                                   lstr_cur_products = [ star_dups_marked_bam_file ] ) )
-
-
-
-            self.get_fusion_and_spanning_reads(args_parsed, workdir_mergedContig_gtf_filename,
-                                               workdir_mergedContig_fasta_filename, star_dups_marked_bam_file, lcmd_commands)
-
-            bam_files_list.append(star_dups_marked_bam_file)
-            
         
 
 
