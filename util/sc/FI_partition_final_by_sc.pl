@@ -74,19 +74,22 @@ main: {
             $cellrow{NumCounterFusionRight} = $cell_counter_fusion_right_reads_count;
             $cellrow{CounterFusionRightReads} = $cell_counter_fusion_right_reads_string;
 
-            
-            if ($cell_junction_reads_count + $cell_spanning_frags_count) {
-            
+                        
+            $cellrow{FAF_left} = "NA";
+            eval {
                 $cellrow{FAF_left} = ($cell_junction_reads_count + $cell_spanning_frags_count) / 
                     ($cell_junction_reads_count + $cell_spanning_frags_count + $cell_counter_fusion_left_reads_count);
-                
-                
+            };
+
+
+            $cellrow{FAF_right} = "NA";
+            eval {
                 $cellrow{FAF_right} = ($cell_junction_reads_count + $cell_spanning_frags_count) / 
                     ($cell_junction_reads_count + $cell_spanning_frags_count + $cell_counter_fusion_right_reads_count);
-                
-                
-                $delim_writer->write_row(\%cellrow);
-            }
+            };
+            
+            $delim_writer->write_row(\%cellrow);
+            
             
         }
     
