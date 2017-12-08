@@ -12,16 +12,11 @@ import shlex
 logger = logging.getLogger(__name__)
 
 def run_cmd(cmd):
-    cmd = shlex.split(str(cmd))
-    logger.info("Running: " + " ".join(cmd))
-    process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (output, error) = process.communicate()
-    logger.debug("stdout: {}\nstderr:{}".format(output, error))
-    if process.returncode != 0:
-        logger.error(error)
-        raise RuntimeError("Error while running command \"" + str(cmd) + "\":\n" + error)
 
+    logger.info("Running: " + cmd)
+    subprocess.check_call(cmd, shell=True)
     
+
 class Pipeliner(object):
 
     _checkpoint_dir = None
@@ -65,9 +60,6 @@ class Pipeliner(object):
 
 class Command(object):
 
-    _cmd = None
-    _checkpoint = None
-
     def __init__(self, cmd, checkpoint):
         self._cmd = cmd
         self._checkpoint = checkpoint
@@ -78,3 +70,4 @@ class Command(object):
     def get_checkpoint(self):
         return self._checkpoint
 
+ 

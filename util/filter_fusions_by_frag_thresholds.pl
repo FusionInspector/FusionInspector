@@ -74,7 +74,7 @@ foreach my $var ($min_junction_reads, $min_sum_frags,
 main: {
     
     
-    open (my $fh, $fusion_preds) or die $!;
+    open (my $fh, $fusion_preds) or die "Error, cannot open file: $fusion_preds";
     my $tab_reader = new DelimParser::Reader($fh, "\t");
     my @column_headers = $tab_reader->get_column_headers();
     

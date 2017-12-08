@@ -7,15 +7,25 @@ from __future__ import (absolute_import, division,
 
 
 import os, re, sys
-sys.path.insert(0, os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR"]))
-sys.path.insert(0, os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR", "sciedpiper"]))
-#print(sys.path, file=sys.stderr)
-import sciedpiper.Command as Command
-import sciedpiper.PipelineRunner as PipelineRunner
+import argparse
+
+sys.path.insert(0, os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "PyLib"]))
+from Pipeliner import Pipeliner, Command
 
 
 __example__ = "FusionInspector --left_fq ../BT474--ACACA--STAC2.left.fq --right_fq ../BT474--ACACA--STAC2.right.fq \
               --fusions fusion_gene_candidates.dat --out_dir myoutdir --out_prefix ladeda"
+
+
+import logging
+FORMAT = "%(asctime)-15s %(levelname)s %(module)s.%(name)s.%(funcName)s at %(lineno)d :\n\t%(message)s\n"
+global logger
+logger = logging.getLogger()
+logging.basicConfig(filename='variant_calling.log', format=FORMAT, filemode='w', level=logging.DEBUG)
+# add a new Handler to print all INFO and above messages to stdout
+ch = logging.StreamHandler(sys.stdout)
+ch.setLevel(logging.INFO)
+logger.addHandler(ch)
 
 
 
@@ -39,115 +49,108 @@ ______         _            _____                          _
 """
 
 
-class FusionInspector( PipelineRunner.PipelineRunner ):
-    
-    def func_update_arguments(self, arg_raw ):
-        """
-        Updates to the arg parser, command line options
-        
-        * arg_raw : Arguments ( not yet parsed )
-                  : Arguments
-        * return  : Updated Arguments
-                  : Arguments
-        """
+class FusionInspector:
 
-        arg_raw.prog = "FusionInspector"
-
-        arg_raw.description = "Extracts a pair of genes from the genome, creates a mini-contig, aligns reads to the mini-contig, and extracts the fusion reads as a separate tier for vsiualization."
+    def run(self):
         
-        arg_raw.add_argument("--fusions", dest="chim_summary_files", type=str, default="", required=True,
+        arg_parser = argparse.ArgumentParser(
+            
+            description = "Extracts a pair of genes from the genome, creates a mini-contig, aligns reads to the mini-contig, and extracts the fusion reads as a separate tier for vsiualization.",
+            formatter_class=argparse.RawTextHelpFormatter
+            )
+        
+        
+        arg_parser.add_argument("--fusions", dest="chim_summary_files", type=str, default="", required=True,
                              help="fusions summary files (list, comma-delimited and no spaces)")
     
-        arg_raw.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default=os.environ.get('CTAT_GENOME_LIB'),
+        arg_parser.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default=os.environ.get('CTAT_GENOME_LIB'),
                              help="genome lib directory - see http://FusionFilter.github.io for details")
         
-        arg_raw.add_argument("--left_fq", dest="left_fq_filename", type=str, required=False, default=None,
+        arg_parser.add_argument("--left_fq", dest="left_fq_filename", type=str, required=False, default=None,
                              help="left (or single) fastq file")
         
-        arg_raw.add_argument("--right_fq", dest="right_fq_filename", type=str, required=False, default="", #intentionally not None
+        arg_parser.add_argument("--right_fq", dest="right_fq_filename", type=str, required=False, default="", #intentionally not None
                              help="right fastq file (optional)")
         
-        arg_raw.add_argument("--samples_file", dest="samples_file", type=str, required=False, default=None,
+        arg_parser.add_argument("--samples_file", dest="samples_file", type=str, required=False, default=None,
                              help="samples file (format: sample(tab)/path/left.fq(tab)/path/right.fq")
         
-        arg_raw.add_argument("--out_dir", dest="str_out_dir", type=str, required=True, help="output directory")
+        arg_parser.add_argument("--out_dir", dest="str_out_dir", type=str, required=True, help="output directory")
 
-        arg_raw.add_argument("--out_prefix", dest="out_prefix", type=str, default='finspector', help="output filename prefix")
+        arg_parser.add_argument("--out_prefix", dest="out_prefix", type=str, default='finspector', help="output filename prefix")
 
-        arg_raw.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=0,
+        arg_parser.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=0,
                              help="minimum number of junction-spanning reads required")
         
-        arg_raw.add_argument("--min_sum_frags", dest="min_sum_frags", type=int, required=False, default=2,
+        arg_parser.add_argument("--min_sum_frags", dest="min_sum_frags", type=int, required=False, default=2,
                              help="minimum fusion support = ( # junction_reads + # spanning_frags )")
 
-        arg_raw.add_argument("--min_novel_junction_support", dest="min_novel_junction_support", type=int, required=False, default=3,
+        arg_parser.add_argument("--min_novel_junction_support", dest="min_novel_junction_support", type=int, required=False, default=3,
                              help="minimum number of junction reads required if breakpoint lacks involvement of only reference junctions")
 
-        arg_raw.add_argument("--min_spanning_frags_only", dest="min_spanning_frags_only", type=int, required=False, default=5,
+        arg_parser.add_argument("--min_spanning_frags_only", dest="min_spanning_frags_only", type=int, required=False, default=5,
                              help="minimum number of spanning frags if no junction reads are found")
         
-        arg_raw.add_argument("--require_LDAS", type=int, required=False, default=1,
+        arg_parser.add_argument("--require_LDAS", type=int, required=False, default=1,
                              help = "require long double anchor support for split reads when no spanning frags are found")
         
-        arg_raw.add_argument("--max_promiscuity", dest='max_promiscuity', type=int, required=False, default=10,
+        arg_parser.add_argument("--max_promiscuity", dest='max_promiscuity', type=int, required=False, default=10,
                              help="maximum number of partners allowed for a given fusion")
         
-        arg_raw.add_argument("--min_pct_dom_promiscuity", dest="min_pct_dom_promiscuity", type=int, required=False, default=50,
+        arg_parser.add_argument("--min_pct_dom_promiscuity", dest="min_pct_dom_promiscuity", type=int, required=False, default=50,
                              help="for promiscuous fusions, those with less than this support of the dominant scoring pair " +
                              "are filtered prior to applying the max_promiscuity filter. ")
         
-        arg_raw.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=96,
+        arg_parser.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=96,
                              help='minimum percent identity for a fusion-supporting read alignment')
         
-        arg_raw.add_argument("--only_fusion_reads", default=False, action='store_true',
+        arg_parser.add_argument("--only_fusion_reads", default=False, action='store_true',
                              help="include only read alignments in output that support fusion" )
         
-        arg_raw.add_argument("--capture_genome_alignments", default=False, action='store_true',
+        arg_parser.add_argument("--capture_genome_alignments", default=False, action='store_true',
                              help='reports ref genome alignments too (for debugging only)')
                         
-        arg_raw.add_argument("--include_Trinity", dest="include_Trinity", required=False, action = "store_true", default=False,
+        arg_parser.add_argument("--include_Trinity", dest="include_Trinity", required=False, action = "store_true", default=False,
                              help="include fusion-guided Trinity assembly")
 
-        arg_raw.add_argument("--prep_for_IGV", dest="prep_for_IGV", required=False, action="store_true", default=False,
+        arg_parser.add_argument("--prep_for_IGV", dest="prep_for_IGV", required=False, action="store_true", default=False,
                              help="generate bam, bed, etc., for use with IGV")
 
-        arg_raw.add_argument("--write_intermediate_results", dest="write_intermediate_results", required=False, action="store_true",
+        arg_parser.add_argument("--write_intermediate_results", dest="write_intermediate_results", required=False, action="store_true",
                              default=False, help="generate bam, bed, etc., for intermediate aligner outputs")
 
-        arg_raw.add_argument("--cleanup", dest="cleanup", required=False, action="store_true", default=False,
+        arg_parser.add_argument("--cleanup", dest="cleanup", required=False, action="store_true", default=False,
                              help="cleanup the fusion inspector workspace, remove intermediate output files")
 
-        arg_raw.add_argument("--CPU", dest="CPU", required=False, type=int, default=4,
+        arg_parser.add_argument("--CPU", dest="CPU", required=False, type=int, default=4,
                              help="number of threads for multithreaded processes")
         
-        arg_raw.add_argument("--annotate", dest="annotate", required=False, action='store_true', default=False,
+        arg_parser.add_argument("--annotate", dest="annotate", required=False, action='store_true', default=False,
                              help="annotate fusions based on known cancer fusions and those found in normal tissues")
 
-        arg_raw.add_argument("--examine_coding_effect", dest='examine_coding_effect', required=False, action='store_true', default=False,
+        arg_parser.add_argument("--examine_coding_effect", dest='examine_coding_effect', required=False, action='store_true', default=False,
                              help='explore impact of fusions on coding sequences')
         
 
-        arg_raw.add_argument("--aligner_path", default=None, type=str, help="path to the aligner tool (default: uses PATH setting)")
+        arg_parser.add_argument("--aligner_path", default=None, type=str, help="path to the aligner tool (default: uses PATH setting)")
         
-        arg_raw.add_argument("--fusion_contigs_only", action='store_true', default=False, help="align reads only to the fusion contigs") 
+        arg_parser.add_argument("--fusion_contigs_only", action='store_true', default=False, help="align reads only to the fusion contigs") 
 
-        arg_raw.add_argument("--extract_fusion_reads_dir", default=None, type=str, help="directory to write fusion evidence reads in fastq format")
+        arg_parser.add_argument("--extract_fusion_reads_dir", default=None, type=str, help="directory to write fusion evidence reads in fastq format")
 
-        return(arg_raw)
 
-        
-    def func_make_commands( self, args_parsed, cur_pipeline ):
+        args_parsed = arg_parser.parse_args()
 
 
         if not (args_parsed.left_fq_filename or args_parsed.samples_file):
-            print >> sys.stderr, "Error, must specify --left_fq or --samples_file"
+            print("Error, must specify --left_fq or --samples_file", file=sys.stderr)
             sys.exit(1)
         
 
         if args_parsed.include_Trinity:
 
             if not os.environ.has_key('TRINITY_HOME'):
-                print >> sys.stderr, "Error, need TRINITY_HOME environmental variable set and pointing to Trinity installation directory when --include_Trinity is enabled"
+                print("Error, need TRINITY_HOME environmental variable set and pointing to Trinity installation directory when --include_Trinity is enabled", file=sys.stderr)
                 sys.exit(2)
     
             global TRINITY_HOME
@@ -169,21 +172,27 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         
         workdir = args_parsed.str_out_dir + "/fi_workdir";
         workdir = os.path.abspath(workdir)
-                
+        if not os.path.exists(workdir):
+            os.makedirs(workdir)
+        
+        checkpoints_dir = args_parsed.str_out_dir + "/chckpts_dir"
+        checkpoints_dir = os.path.abspath(checkpoints_dir)
+        if not os.path.exists(checkpoints_dir):
+            os.makedirs(checkpoints_dir)
         
         chim_summary_files_list = args_parsed.chim_summary_files.split(",")
         
         chim_summary_files_adj = []
         for chim_summary_file in chim_summary_files_list:
             if os.stat(chim_summary_file).st_size == 0:
-                print >>sys.stderr, "Warning: No list of fusions in file: %s" % chim_summary_file
+                print("Warning: No list of fusions in file: %s" % chim_summary_file, file=sys.stderr)
             else:
                 chim_summary_files_adj.append(chim_summary_file)
 
         chim_summary_files_list = chim_summary_files_adj
 
         if not chim_summary_files_list:
-            print >>sys.stderr, "All fusion files: %s are empty. Exiting gracefully." % args_parsed.chim_summary_files
+            print("All fusion files: %s are empty. Exiting gracefully." % args_parsed.chim_summary_files, file=sys.stderr)
             sys.exit(0)
 
         if args_parsed.extract_fusion_reads_dir:
@@ -191,25 +200,24 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
         if args_parsed.left_fq_filename:
             args_parsed.left_fq_filename = os.path.abspath(args_parsed.left_fq_filename)
-            cur_pipeline.func_check_files_exist( [ args_parsed.left_fq_filename ])
+            check_files_exist( [ args_parsed.left_fq_filename ])
                                                    
         if args_parsed.right_fq_filename:
             args_parsed.right_fq_filename = os.path.abspath(args_parsed.right_fq_filename)
-            cur_pipeline.func_check_files_exist( [ args_parsed.right_fq_filename ])
+            check_files_exist( [ args_parsed.right_fq_filename ])
 
         if args_parsed.samples_file:
             args_parsed.samples_file = os.path.abspath(args_parsed.samples_file)
-            cur_pipeline.func_check_files_exist( [ args_parsed.samples_file ] )
+            check_files_exist( [ args_parsed.samples_file ] )
         
         
-        cur_pipeline.func_check_files_exist( [ args_parsed.gtf_filename,
-                                               args_parsed.genome_fasta_filename] + 
-                                               chim_summary_files_list )
+        check_files_exist( [ args_parsed.gtf_filename,
+                             args_parsed.genome_fasta_filename] + 
+                           chim_summary_files_list )
         
+        ## Construct pipeline
+        pipeliner = Pipeliner(checkpoints_dir)
 
-        ## Construct the list of pipeline commands
-        
-        lcmd_commands = []
 
         ## Build the mini-contig containing just the two fusion genes, plus annotations in gtf format
 
@@ -225,55 +233,43 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         mergedContig_fasta_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".fa"])
         mergedContig_gtf_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".gtf"])
         
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [args_parsed.gtf_filename, args_parsed.genome_fasta_filename] + chim_summary_files,
-                                               lstr_cur_products = [ mergedContig_fasta_filename, mergedContig_gtf_filename ] ) )
-
+        pipeliner.add_commands([Command(cmdstr,"fusion_contigs.ok")])
+        
 
         # symlink them in the workdir
         workdir_mergedContig_fasta_filename = os.sep.join([workdir, args_parsed.out_prefix + ".fa"])
-        lcmd_commands.append( Command.Command( str_cur_command = "ln -s " + mergedContig_fasta_filename +
-                                               " " + workdir_mergedContig_fasta_filename,
-                                               lstr_cur_dependencies = [ mergedContig_fasta_filename ],
-                                               lstr_cur_products = [ workdir_mergedContig_fasta_filename ] ) )
+        cmdstr = str("ln -s " + mergedContig_fasta_filename + " " + workdir_mergedContig_fasta_filename)
+        pipeliner.add_commands([Command(cmdstr, "symlink_contigs_file_workdir")])
         
+                
         workdir_mergedContig_gtf_filename = os.sep.join([workdir, args_parsed.out_prefix + ".gtf"])
-        lcmd_commands.append( Command.Command( str_cur_command = "ln -s " + mergedContig_gtf_filename +
-                                               " " + workdir_mergedContig_gtf_filename,
-                                               lstr_cur_dependencies = [ mergedContig_gtf_filename ],
-                                               lstr_cur_products = [ workdir_mergedContig_gtf_filename ] ) )
-
-        
+        cmdstr = str("ln -s " + mergedContig_gtf_filename + " " + workdir_mergedContig_gtf_filename)
+        pipeliner.add_commands([Command(cmdstr, "symlink_gtf_file_workdir.ok")])
+                
         ## build a cytoband file
         cytoband_file = os.sep.join([args_parsed.str_out_dir, "cytoBand.txt"])
         cmdstr = str( os.sep.join([UTILDIR, "fasta_and_gtf_to_cytoband.pl"]) +
                       " " + mergedContig_fasta_filename + " " + mergedContig_gtf_filename +
                       " > " + cytoband_file )
 
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ mergedContig_fasta_filename, mergedContig_gtf_filename ],
-                                               lstr_cur_products = [ cytoband_file ] ) )
-        
-        
+        pipeliner.add_commands([Command(cmdstr, "cytoband.ok")])
 
         ## Convert the gtf to bed format for easier viewing
         mergedContig_bed_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".bed"])
         
         cmdstr = str(UTILDIR + "/gtf_gene_to_bed.pl " + mergedContig_gtf_filename +
                      " > " + mergedContig_bed_filename)
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                              lstr_cur_dependencies = [mergedContig_gtf_filename],
-                                              lstr_cur_products = [mergedContig_bed_filename] ) )
 
-        self.sort_and_index_bed(mergedContig_bed_filename, lcmd_commands)
+        pipeliner.add_commands([Command(cmdstr, "merged_contig_gtf_to_bed.ok")])
 
+        self.sort_and_index_bed(mergedContig_bed_filename, pipeliner)
+        
 
         # index the fasta file
         cmdstr = str("samtools faidx " + mergedContig_fasta_filename)
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ mergedContig_fasta_filename ],
-                                               lstr_cur_products = [ mergedContig_fasta_filename + ".fai" ] ) )
-
+        pipeliner.add_commands([Command(cmdstr, "merged_contig_fai.ok")])
+        
+        
         ##########
         # Run STAR
         
@@ -318,13 +314,10 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
         star_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.sortedByCoord.out.bam"])
 
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ args_parsed.left_fq_filename,
-                                                                         workdir_mergedContig_gtf_filename,
-                                                                         workdir_mergedContig_fasta_filename],
-                                               lstr_cur_products = [ star_bam_file ] ) )
-        
 
+        pipeliner.add_commands([Command(cmdstr, "run_STAR.ok")])
+        
+        
         # mark duplicate reads
         star_dups_marked_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.cSorted.dupsMarked.bam"])
 
@@ -334,25 +327,15 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                                                                             star_dups_marked_bam_file + ".stats",
                                                                                     workdir))
 
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ star_bam_file ],
-                                               lstr_cur_products = [ star_dups_marked_bam_file ] ) )
-
+        
+        pipeliner.add_commands([Command(cmdstr, "mark_dup_reads.ok")])
 
 
         self.get_fusion_and_spanning_reads(args_parsed, workdir_mergedContig_gtf_filename,
-                                           workdir_mergedContig_fasta_filename, star_dups_marked_bam_file, lcmd_commands)
+                                           workdir_mergedContig_fasta_filename, star_dups_marked_bam_file, pipeliner)
 
-        bam_files_list.append(star_dups_marked_bam_file)
+        bam_files_list = [star_dups_marked_bam_file] # used to have more than one... leaving it like this for now.
 
-        
-
-
-        if len(bam_files_list) == 0:
-            raise Exception("Error, no alignments were generated. Please revisit your parameter setting to --align_utils ")
-        
-
-        
         ###########################
         ## coalesce the fusion info
         ###########################
@@ -376,35 +359,30 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
         fusion_summary_file = os.sep.join([workdir, args_parsed.out_prefix + ".fusion_preds.coalesced.summary"]) 
 
-        coalesce_cmd = str( os.sep.join([UTILDIR, "coalesce_junction_and_spanning_info.pl"]) + " " +
-                            ",".join(fusion_junction_info_files_list) + " " +
-                            ",".join(fusion_spanning_info_files_list) +
-                            " > " + fusion_summary_file )
+        cmdstr = str( os.sep.join([UTILDIR, "coalesce_junction_and_spanning_info.pl"]) + " " +
+                      ",".join(fusion_junction_info_files_list) + " " +
+                      ",".join(fusion_spanning_info_files_list) +
+                      " > " + fusion_summary_file )
+        
+        pipeliner.add_commands([Command(cmdstr, "coalesce_junc_n_span.ok")]) 
         
         
-        lcmd_commands.append( Command.Command( str_cur_command = coalesce_cmd,
-                                               lstr_cur_dependencies = fusion_junction_info_files_list + 
-                                               fusion_spanning_info_files_list,
-                                               lstr_cur_products = [ fusion_summary_file ] ) )
-        
-
 
         ## need to filter based on remaining fusion support.
         fusion_summary_min_score_thresh_file = fusion_summary_file + ".min_frag_thresh"
 
-        filter_by_frag_thresh_cmd = str(os.sep.join([UTILDIR, "filter_fusions_by_frag_thresholds.pl"]) +
-                                        " --min_junction_reads " + str(args_parsed.min_junction_reads) +
-                                        " --min_sum_frags " + str(args_parsed.min_sum_frags) +
-                                        " --min_novel_junction_support " + str(args_parsed.min_novel_junction_support) +
-                                        " --min_spanning_frags_only " + str(args_parsed.min_spanning_frags_only) +
-                                        " --fusion_preds " + fusion_summary_file +
-                                        " --require_LDAS " + str(args_parsed.require_LDAS) +
-                                        " > " + fusion_summary_min_score_thresh_file)
+        cmdstr = str(os.sep.join([UTILDIR, "filter_fusions_by_frag_thresholds.pl"]) +
+                     " --min_junction_reads " + str(args_parsed.min_junction_reads) +
+                     " --min_sum_frags " + str(args_parsed.min_sum_frags) +
+                     " --min_novel_junction_support " + str(args_parsed.min_novel_junction_support) +
+                     " --min_spanning_frags_only " + str(args_parsed.min_spanning_frags_only) +
+                    " --fusion_preds " + fusion_summary_file +
+                     " --require_LDAS " + str(args_parsed.require_LDAS) +
+                     " > " + fusion_summary_min_score_thresh_file)
         
-        lcmd_commands.append( Command.Command( str_cur_command = filter_by_frag_thresh_cmd,
-                                               lstr_cur_dependencies = [fusion_summary_file],
-                                               lstr_cur_products = [ fusion_summary_min_score_thresh_file] ) )
 
+        pipeliner.add_commands([Command(cmdstr, "filter_by_frag_threshs.ok")]) 
+        
         
         if args_parsed.include_Trinity or args_parsed.prep_for_IGV:
 
@@ -419,11 +397,8 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                          " " + fusion_summary_file +
                          " LeftGene,RightGene,JunctionReads " +
                          " > " + summary_junctions_reads_list_filename)
-            
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ fusion_summary_file ],
-                                                   lstr_cur_products = [ summary_junctions_reads_list_filename ] ) )
 
+            pipeliner.add_commands([Command(cmdstr, "prep_igv_extract_junc_reads.ok")]) 
 
 
             ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
@@ -434,18 +409,15 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                          " | samtools view -@ " + str(args_parsed.CPU) + " -bT " + mergedContig_fasta_filename + " - " +
                          " | samtools sort -@ " + str(args_parsed.CPU) + " - -o " + consolidated_junction_reads_bam)
             #+ " || : ") # cant afford for this to fail due to lack of evidence reads
+
+            pipeliner.add_commands([Command(cmdstr, "prep_igv_junc_reads_bam.ok")]) 
+
+            cmdstr = "samtools index " + consolidated_junction_reads_bam
             
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = fusion_junction_reads_list +
-                                                   [summary_junctions_reads_list_filename],
-                                                   lstr_cur_products = [ consolidated_junction_reads_bam ] ) )
-            
-            lcmd_commands.append ( Command.Command( str_cur_command = "samtools index " + consolidated_junction_reads_bam,
-                                                    lstr_cur_dependencies = [ consolidated_junction_reads_bam ],
-                                                    lstr_cur_products = [ consolidated_junction_reads_bam + ".bai" ] ) )
+            pipeliner.add_commands([Command(cmdstr, "samtools_idx_junc_reads_bam.ok")]) 
 
             if args_parsed.prep_for_IGV:
-                self.bam_to_bed(consolidated_junction_reads_bam, lcmd_commands)
+                self.bam_to_bed(consolidated_junction_reads_bam, pipeliner)
 
 
             ## Spanning reads
@@ -455,11 +427,9 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                          " " + fusion_summary_file +
                          " LeftGene,RightGene,SpanningFrags " +
                          " > " + summary_spanning_reads_list_filename)
-            
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ fusion_summary_file ],
-                                                   lstr_cur_products = [ summary_spanning_reads_list_filename ] ) )
-            
+
+            pipeliner.add_commands([Command(cmdstr, "span_reads_acc.ok")]) 
+
             ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
 
             consolidated_spanning_reads_bam =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".spanning_reads.bam"])
@@ -468,49 +438,35 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                          " | samtools view -@ " + str(args_parsed.CPU) + " -bT " + mergedContig_fasta_filename + " - " +
                          " | samtools sort -@ " + str(args_parsed.CPU) + " - -o " + consolidated_spanning_reads_bam)
             # + " || : ") # again, cant afford for this to fail due to lack of evidence reads.
-            
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = fusion_spanning_reads_list +
-                                                   [summary_spanning_reads_list_filename],
-                                                   lstr_cur_products = [ consolidated_spanning_reads_bam ] ) )
-            
-            lcmd_commands.append ( Command.Command( str_cur_command = "samtools index " + consolidated_spanning_reads_bam,
-                                                    lstr_cur_dependencies = [ consolidated_spanning_reads_bam ],
-                                                    lstr_cur_products = [ consolidated_spanning_reads_bam + ".bai" ] ) )
+
+            pipeliner.add_commands([Command(cmdstr, "prep_spanning_reads.ok")])             
+
+            cmdstr = "samtools index " + consolidated_spanning_reads_bam
+            pipeliner.add_commands([Command(cmdstr, "samtools_index_span_reads_bam.ok")]) 
 
             if args_parsed.prep_for_IGV:
-                self.bam_to_bed(consolidated_spanning_reads_bam, lcmd_commands)
+                self.bam_to_bed(consolidated_spanning_reads_bam, pipeliner)
 
 
             # consolidate all fusion-contig aligned reads into a single bam file
             consolidated_bam_file =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix  + ".consolidated"])
-
+            
             cmdstr = str(UTILDIR + "/consolidate_bams_and_uniq_reads.pl " +
                          workdir_mergedContig_fasta_filename + " " +
                          ",".join(bam_files_list) + " " +
-                          consolidated_bam_file)
+                         consolidated_bam_file)
 
             consolidated_bam_file += ".cSorted.bam"
 
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = bam_files_list + [workdir_mergedContig_fasta_filename],
-                                                   lstr_cur_products = [ consolidated_bam_file ] ) )
+            pipeliner.add_commands([Command(cmdstr, "consolidate_bam_and_uniq_readss.ok")]) 
             
-
 
             workdir_consolidated_bam_file = os.sep.join([workdir, args_parsed.out_prefix  + ".consolidated.bam"])
-            lcmd_commands.append( Command.Command( str_cur_command = "ln -s " + consolidated_bam_file +
-                                                   " " + workdir_consolidated_bam_file,
-                                                   lstr_cur_dependencies = [ consolidated_bam_file ],
-                                                   lstr_cur_products = [ workdir_consolidated_bam_file ] ) )
-
-
-
             
-
-
+            cmdstr = "ln -s " + consolidated_bam_file + " " + workdir_consolidated_bam_file
+            pipeliner.add_commands([Command(cmdstr, "symlink_consol_bam.ok")]) 
+            
             if args_parsed.include_Trinity:
-
 
                 ############################
                 # run genome-guided Trinity
@@ -524,26 +480,20 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                              " --max_memory 20G --genome_guided_max_intron 1000000 --CPU " +  str(args_parsed.CPU) + " --min_contig_length 100 " +
                              " --output " + trinity_out_dir)
 
-                lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                       lstr_cur_dependencies = [ consolidated_bam_file ],
-                                                       lstr_cur_products = [ trinity_fasta_filename ] ) )
+                pipeliner.add_commands([Command(cmdstr, "run_trinity.ok")]) 
 
                 ## Run TrinityGG, reconstruct fusion transcripts locally via de novo assembly
                 trinGG_fusion_gff3 = self.add_trinfusion_gmap_subpipe(args_parsed, workdir_mergedContig_fasta_filename,
-                                                                      workdir_mergedContig_gtf_filename, trinity_fasta_filename, lcmd_commands, workdir)
-
+                                                                      workdir_mergedContig_gtf_filename, trinity_fasta_filename, pipeliner, workdir)
+                
                 # merge de novo assembly fusion results w/ read-based fusion results:
                 fusion_summary_w_trinity = fusion_summary_min_score_thresh_file + ".wTrinityGG"
                 cmdstr = str(UTILDIR + "/add_TrinityGG_to_fusion_summary.pl " + fusion_summary_min_score_thresh_file +
                              " " + trinGG_fusion_gff3 +
                              " > " + fusion_summary_w_trinity)
-
-                lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                       lstr_cur_dependencies = [ fusion_summary_min_score_thresh_file, trinGG_fusion_gff3 ],
-                                                       lstr_cur_products = [ fusion_summary_w_trinity ]
-                                                       ) )
-
-
+                
+                pipeliner.add_commands([Command(cmdstr, "add_trinity_fusions_to_summary.ok")]) 
+                
                 fusion_summary_min_score_thresh_file = fusion_summary_w_trinity  ## NOTE, VARIABLE REPLACEMENT HERE INCL TRINITY RESULTS
 
 
@@ -553,12 +503,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                 cmdstr = str(UTILDIR + "/SAM_to_frag_coords.pl --sam " + workdir_consolidated_bam_file +
                              " --max_insert_size 100000 "); 
 
-                lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                       lstr_cur_dependencies = [ workdir_consolidated_bam_file ],
-                                                       lstr_cur_products = [ workdir_consolidated_bam_file + ".frag_coords" ]
-                                                       ) )
-
-            if args_parsed.prep_for_IGV:
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_sam_frag_coordss.ok")]) 
 
                 ## Prep IGV fusion junction view
 
@@ -568,12 +513,9 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                 cmdstr = str(UTILDIR + "/fusion_summary_to_igv_JuncSpan_fmt.pl " + fusion_summary_file + " " +
                             frag_coords_file + " > " + igv_junc_view_file)
 
-                lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                       lstr_cur_dependencies = [ fusion_summary_file, frag_coords_file ],
-                                                       lstr_cur_products = [ igv_junc_view_file ] ) )
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_juncspan_fmt.ok")]) 
 
-
-
+                
 
 
         ################################################################
@@ -588,14 +530,9 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         
         cmdstr = str(UTILDIR + "/starfmt_reformatter.pl --fusion_preds " + fusion_summary_min_score_thresh_file +
                      " > " + starFfmt_file)
-                     
-                
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ fusion_summary_min_score_thresh_file ],
-                                               lstr_cur_products = [ starFfmt_file ] ) )
-        
-        
 
+        pipeliner.add_commands([Command(cmdstr, "starFfmt_convert.ok")]) 
+        
 
         ####################
         ## Add splicing info
@@ -608,13 +545,9 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                      mergedContig_fasta_filename +
                      " > " + preds_including_splice_info_file)
 
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ starFfmt_file,
-                                                                         mergedContig_fasta_filename ],
-                                               lstr_cur_products = [ preds_including_splice_info_file ] ) )
-        
+        pipeliner.add_commands([Command(cmdstr, "add_splice_info.ok")]) 
 
-        
+                
 
         ################################################
         ## Score and filter the final fusion predictions
@@ -628,10 +561,8 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                      " --genome_lib_dir " + args_parsed.genome_lib_dir +
                      " --max_promiscuity " + str(args_parsed.max_promiscuity) +
                      " --min_pct_dom_promiscuity " + str(args_parsed.min_pct_dom_promiscuity) )
-        
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ preds_including_splice_info_file ],
-                                               lstr_cur_products = [ final_fusions_file + ".final"] ) )
+
+        pipeliner.add_commands([Command(cmdstr, "blast_filter.ok")]) 
 
         unabridged_final_fusions_file = final_fusions_file + ".final"
                 
@@ -640,21 +571,17 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
         cmdstr = str(UTILDIR + "/column_exclusions.pl " + final_fusions_file + ".final" +
                      " JunctionReads,SpanningFrags,CounterFusionLeftReads,CounterFusionRightReads " +
                      " > " + final_fusions_file + ".final.abridged");
+        pipeliner.add_commands([Command(cmdstr, "final_abridged.ok")]) 
         
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ final_fusions_file + ".final" ],
-                                               lstr_cur_products = [ final_fusions_file + ".final.abridged"] ) )
-
         ## add FFPM calculations
-        cmdstr = str( os.path.sep.join([UTILDIR, "incorporate_FFPM_into_final_report.pl"]) +
-                      " " + args_parsed.left_fq_filename +
-                      " " + final_fusions_file + ".final.abridged" +
-                      " > " + final_fusions_file + ".final.abridged.FFPM" )
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ final_fusions_file + ".final.abridged",
-                                                                         args_parsed.left_fq_filename ],
-                                               lstr_cur_products = [ final_fusions_file + ".final.abridged.FFPM" ] ) )
-        
+        if args_parsed.left_fq_filename:
+            cmdstr = str( os.path.sep.join([UTILDIR, "incorporate_FFPM_into_final_report.pl"]) +
+                          " " + args_parsed.left_fq_filename +
+                          " " + final_fusions_file + ".final.abridged" +
+                          " > " + final_fusions_file + ".final.abridged.FFPM" )
+            
+            pipeliner.add_commands([Command(cmdstr, "add_FFPM.ok")])
+            
         
         if args_parsed.prep_for_IGV:
             ## generate the fusion-inspector-web galaxy js 
@@ -667,13 +594,10 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             if args_parsed.include_Trinity:
                 cmdstr = cmdstr + " --include_Trinity"
 
+
+            pipeliner.add_commands([Command(cmdstr, "create_fi_igvjs.ok")])
+
             
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [args_parsed.str_out_dir],
-                                                   lstr_cur_products = [ os.path.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".fusion_inspector_web.json"]) ] ) )
-
-
-
         final_fusions_file = final_fusions_file + ".final.abridged.FFPM"
 
         ## annotate
@@ -687,11 +611,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                          " --genome_lib_dir {}".format(genome_lib_dir) +
                          " > {} ".format(annotated_fusions_file) )
 
-
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ final_fusions_file ],
-                                                   lstr_cur_products = [ annotated_fusions_file ] ) )
-
+            pipeliner.add_commands([Command(cmdstr, "fusion_annotator.ok")]) 
 
             final_fusions_file = annotated_fusions_file
 
@@ -705,9 +625,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                          " --genome_lib_dir {}".format(genome_lib_dir) +
                          " > {} ".format(coding_effect_file) )
 
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ final_fusions_file ],
-                                                   lstr_cur_products = [ coding_effect_file ] ) )
+            pipeliner.add_commands([Command(cmdstr, "fusion_coding_region_effect.ok")]) 
 
             final_fusions_file = coding_effect_file
 
@@ -728,27 +646,24 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
             cmdstr += " " + args_parsed.extract_fusion_reads_dir
 
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ unabridged_final_fusions_file ],
-                                                   lstr_cur_products = [ fusion_reads_dir + "/fq_files_written.ok"] #make sciedpiper happy
-                                                   ) )
+            pipeliner.add_commands([Command(cmdstr, "get_fusion_evidence_fqs.ok")]) 
                 
         
         ## cleanup
         if args_parsed.cleanup:
 
             workdir_cleaned_file = os.path.sep.join([args_parsed.str_out_dir, "workdir.cleaned"])
-            cmdstr = "/bin/rm -rf " + workdir + " && touch " + workdir_cleaned_file
-            lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [workdir],
-                                                   lstr_cur_products = [workdir_cleaned_file]) )
+            cmdstr = "/bin/rm -rf " + workdir
             
-        
-        return lcmd_commands
+            pipeliner.add_commands([Command(cmdstr, "final_cleanup.ok")]) 
 
+                    
 
-
-    def get_fusion_and_spanning_reads (self, args_parsed, mergedContig_gtf_filename, mergedContig_fasta_filename, bam_file, lcmd_commands):
+        ## Run it
+        pipeliner.run()
+    
+    
+    def get_fusion_and_spanning_reads (self, args_parsed, mergedContig_gtf_filename, mergedContig_fasta_filename, bam_file, pipeliner):
         
         ## extract the fusion JUNCTION reads
         fusion_junction_reads_sam_file = bam_file + ".fusion_junc_reads.sam"
@@ -759,9 +674,7 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                      " --MIN_ALIGN_PER_ID " + str(args_parsed.min_per_id) +
                      " --bam " + bam_file + " > " + fusion_junction_reads_sam_file)
 
-        lcmd_commands.append( Command.Command (str_cur_command = cmdstr,
-                                              lstr_cur_dependencies = [ mergedContig_gtf_filename, bam_file ],
-                                              lstr_cur_products = [ fusion_junction_reads_sam_file, fusion_junction_info_file ] ) )
+        pipeliner.add_commands([Command(cmdstr, "get_fusion_JUNCTION_reads_from_bam.ok")]) 
 
         if args_parsed.write_intermediate_results:
             self.sort_sam_to_bam(fusion_junction_reads_sam_file, mergedContig_fasta_filename, lcmd_commands)
@@ -771,14 +684,12 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
             cmdstr = str(UTILDIR + "/SAM_to_bed.pl " + fusion_junction_reads_sam_file +
                          " > " + fusion_junction_reads_bed_file)
 
-            lcmd_commands.append( Command.Command ( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ fusion_junction_reads_sam_file ],
-                                                   lstr_cur_products = [ fusion_junction_reads_bed_file ] ) )
+            pipeliner.add_commands([Command(cmdstr, "fusion_junc_reads_to_bed_intermediates.ok")])
+            
+            self.sort_and_index_bed(fusion_junction_reads_bed_file, pipeliner)
+            
 
-            self.sort_and_index_bed(fusion_junction_reads_bed_file, lcmd_commands)
         
-
-
         ## extract the fusion SPANNING reads
         fusion_spanning_reads_sam_file = bam_file + ".fusion_span_reads.sam"
         fusion_spanning_reads_info_file = bam_file + ".fusion_spanning_info"
@@ -790,54 +701,41 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                      " --junction_info " + fusion_junction_info_file + 
                      " > " + fusion_spanning_reads_sam_file)
 
-        lcmd_commands.append( Command.Command (str_cur_command = cmdstr,
-                                              lstr_cur_dependencies = [ mergedContig_gtf_filename, bam_file, fusion_junction_info_file ],
-                                              lstr_cur_products = [ fusion_spanning_reads_sam_file, fusion_spanning_reads_info_file ] ) )
+        pipeliner.add_commands([Command(cmdstr, "get_fusion_SPANNING_reads_from_bam.ok")]) 
 
         if args_parsed.write_intermediate_results:
-            self.sort_sam_to_bam(fusion_spanning_reads_sam_file, mergedContig_fasta_filename, lcmd_commands)
+            self.sort_sam_to_bam(fusion_spanning_reads_sam_file, mergedContig_fasta_filename, pipeliner)
 
             ## convert the fusion JUNCTION reads sam file to bed format
             fusion_spanning_reads_bed_file = bam_file + ".fusion_span_reads.bed"
             cmdstr = str(UTILDIR + "/SAM_pair_to_bed.pl " + fusion_spanning_reads_sam_file +
                          " > " + fusion_spanning_reads_bed_file)
 
-            lcmd_commands.append( Command.Command ( str_cur_command = cmdstr,
-                                                   lstr_cur_dependencies = [ fusion_spanning_reads_sam_file ],
-                                                   lstr_cur_products = [ fusion_spanning_reads_bed_file ] ) )
+            pipeliner.add_commands([Command(cmdstr, "spanning_reads_bed_intermediate.ok")]) 
+
+            self.sort_and_index_bed(fusion_spanning_reads_bed_file, pipeliner)
 
 
+    def sort_and_index_bed(self, bed_file, pipeliner, checkpoint_token_prefix=None):
 
-            self.sort_and_index_bed(fusion_spanning_reads_bed_file, lcmd_commands)
-
-
-
-
-
-
-    def sort_and_index_bed(self, bed_file, lcmd_commands):
-
-
+        if checkpoint_token_prefix is None:
+            checkpoint_token_prefix = os.path.basename(bed_file)
+        
         # sort by contig name followed by coordinate
         sorted_bed_file = bed_file + ".sorted.bed"
 
         cmdstr = str("sort -k1,1 -k2,2n " + bed_file + " > " + sorted_bed_file)
-        lcmd_commands.append( Command.Command (str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ bed_file ],
-                                               lstr_cur_products = [ sorted_bed_file ] ) )
+        
+        
+        pipeliner.add_commands([Command(cmdstr, checkpoint_token_prefix + ".bedsort.ok")]) 
 
-
+        
         # index using tabix (preferred for IGV-web)
         cmdstr = str("bgzip -f " + sorted_bed_file)
-        lcmd_commands.append( Command.Command (str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ sorted_bed_file ],
-                                               lstr_cur_products = [ sorted_bed_file + ".gz" ] ) )
-
+        pipeliner.add_commands([Command(cmdstr, checkpoint_token_prefix + ".bgzip.ok")])
+        
         cmdstr = str("tabix -p bed " + sorted_bed_file + ".gz")
-        lcmd_commands.append( Command.Command (str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ sorted_bed_file + ".gz" ],
-                                               lstr_cur_products = [ sorted_bed_file + ".gz.tbi" ] ) )
-
+        pipeliner.add_commands([Command(cmdstr, checkpoint_token_prefix + ".tabix.ok")])
 
         return
 
@@ -845,43 +743,50 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
 
 
 
-    def sort_sam_to_bam(self, fusion_junction_reads_sam_file, mergedContig_fasta_filename, lcmd_commands):
+    def sort_sam_to_bam(self, sam_file, mergedContig_fasta_filename, pipeliner, checkpoint_token_prefix=None):
 
-        cmdstr = str("set -o pipefail & samtools view -bT " + mergedContig_fasta_filename + " " + fusion_junction_reads_sam_file +
-                     " | samtools sort - -o " + fusion_junction_reads_sam_file + ".bam")
+        
+        if checkpoint_token_prefix is None:
+            checkpoint_token_prefix = os.path.basename(sam_file) 
 
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ fusion_junction_reads_sam_file ],
-                                               lstr_cur_products = [ fusion_junction_reads_sam_file + ".bam" ] ) )
 
+        cmdstr = str("set -o pipefail & samtools view -bT " + mergedContig_fasta_filename + " " + sam_file +
+                     " | samtools sort - -o " + sam_file + ".bam")
+        
+        pipeliner.add_commands([Command(cmdstr, checkpoint_token_prefix + ".samToBam.ok")])
+        
+        
         # index it
-        cmdstr = str("samtools index " + fusion_junction_reads_sam_file + ".bam")
-
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ fusion_junction_reads_sam_file + ".bam" ],
-                                               lstr_cur_products = [ fusion_junction_reads_sam_file + ".bam.bai" ] ) )
+        cmdstr = str("samtools index " + sam_file + ".bam")
+        pipeliner.add_commands([Command(cmdstr, checkpoint_token_prefix + ".samtools_idx.ok")])
+        
 
         return
 
 
 
-    def bam_to_bed(self, bam_file, lcmd_commands):
+    def bam_to_bed(self, bam_file, pipeliner, checkpoint_token_prefix=None):
+        
+        if checkpoint_token_prefix is None:
+            checkpoint_token_prefix = os.path.basename(bam_file) 
+
+
+        
         ## convert the reads bam file to bed format
         cmdstr = str(UTILDIR + "/SAM_pair_to_bed.pl " + bam_file +
                      " > " + bam_file + ".bed")
+
+        pipeliner.add_commands([Command(cmdstr, checkpoint_token_prefix + ".bam_to_bed.ok")])
+
         
-        lcmd_commands.append( Command.Command ( str_cur_command = cmdstr,
-                                                lstr_cur_dependencies = [ bam_file ],
-                                                lstr_cur_products = [ bam_file + ".bed" ] ) )
-        
-        
-        self.sort_and_index_bed(bam_file + ".bed", lcmd_commands)
+        self.sort_and_index_bed(bam_file + ".bed", pipeliner, checkpoint_token_prefix)
 
         return
 
 
     
-    def add_trinfusion_gmap_subpipe(self, args_parsed, mergedContig_fasta_filename, mergedContig_gtf_filename, trinity_fasta_filename, lcmd_commands, workdir):
+    def add_trinfusion_gmap_subpipe(self, args_parsed, mergedContig_fasta_filename, mergedContig_gtf_filename,
+                                    trinity_fasta_filename, pipeliner, workdir):
 
         gmap_gff3_output_filename = os.sep.join([workdir, args_parsed.out_prefix + ".gmap_trinity_GG.gff3"])
 
@@ -889,51 +794,46 @@ class FusionInspector( PipelineRunner.PipelineRunner ):
                      "--genome " + mergedContig_fasta_filename + " --transcripts " + trinity_fasta_filename +
                      " --no_chimera > " + gmap_gff3_output_filename)
 
-        lcmd_commands.append( Command.Command (str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ mergedContig_fasta_filename, trinity_fasta_filename ],
-                                               lstr_cur_products = [ gmap_gff3_output_filename ] ) )
-        
-        
+        pipeliner.add_commands([Command(cmdstr, "trinity_gmap_alignment.ok")])
+
         ## extract the Trinity fusion transcripts
         trinity_fusion_trans_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".gmap_trinity_GG.fusions.gff3"])
         cmdstr = str(os.sep.join([UTILDIR, "get_Trinity_fusion_alignments_from_gff3.pl"]) + " " + mergedContig_gtf_filename +
                      " " + gmap_gff3_output_filename + " > " + trinity_fusion_trans_filename)
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ mergedContig_gtf_filename, gmap_gff3_output_filename ],
-                                               lstr_cur_products = [ trinity_fusion_trans_filename ] ) )
 
+        pipeliner.add_commands([Command(cmdstr, "trinity_fusion_trans_extraction_gff3.ok")])
 
 
         ## extract the Trinity Fusion transcripts
         trinityGG_fusion_fasta = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".gmap_trinity_GG.fusions.fasta"])
         cmdstr = str(os.sep.join([UTILDIR, "get_Trinity_fusion_fasta_seqs.pl"]) + " " + trinity_fasta_filename + " " + trinity_fusion_trans_filename +
                      " > " + trinityGG_fusion_fasta)
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ trinity_fasta_filename, trinity_fusion_trans_filename ],
-                                               lstr_cur_products = [ trinityGG_fusion_fasta ] ) )
-    
-        
+        pipeliner.add_commands([Command(cmdstr, "trinity_fusion_trans_extraction_fasta.ok")])
                     
-
-
-        
         # convert fusion trans to bed
         trinity_fusion_trans_bed_filename = trinity_fusion_trans_filename + ".bed"
         min_per_id = 95
         cmdstr = str(UTILDIR + "/transcript_gff3_to_bed.pl " + trinity_fusion_trans_filename +
                      " " + str(min_per_id) + " > " + trinity_fusion_trans_bed_filename)
-        lcmd_commands.append( Command.Command( str_cur_command = cmdstr,
-                                               lstr_cur_dependencies = [ trinity_fusion_trans_filename ],
-                                               lstr_cur_products = [ trinity_fusion_trans_bed_filename ] ) )
 
-        self.sort_and_index_bed(trinity_fusion_trans_bed_filename, lcmd_commands)
-
+        pipeliner.add_commands([Command(cmdstr, "trinity_fusion_trans_gff3_to_bed.ok")])
         
+        self.sort_and_index_bed(trinity_fusion_trans_bed_filename, pipeliner, "trinity_fusion")
         
-        
-
         return (trinity_fusion_trans_filename) # trinGG fusion gff3 file w/ breakpoints encoded
 
+
+
+def check_files_exist(files_lst):
+
+    missing = False
+    for file in files_lst:
+        if not os.path.exists(file):
+            print("Error, cannot locate file: {}\n".file(file), file=sys.stderr)
+            missing = True
+
+    if missing:
+        raise RuntimeError("Error, missing files as indicated")
 
 
 def contains_fusions (fusion_files):
@@ -951,8 +851,6 @@ def contains_fusions (fusion_files):
     return False # no fusions listed
 
 
-
-
     
 if __name__ == "__main__":
 
@@ -966,7 +864,7 @@ if __name__ == "__main__":
 
 
     # Needed to run, calls the script
-    FusionInspector().func_run_pipeline()
-
+    FusionInspector().run()
+    
 
 
