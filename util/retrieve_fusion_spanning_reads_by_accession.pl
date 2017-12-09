@@ -34,10 +34,13 @@ main: {
             
             my $fusion_contig = "$geneA--$geneB";
             foreach my $read_name (split(/,/, $reads_list)) {
+                if ($read_name =~ /^\&[^\@]+\@/) {
+                    $read_name =~ s/^\&[^\@]+\@//;
+                }
                 $cores_want{"$fusion_contig|$read_name"} = 1;
             }
         }
-                
+        
     }
     
     

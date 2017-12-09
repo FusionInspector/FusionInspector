@@ -151,7 +151,11 @@ sub extract_read_coords {
             
             my $mate_scaff_pos = $sam_entry->get_mate_scaffold_position();
             my ($read_start, $read_end) = $sam_entry->get_genome_span();
-            
+
+            my $read_group = $sam_entry->get_read_group();
+            if ($read_group) {
+                $core_read_name = "&" . $read_group . "@" . $core_read_name;
+            }
             
             print $ofh join("\t", $scaffold, $core_read_name, $pair_side, $read_start, $read_end) . "\n" if $scaffold ne '*' && $read_start && $read_end;
         };
@@ -172,19 +176,15 @@ sub extract_read_coords {
 ####
 sub extract_frag_coords {
     my ($read_coords_file, $pair_frag_coords_file) = @_;
-    unless (-s "$read_coords_file.sort_by_readname" ){
-        ## sort by scaffold, then by read name
-        my $cmd = "$sort_exec -S$sort_buffer -T . -k1,1 -k2,2 -k4,4n $read_coords_file > $read_coords_file.sort_by_readname";
-        &process_cmd($cmd);
-        rename("$read_coords_file.sort_by_readname", $read_coords_file);
-        # so that sort is not re-done...
-        symlink(&create_full_path($read_coords_file),&create_full_path("$read_coords_file.sort_by_readname"));
-    }
+    
+    ## sort by scaffold, then by read name
+    my $cmd = "$sort_exec -S$sort_buffer -T . -k1,1 -k2,2 -k4,4n $read_coords_file > $read_coords_file.sort_by_readname";
+    &process_cmd($cmd);
     
     ## define fragment pair coordinate span
-    open (my $fh, "$read_coords_file") or die $!;
+    open (my $fh, "$read_coords_file.sort_by_readname") or die "Error, cannot open file: $read_coords_file.sort_by_readname";
     
-    open (my $ofh, ">$pair_frag_coords_file") or die $!;
+    open (my $ofh, ">$pair_frag_coords_file") or die "Error, cannot write to $pair_frag_coords_file";
     
     my $prev_reported_pair = "";
     my $prev_reported_single = "";
@@ -251,8 +251,8 @@ sub extract_frag_coords {
     close $fh;
 
 
-    my $cmd = "$sort_exec -S$sort_buffer -T . -k1,1 -k3,3n $pair_frag_coords_file > $pair_frag_coords_file.coord_sorted";
-    &process_cmd($cmd) unless -s "$pair_frag_coords_file.coord_sorted";
+    $cmd = "$sort_exec -S$sort_buffer -T . -k1,1 -k3,3n $pair_frag_coords_file > $pair_frag_coords_file.coord_sorted";
+    &process_cmd($cmd);
 
     rename("$pair_frag_coords_file.coord_sorted", $pair_frag_coords_file);
         

@@ -142,13 +142,13 @@ main: {
             unless (-s $left_fq) {
                 confess "Error, cannot locate file: $left_fq";
             }
-            push (@left_fqs, $left_fq);
+            push (@left_fqs, &Pipeliner::ensure_full_path($left_fq));
 
             if ($right_fq) {
                 unless (-s $right_fq) {
                     confess "Error, cannot locate file: $right_fq";
                 }
-                push (@right_fqs, $right_fq);
+                push (@right_fqs, &Pipeliner::ensure_full_path($right_fq));
             }
         }
         close $fh;
@@ -206,7 +206,7 @@ main: {
     
     my @tmpfiles;
     
-    my $pipeliner = new Pipeliner(-verbose => 1);
+    my $pipeliner = new Pipeliner(-verbose => 2);
 
     my $cmd = "$star_prog "
         . " --runThreadN $CPU "

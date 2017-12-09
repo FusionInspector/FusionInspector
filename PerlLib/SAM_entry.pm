@@ -111,6 +111,20 @@ sub get_scaffold_start_position {
 
 
 ####
+sub get_read_group {
+    my $self = shift;
+    my $line = $self->get_original_line();
+
+    if ($line =~ /RG:Z:(\S+)/) {
+        return($1);
+    }
+    else {
+        return undef;
+    }
+}
+            
+
+####
 sub get_cigar_alignment {
 	my $self = shift;
 	return($self->{_fields}->[5]);

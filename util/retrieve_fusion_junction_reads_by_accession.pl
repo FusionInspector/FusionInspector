@@ -45,12 +45,23 @@ main: {
         
         my $sam_reader = new SAM_reader($bam_file);
         while (my $sam_entry = $sam_reader->get_next()) {
+           
+            my $line = $sam_entry->get_original_line();
+                
             my $scaffold = $sam_entry->get_scaffold_name();
             my $read_name = $sam_entry->get_core_read_name();
             #my $read_name = $sam_entry->reconstruct_full_read_name();
+
+            
+            if ($line =~ /RG:Z:(\S+)/) {
+                my $read_group = $1;
+                $read_name = "&" . $read_group . "@" . $read_name;
+            }
+            
+
             $read_name = "$scaffold|$read_name";
             if ($reads_want{$read_name}) {
-                print $sam_entry->get_original_line() . "\n";
+                print "$line\n";
                 $seen{$read_name} = 1;
             }
         }

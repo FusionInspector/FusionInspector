@@ -73,6 +73,7 @@ main: {
     {
         open (my $fh, $reads_frag_file) or die "Error, cannot open file $reads_frag_file";
         while (<$fh>) {
+            #print STDERR "FRAGS: $_";
             chomp;
             my ($fusion_contig, $frag_name, $lend, $rend) = split(/\t/);
             
@@ -84,7 +85,12 @@ main: {
         close $fh;
     }
 
+    #use Data::Dumper;
+    #print STDERR Dumper(\%spanning_want);
+    
     ## output JuncSpan fmt file
+
+   
     
     # print header
     print join("\t", "#scaffold", "fusion_break_name", "break_left", "break_right",

@@ -32,9 +32,14 @@ single_reads_fc_only:
 	./runMe.pl --out_dir FusionInspector-single_reads-fc_only --left_fq ${left_fq} --fusion_contigs_only --extract_fusion_reads_dir FusionInspector-single_reads/fusion_reads 
 
 
+samples_file_PE:
+	./runMe.pl --out_dir FusionInspector-pe_samples --samples_file data/samples.txt --fusion_contigs_only 
+
+
 clean:
 	rm -rf ./FusionInspector-fusionContigOnly ./FusionInspector-fusionContigOnly-incl_Trinity
 	rm -rf ./FusionInspector-outdir
 	rm -rf ./FusionInspector-single_reads ./FusionInspector-single_reads-fc_only
+	rm -rf ./FusionInspector-pe_samples
 
 

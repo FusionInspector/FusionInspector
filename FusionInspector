@@ -408,8 +408,8 @@ class FusionInspector:
                          + " " + ",".join(fusion_junction_reads_list) +
                          " | samtools view -@ " + str(args_parsed.CPU) + " -bT " + mergedContig_fasta_filename + " - " +
                          " | samtools sort -@ " + str(args_parsed.CPU) + " - -o " + consolidated_junction_reads_bam)
-            #+ " || : ") # cant afford for this to fail due to lack of evidence reads
-
+            cmdstr = "bash -c \"set -eof pipefail; {}\"".format(cmdstr)
+            
             pipeliner.add_commands([Command(cmdstr, "prep_igv_junc_reads_bam.ok")]) 
 
             cmdstr = "samtools index " + consolidated_junction_reads_bam
