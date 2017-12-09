@@ -8,7 +8,7 @@ test:
 	./runMe.pl --out_dir FusionInspector-outdir --left_fq ${left_fq} --right_fq ${right_fq}
 
 
-all: test fusion_contigs_only incl_Trinity annotate coding_effect single_reads single_reads_fc_only
+all: test fusion_contigs_only incl_Trinity annotate coding_effect single_reads single_reads_fc_only samples_file_PE
 
 
 fusion_contigs_only:

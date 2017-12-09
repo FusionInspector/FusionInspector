@@ -677,7 +677,7 @@ class FusionInspector:
         pipeliner.add_commands([Command(cmdstr, "get_fusion_JUNCTION_reads_from_bam.ok")]) 
 
         if args_parsed.write_intermediate_results:
-            self.sort_sam_to_bam(fusion_junction_reads_sam_file, mergedContig_fasta_filename, lcmd_commands)
+            self.sort_sam_to_bam(fusion_junction_reads_sam_file, mergedContig_fasta_filename, pipeliner)
 
             ## convert the fusion JUNCTION reads sam file to bed format
             fusion_junction_reads_bed_file = bam_file + ".fusion_junc_reads.bed"
