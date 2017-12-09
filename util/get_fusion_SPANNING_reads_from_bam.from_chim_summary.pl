@@ -348,14 +348,18 @@ main: {
 
                     my $read_group = $pair_coords[0]->{read_group};
                     
-                    unless ($left_read_orient eq '+' && $right_read_orient eq '-') { next; }  # not proper pairs after all!!
-
+                    unless ($left_read_orient eq '+' && $right_read_orient eq '-') { 
+                        # not proper pairs after all!!
+                        print STDERR "-skipping pair $scaffold|$fragment, discordantly aligned\n" if $DEBUG;
+                        next; 
+                    }  
+                    
                     #####################################################################
                     ## assign fragment as fusion support based on breakpoint coordinates.
 
 
                     my $is_fusion_spanning_fragment_flag = 0;
-                    if ($left_read_rend < $gene_bound_left && $right_read_lend > $gene_bound_right
+                    if ($left_read_rend <= $gene_bound_left && $right_read_lend >= $gene_bound_right
                         
                         # ensure ok quality
                         && $pair_coords[0]->{qual} > 0 && $pair_coords[1]->{qual} > 0
@@ -367,7 +371,13 @@ main: {
                         $is_fusion_spanning_fragment_flag = 1;
                         $spanning_read_want{"$scaffold|$fragment"}++; # capture for SAM-retreival next.
                     }
-
+                    else {
+                        if ($DEBUG) {
+                            print STDERR "-fragment: $scaffold|$fragment not flagged as fusion spanning. "
+                                . " frag coords: $left_read_lend-$left_read_rend:$left_read_orient -- $right_read_lend-$right_read_rend:$right_read_orient gene_bounds: $gene_bound_left,$gene_bound_right\n" . Dumper(\@pair_coords);
+                        }
+                    }
+                    
 
                     ##########
                     ## encode the read group into the fragment name:
@@ -388,7 +398,7 @@ main: {
                             my ($break_lend, $break_rend) = split(/-/, $fusion_breakpoint);
                             print STDERR "** Breakpoint: $break_lend, $break_rend\n" if $DEBUG;
                             
-                            print STDERR "r1: $left_read_lend-$left_read_rend   r2: $right_read_lend-$right_read_rend  brk: $fusion_breakpoint\n" if $DEBUG;
+                            print STDERR "$fragment\tr1: $left_read_lend-$left_read_rend   r2: $right_read_lend-$right_read_rend  brk: $fusion_breakpoint\n" if $DEBUG;
 
                             if($is_fusion_spanning_fragment_flag) {
                                 

@@ -79,8 +79,7 @@ main: {
     }
 
     if (%cores_want) {
-        die "Error, missing spanning reads: " . Dumper(\%cores_want);
-        
+        print STDERR "Warning, missing spanning reads, presumably excluded by per_id, num hit, qual, or other filters earlier on: " . Dumper(\%cores_want);
     }
     
     exit(0);

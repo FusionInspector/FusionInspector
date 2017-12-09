@@ -73,7 +73,7 @@ main: {
     }
     
     if (%reads_want) {
-        confess "Error, missing junction reads: " . Dumper(\%reads_want);
+        print STDERR "Warning, missing junction reads presumably filtered out due to per_id, qualitiy, num hits, or other filters earlier on: " . Dumper(\%reads_want);
         
     }
     
