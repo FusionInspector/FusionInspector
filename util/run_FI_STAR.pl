@@ -208,11 +208,12 @@ main: {
     
     my $pipeliner = new Pipeliner(-verbose => 2);
 
+
+    
     my $cmd = "$star_prog "
         . " --runThreadN $CPU "
         . " --genomeDir $star_index "
         . " --outSAMtype BAM SortedByCoordinate "
-        . " --readFilesIn $reads "
         . " --twopassMode Basic "
         . " --alignMatesGapMax 100000 "
         . " --alignIntronMax 100000 "
@@ -220,6 +221,26 @@ main: {
         . " --genomeSuffixLengthMax 10000"
         . " --limitBAMsortRAM 20000000000";
 
+
+
+    if (length($reads) > 1000) {
+        my $star_params_file = "star_params.$$.txt";
+        open(my $ofh, ">$star_params_file") or die "Error, cannot write to fiel: $star_params_file";
+        print $ofh "readFilesIn $reads\n";
+        if ($read_group_ids) {
+            print $ofh "outSAMattrRGline $read_group_ids\n";
+        }
+        close $ofh;
+
+        $cmd .= " --parametersFiles $star_params_file ";
+    }
+    else {
+        $cmd .= " --readFilesIn $reads ";
+        if ($read_group_ids) {
+            $cmd .= " --outSAMattrRGline $read_group_ids ";
+        }
+    }
+    
 
     if ($chim_search) {
         $cmd .= " --chimJunctionOverhangMin 12 "
@@ -255,9 +276,6 @@ main: {
         $cmd .= " --readFilesCommand 'gunzip -c' ";
     }
     
-    if ($read_group_ids) {
-        $cmd .= " --outSAMattrRGline $read_group_ids ";
-    }
     
     
     $pipeliner->add_commands( new Command($cmd, "star_align.ok") );
