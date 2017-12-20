@@ -148,7 +148,7 @@ class FusionInspector:
             sys.exit(1)
         
         if args_parsed.include_Trinity:
-            # 2017-1-20
+            # 2017-12-20
             # Cicada Dennis added code which looks for the location of the Trinity program using the Unix "which" utility.
             # copied from my code placed in DISCASM on 10/23, except added use of os.path.realpath() to do the link dereferencing.
             # Previous code which is replaced:
