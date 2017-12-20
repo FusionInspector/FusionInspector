@@ -14,9 +14,12 @@ our ($TRINITY_HOME);
 
 
 BEGIN {
-    unless ($TRINITY_HOME = $ENV{TRINITY_HOME}) {
-        confess "Error, need TRINITY_HOME env var set to Trinity base installation directory";
-    }
+# Removed by Cicada Dennis on 2017/12/20.
+# Remove this because TRINITY_HOME is not always needed.
+# it is only needed when the Trinity option is on the command line.
+#    unless ($TRINITY_HOME = $ENV{TRINITY_HOME}) {
+#        confess "Error, need TRINITY_HOME env var set to Trinity base installation directory";
+#    }
 }
 
 
