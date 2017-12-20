@@ -8,6 +8,7 @@ from __future__ import (absolute_import, division,
 
 import os, re, sys
 import argparse
+import subprocess
 
 sys.path.insert(0, os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "PyLib"]))
 from Pipeliner import Pipeliner, Command
@@ -146,17 +147,70 @@ class FusionInspector:
             print("Error, must specify --left_fq or --samples_file", file=sys.stderr)
             sys.exit(1)
         
-
         if args_parsed.include_Trinity:
-
-            if not os.environ.has_key('TRINITY_HOME'):
-                print("Error, need TRINITY_HOME environmental variable set and pointing to Trinity installation directory when --include_Trinity is enabled", file=sys.stderr)
-                sys.exit(2)
-    
+            # 2017-1-20
+            # Cicada Dennis added code which looks for the location of the Trinity program using the Unix "which" utility.
+            # copied from my code placed in DISCASM on 10/23, except added use of os.path.realpath() to do the link dereferencing.
+            # Previous code which is replaced:
+            # if args_parsed.include_Trinity:
+            #
+            #    if not os.environ.has_key('TRINITY_HOME'):
+            #        print("Error, need TRINITY_HOME environmental variable set and pointing to Trinity installation directory when --include_Trinity is enabled", file=sys.stderr)
+            #        sys.exit(2)
+            #
+            #    global TRINITY_HOME
+            #    TRINITY_HOME = os.environ["TRINITY_HOME"]
             global TRINITY_HOME
-            TRINITY_HOME = os.environ["TRINITY_HOME"]
-    
-
+            TRINITY_HOME_error_msg = "Before running {0}, you must set the environment variable TRINITY_HOME\n".format(sys.argv[0]) + \
+                "\tto the base installation directory of Trinity,\n\tor that directory needs to be in the PATH " + \
+                "when --include_Trinity is enabled.\n\n"
+            if 'TRINITY_HOME' in os.environ:
+                TRINITY_HOME = os.environ['TRINITY_HOME']
+            else:
+                # if hasattr(os, 'symlink'): # symlink was implemented to always return false when it was not implemented in early python.
+                # Not using symlink. Using os.path.islink() and os.readlink().
+                try:
+                    # I tried using "command -v Trinity" but for some reason, I was getting an OS permission error with that.
+                    # distutils.spawn.find_executable() also might work, I but already implemented the below.
+                    pipe1 = subprocess.Popen(["which", "Trinity"], stdout=subprocess.PIPE)
+                except:
+                    sys.stderr.write(TRINITY_HOME_error_msg)
+                    # t, v, tb = sys.exc_info()
+                    # raise t, v, tb
+                    # For some reason the above was giving a syntax error. 
+                    # A simple raise should reraise the existing exception.
+                    raise
+                else:
+                    TrinityPath, err_info = pipe1.communicate()
+                    # FIX - probably should be checking err_info for errors...
+                    #print "err_info is:"
+                    #print err_info
+            
+                    # Determine TRINITY_HOME from the TrinityPath returned.
+                    # If TrinityPath is a link, we need to dereference the link.
+                    TrinityPath = TrinityPath.rstrip() # Need to strip off a newline.
+                    if len(TrinityPath) > 0:
+                        # print "Trinity that was found is: {:s}".format(repr(TrinityPath))
+                        # The function os.path.realpath()should get rid of any links in the path.
+                        # The surrounding os.path.abspath() is probably unnecessary, but doesn't hurt.
+                        TrinityPath = os.path.abspath(os.path.realpath(TrinityPath))
+                        # msg = "The Absolute Trinity path that was found is: {:s}".format(TrinityPath)
+                        # print msg
+                        # Take off the last part of the path (which is the Trinity command)
+                        TRINITY_HOME = "/".join(TrinityPath.split("/")[0:-1])
+                        os.environ['TRINITY_HOME'] = TRINITY_HOME
+                        sys.stdout.write("TRINITY_HOME has been set to: {:s}.\n".format(TRINITY_HOME))
+                    # else: # There was no value returned by the which command. So Trinity is not in the PATH.
+                    #     Doing nothing leaves TRINITY_HOME as None.
+            # end of else no TRINITY_HOME environment variable.
+            # Maybe should double check that Trinity actually exist in the TRINITY_HOME directory.
+            
+            # If TRINITY_HOME didn't get set, it will still be None.
+            if TRINITY_HOME is None:
+                sys.stderr.write(TRINITY_HOME_error_msg)
+                sys.exit(2)
+                # Keeping same way of exiting, though in DISCASM, an error was raised in the same situation.
+                #raise RuntimeError("Error, must set TRINITY_HOME env var when --include_Trinity is enabled.")
         
         genome_lib_dir = args_parsed.genome_lib_dir
         if genome_lib_dir is None:
