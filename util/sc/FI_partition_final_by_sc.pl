@@ -75,16 +75,17 @@ main: {
             $cellrow{CounterFusionRightReads} = $cell_counter_fusion_right_reads_string;
 
                         
-            $cellrow{FAF_left} = 
-                 ($cell_junction_reads_count + $cell_spanning_frags_count + 1) / 
-                    ($cell_junction_reads_count + $cell_spanning_frags_count + $cell_counter_fusion_left_reads_count + 1);
-        
+            $cellrow{FAF_left} = sprintf("%.3f",  
+                                         ($cell_junction_reads_count + $cell_spanning_frags_count + 1) / 
+                                         ($cell_junction_reads_count + $cell_spanning_frags_count + $cell_counter_fusion_left_reads_count + 1)
+                );
 
-
-            $cellrow{FAF_right} = 
-           
-                $cellrow{FAF_right} = ($cell_junction_reads_count + $cell_spanning_frags_count + 1) / 
-                    ($cell_junction_reads_count + $cell_spanning_frags_count + $cell_counter_fusion_right_reads_count + 1);
+            
+            $cellrow{FAF_right} = sprintf("%.3f",  
+                                          
+                                          $cellrow{FAF_right} = ($cell_junction_reads_count + $cell_spanning_frags_count + 1) / 
+                                          ($cell_junction_reads_count + $cell_spanning_frags_count + $cell_counter_fusion_right_reads_count + 1)
+                );
             
             
             $delim_writer->write_row(\%cellrow);
@@ -114,10 +115,12 @@ sub partition_by_cell {
     my @reads = split(/,/, $reads_string);
 
     foreach my $read (@reads) {
-        my ($cell, $rest) = split(/\^/, $read);
-        $cell_to_reads{$cell}->{$read} = 1;
+        if ($read =~ /^\&([^\@]+)\@/) {
+            my $cell = $1;
+            $cell_to_reads{$cell}->{$read} = 1;
+        }
     }
-
+    
     return(%cell_to_reads);
 }
 
