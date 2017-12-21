@@ -381,8 +381,11 @@ main: {
 
                     ##########
                     ## encode the read group into the fragment name:
-                    $fragment = "&" . $read_group . "@" . $fragment;
-                                        
+                    
+                    if ($read_group) {
+                        $fragment = "&" . $read_group . "@" . $fragment;
+                    }
+                    
                     
                     #################
                     ## assign spanning frags to the specific breakpoints
