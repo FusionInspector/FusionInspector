@@ -292,12 +292,12 @@ class FusionInspector:
 
         # symlink them in the workdir
         workdir_mergedContig_fasta_filename = os.sep.join([workdir, args_parsed.out_prefix + ".fa"])
-        cmdstr = str("ln -s " + mergedContig_fasta_filename + " " + workdir_mergedContig_fasta_filename)
+        cmdstr = str("ln -sf " + mergedContig_fasta_filename + " " + workdir_mergedContig_fasta_filename)
         pipeliner.add_commands([Command(cmdstr, "symlink_contigs_file_workdir")])
         
                 
         workdir_mergedContig_gtf_filename = os.sep.join([workdir, args_parsed.out_prefix + ".gtf"])
-        cmdstr = str("ln -s " + mergedContig_gtf_filename + " " + workdir_mergedContig_gtf_filename)
+        cmdstr = str("ln -sf " + mergedContig_gtf_filename + " " + workdir_mergedContig_gtf_filename)
         pipeliner.add_commands([Command(cmdstr, "symlink_gtf_file_workdir.ok")])
                 
         ## build a cytoband file
@@ -517,7 +517,7 @@ class FusionInspector:
 
             workdir_consolidated_bam_file = os.sep.join([workdir, args_parsed.out_prefix  + ".consolidated.bam"])
             
-            cmdstr = "ln -s " + consolidated_bam_file + " " + workdir_consolidated_bam_file
+            cmdstr = "ln -sf " + consolidated_bam_file + " " + workdir_consolidated_bam_file
             pipeliner.add_commands([Command(cmdstr, "symlink_consol_bam.ok")]) 
             
             if args_parsed.include_Trinity:

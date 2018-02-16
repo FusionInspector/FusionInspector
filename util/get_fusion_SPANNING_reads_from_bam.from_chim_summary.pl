@@ -370,6 +370,7 @@ main: {
                     {
                         $is_fusion_spanning_fragment_flag = 1;
                         $spanning_read_want{"$scaffold|$fragment"}++; # capture for SAM-retreival next.
+                        #print STDERR "-want $scaffold|$fragment in sam\n";
                     }
                     else {
                         if ($DEBUG) {
@@ -416,6 +417,8 @@ main: {
                                     # must meet the more restrictive criteria wrt qual and NH
                                     push (@{$fusion_to_spanning_reads{"$scaffold|$fusion_breakpoint"}}, $fragment);
                                     $assigned_to_breakpoint_flag = 1;
+
+                                    #print STDERR "\t-capturing spanning breakpoint frag: $fragment\n";
                                 }
                                                                                                                               
                             }
@@ -454,7 +457,7 @@ main: {
                         } # end of foreach breakpoing candidate
                     } # end of if have candidate breakpoints
                     
-                    unless ($assigned_to_breakpoint_flag) {
+                    if ($is_fusion_spanning_fragment_flag && ! $assigned_to_breakpoint_flag) {
                         # still capture it even though there's no junction read to assign it to.
                         
                         my $fuzzy_breakpoint = join("-", $gene_bound_left, $gene_bound_right);
@@ -472,6 +475,12 @@ main: {
     # output the spanning reads we want in SAM format
     
     if (%spanning_read_want) {
+
+        my $num_spanning_reads_want = scalar(keys %spanning_read_want);
+        print STDERR "-retrieving read alignments for $num_spanning_reads_want spanning frags.\n";
+        
+        my %missing = %spanning_read_want;
+        
         my $sam_reader = new SAM_reader($bam_file);
         while (my $sam_entry = $sam_reader->get_next()) {
                         
@@ -479,7 +488,15 @@ main: {
             my $core_read_name = $sam_entry->get_core_read_name();
             if ($spanning_read_want{"$scaffold|$core_read_name"}) {
                 print $sam_entry->get_original_line() . "\n";
+
+                if (exists $missing{"$scaffold|$core_read_name"}) {
+                    delete $missing{"$scaffold|$core_read_name"};
+                }
             }
+        }
+
+        if (%missing) {
+            confess "Error, didn't extract the following spanning frags from the bam file ($bam_file): " . Dumper(\%missing);
         }
     }
     
@@ -487,12 +504,13 @@ main: {
         #########################################################################
         ##  Generate the spanning fragment and contrary read support info summary
         
-        print STDERR "-outputting the spanning read info.\n";
 
         ## output the spanning read info
         my $spanning_read_info_file = "$bam_file.fusion_spanning_info";
         open (my $ofh, ">$spanning_read_info_file") or die "Error, cannot write to $spanning_read_info_file";
 
+        print STDERR "-outputting the spanning read info: $spanning_read_info_file.\n";
+                
         my @fields = qw(LeftGene LeftLocalBreakpoint LeftBreakpoint
                         RightGene RightLocalBreakpoint RightBreakpoint
                         SpliceType 
