@@ -138,7 +138,8 @@ class FusionInspector:
         arg_parser.add_argument("--fusion_contigs_only", action='store_true', default=False, help="align reads only to the fusion contigs") 
 
         arg_parser.add_argument("--extract_fusion_reads_dir", default=None, type=str, help="directory to write fusion evidence reads in fastq format")
-
+        arg_parser.add_argument("--no_remove_dups", action='store_true', default=False, help="do not exclude duplicate reads")
+        
 
         args_parsed = arg_parser.parse_args()
 
@@ -371,24 +372,27 @@ class FusionInspector:
 
         pipeliner.add_commands([Command(cmdstr, "run_STAR.ok")])
         
-        
-        # mark duplicate reads
-        star_dups_marked_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.cSorted.dupsMarked.bam"])
+        if not args_parsed.no_remove_dups:
 
-        cmdstr = str("java -jar {} I={} O={} M={} TMP_DIR={} VALIDATION_STRINGENCY=SILENT ".format(os.sep.join([BASEDIR, "plugins", "MarkDuplicates.jar"]),
-                                                                            star_bam_file,
-                                                                            star_dups_marked_bam_file,
-                                                                            star_dups_marked_bam_file + ".stats",
-                                                                                    workdir))
+            # mark duplicate reads
+            star_dups_marked_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.cSorted.dupsMarked.bam"])
 
-        
-        pipeliner.add_commands([Command(cmdstr, "mark_dup_reads.ok")])
+            cmdstr = str("java -jar {} I={} O={} M={} TMP_DIR={} VALIDATION_STRINGENCY=SILENT ".format(os.sep.join([BASEDIR, "plugins", "MarkDuplicates.jar"]),
+                                                                                star_bam_file,
+                                                                                star_dups_marked_bam_file,
+                                                                                star_dups_marked_bam_file + ".stats",
+                                                                                        workdir))
+
+
+            pipeliner.add_commands([Command(cmdstr, "mark_dup_reads.ok")])
+
+            star_bam_file = star_dups_marked_bam_file
 
 
         self.get_fusion_and_spanning_reads(args_parsed, workdir_mergedContig_gtf_filename,
-                                           workdir_mergedContig_fasta_filename, star_dups_marked_bam_file, pipeliner)
+                                           workdir_mergedContig_fasta_filename, star_bam_file, pipeliner)
 
-        bam_files_list = [star_dups_marked_bam_file] # used to have more than one... leaving it like this for now.
+        bam_files_list = [star_bam_file] # used to have more than one... leaving it like this for now.
 
         ###########################
         ## coalesce the fusion info
