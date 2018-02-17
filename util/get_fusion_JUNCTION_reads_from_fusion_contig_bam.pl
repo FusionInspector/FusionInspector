@@ -18,7 +18,7 @@ use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 
 my $MIN_ALIGN_PER_ID = 96;
 
-my $MIN_SMALL_ANCHOR = 12;
+my $MIN_SMALL_ANCHOR = 11;
 my $MIN_LARGE_ANCHOR = 25;
 my $MAX_END_CLIP = 10;
 my $MIN_SEQ_ENTROPY = 1.5;
@@ -87,7 +87,7 @@ main: {
     print STDERR "-parsing GTF file: $gtf_file\n";
     my %scaffold_to_gene_structs = &parse_gtf_file($gtf_file, \%scaffold_itree_to_exon_structs);
         
-    print STDERR Dumper(\%scaffold_to_gene_structs) if $DEBUG;
+    print STDERR "Scaffold to gene structs: " . Dumper(\%scaffold_to_gene_structs) if $DEBUG;
     
     my $prev_scaff = "";
 
@@ -104,9 +104,9 @@ main: {
     ## find the reads that matter:
     my $sam_reader = new SAM_reader($bam_file);
     while (my $sam_entry = $sam_reader->get_next()) {
-
+        
         if ($DEBUG) {
-            print $sam_entry->get_original_line() . "\n";
+            print STDERR "SAM input:  " . $sam_entry->get_original_line() . "\n";
         }
         
         $counter++;
@@ -207,6 +207,7 @@ main: {
         }
         
         my ($span_lend, $span_rend) = $sam_entry->get_genome_span();
+        print STDERR "-read $read_name spans: $scaffold:$span_lend--$span_rend\n";
         if ($span_lend < $gene_bound_left && $span_rend > $gene_bound_right) {
             
             my ($genome_coords_aref, $read_coords_aref) = $sam_entry->get_alignment_coords();
@@ -214,7 +215,7 @@ main: {
             my $itree = $scaffold_itree_to_exon_structs{$scaffold};
             my @exon_hits = &hits_exon_bound($genome_coords_aref, $read_coords_aref, $itree);
             
-            print Dumper(\@exon_hits) if $DEBUG;
+            print STDERR "Exon hits: " . Dumper(\@exon_hits) if $DEBUG;
 
             unless (scalar @exon_hits > 1) { next; } 
             
@@ -252,7 +253,10 @@ main: {
                 # anchor length check
                 unless ($left_brkpt_length >= $MIN_SMALL_ANCHOR
                     &&
-                    $right_brkpt_length >= $MIN_SMALL_ANCHOR) {
+                        $right_brkpt_length >= $MIN_SMALL_ANCHOR) {
+
+                    print STDERR "-$read_name fails min small anchor length check:  left: $left_brkpt_length < $MIN_SMALL_ANCHOR || right: $right_brkpt_length < $MIN_SMALL_ANCHOR ... skipping.\n" if $DEBUG; 
+                    
                     next;
                 }
 
@@ -260,6 +264,8 @@ main: {
                 unless (&has_min_anchor_seq_entropy(\$read_sequence, $left_immediate_breakpoint_segment, $MIN_SEQ_ENTROPY)
                         &&
                         &has_min_anchor_seq_entropy(\$read_sequence, $right_immediate_breakpoint_segment, $MIN_SEQ_ENTROPY) ) {
+
+                    print STDERR "-$read_name fails min anchor & seq_entropy check... skipping\n" if $DEBUG;
                     
                     next;
                 }
@@ -272,7 +278,7 @@ main: {
                     # encode the read group into the read name:
                     $read_name = "&" . $read_group . "@" . $read_name;
                 }
-                
+
                 push (@{$fusion_junctions{$junction_coord_token}}, $read_name);
                 
                 
@@ -306,6 +312,7 @@ main: {
             if ($fusion_split_reads{$core_read_name} && $sam_index_capture{$counter}) {
                 print $sam_entry->get_original_line() . "\n";
             }
+            
         }
     
     }
@@ -315,6 +322,10 @@ main: {
     {
         
         print STDERR "-writing fusion junction support info.\n";
+
+        if ($DEBUG) {
+            print STDERR "Fusion junctions: " . Dumper(\%fusion_junctions);
+        }
         
         ## output the junction info summary:
         
