@@ -639,7 +639,11 @@ class FusionInspector:
                           " > " + final_fusions_file + ".final.abridged.FFPM" )
             
             pipeliner.add_commands([Command(cmdstr, "add_FFPM.ok")])
-            
+
+            final_fusions_file = final_fusions_file + ".final.abridged.FFPM"
+        else:
+            final_fusions_file = final_fusions_file + ".final.abridged"
+
         
         if args_parsed.prep_for_IGV:
             ## generate the fusion-inspector-web galaxy js 
@@ -656,7 +660,7 @@ class FusionInspector:
             pipeliner.add_commands([Command(cmdstr, "create_fi_igvjs.ok")])
 
             
-        final_fusions_file = final_fusions_file + ".final.abridged.FFPM"
+        
 
         ## annotate
         
