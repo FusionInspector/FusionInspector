@@ -14,13 +14,8 @@ my $annotations = $ARGV[1] or die $usage;
 
 main: {
 
-
     my %contig_to_genes = &parse_gtf($annotations);
     
-    print Dumper(\%contig_to_genes);
-
-    
-
     my $fasta_reader = new Fasta_reader($genome_fasta);
     
     while (my $seq_obj = $fasta_reader->next()) {
