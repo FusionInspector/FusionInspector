@@ -207,7 +207,7 @@ main: {
         }
         
         my ($span_lend, $span_rend) = $sam_entry->get_genome_span();
-        print STDERR "-read $read_name spans: $scaffold:$span_lend--$span_rend\n";
+        print STDERR "-read $read_name spans: $scaffold:$span_lend--$span_rend\n" if $DEBUG;
         if ($span_lend < $gene_bound_left && $span_rend > $gene_bound_right) {
             
             my ($genome_coords_aref, $read_coords_aref) = $sam_entry->get_alignment_coords();
