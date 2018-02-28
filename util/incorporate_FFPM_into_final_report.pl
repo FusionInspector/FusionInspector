@@ -60,8 +60,10 @@ sub get_num_total_frags {
     else {
         $num_lines = `cat $fq_file | wc -l`;
     }
+
+    chomp $num_lines;
     
-    $num_lines =~ /^(\d+)/ or die "Error, cannot extract line count from [$num_lines]";
+    $num_lines =~ /^\s*(\d+)/ or die "Error, cannot extract line count from [$num_lines]";
     $num_lines = $1;
 
     my $num_seq_records = $num_lines / 4;
