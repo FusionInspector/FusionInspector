@@ -8,9 +8,13 @@ use lib ("$FindBin::Bin/../../PerlLib");
 use DelimParser;
 use Data::Dumper;
 
-my $usage = "\n\tusage: $0 sc.finspector.final\n\n";
+my $usage = "\n\tusage: $0 sc.finspector.final FAF_pseudocount=1\n\n";
 
 my $file = $ARGV[0] or die $usage;
+my $FAF_pseudocount = $ARGV[1];
+if (! defined ($FAF_pseudocount)) {
+    $FAF_pseudocount = 1;
+}
 
 main: {
 
@@ -76,15 +80,15 @@ main: {
 
                         
             $cellrow{FAF_left} = sprintf("%.3f",  
-                                         ($cell_junction_reads_count + $cell_spanning_frags_count + 1) / 
-                                         ($cell_junction_reads_count + $cell_spanning_frags_count + $cell_counter_fusion_left_reads_count + 1)
+                                         ($cell_junction_reads_count + $cell_spanning_frags_count + $FAF_pseudocount) / 
+                                         ($cell_junction_reads_count + $cell_spanning_frags_count + $cell_counter_fusion_left_reads_count + $FAF_pseudocount)
                 );
 
             
             $cellrow{FAF_right} = sprintf("%.3f",  
                                           
-                                          $cellrow{FAF_right} = ($cell_junction_reads_count + $cell_spanning_frags_count + 1) / 
-                                          ($cell_junction_reads_count + $cell_spanning_frags_count + $cell_counter_fusion_right_reads_count + 1)
+                                          $cellrow{FAF_right} = ($cell_junction_reads_count + $cell_spanning_frags_count + $FAF_pseudocount) / 
+                                          ($cell_junction_reads_count + $cell_spanning_frags_count + $cell_counter_fusion_right_reads_count + $FAF_pseudocount)
                 );
             
             
