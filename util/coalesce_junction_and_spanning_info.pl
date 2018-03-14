@@ -8,12 +8,16 @@ use lib ("$FindBin::Bin/../PerlLib");
 use DelimParser;
 use Data::Dumper;
 
-my $usage = "\n\tusage: $0 junction_info_A.txt,[junction_info_B.txt,...] spanning_info_A.txt,[spanning_info_B.txt,...]\n\n";
+my $PSEUDOCOUNT = 0;
+
+my $usage = "\n\tusage: $0 junction_info_A.txt,[junction_info_B.txt,...] spanning_info_A.txt,[spanning_info_B.txt,...] [PSEUDOCOUNT=$PSEUDOCOUNT]\n\n";
 
 my $junction_info_file_list = $ARGV[0] or die $usage;
 my $spanning_info_file_list = $ARGV[1] or die $usage;
+if ($ARGV[2]) {
+    $PSEUDOCOUNT = $ARGV[2];
+}
 
-my $PSEUDOCOUNT = 1;
 
 main: {
 
@@ -81,15 +85,15 @@ main: {
             push (@right_contrary_reads, ".");
         }
         
-        my $FAF_left = ($num_junction_reads + $num_spanning_reads) 
+        my $FAF_left = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) 
             / 
-            ($num_junction_reads + $num_spanning_reads + $num_left_contrary_reads);
+            ($num_junction_reads + $num_spanning_reads + $num_left_contrary_reads + $PSEUDOCOUNT);
         
         $FAF_left = sprintf("%.2f", $FAF_left);
         
-        my $FAF_right = ($num_junction_reads + $num_spanning_reads) 
+        my $FAF_right = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) 
             / 
-            ($num_junction_reads + $num_spanning_reads + $num_right_contrary_reads);
+            ($num_junction_reads + $num_spanning_reads + $num_right_contrary_reads + $PSEUDOCOUNT);
         
         $FAF_right = sprintf("%.2f", $FAF_right);
         

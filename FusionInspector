@@ -139,6 +139,7 @@ class FusionInspector:
 
         arg_parser.add_argument("--extract_fusion_reads_dir", default=None, type=str, help="directory to write fusion evidence reads in fastq format")
         arg_parser.add_argument("--no_remove_dups", action='store_true', default=False, help="do not exclude duplicate reads")
+        arg_parser.add_argument("--FAF_pseudocount", type=float, default=0, help="pseudocount to be used in fusion allelic fraction (FAF) computation")
         
 
         args_parsed = arg_parser.parse_args()
@@ -420,6 +421,7 @@ class FusionInspector:
         cmdstr = str( os.sep.join([UTILDIR, "coalesce_junction_and_spanning_info.pl"]) + " " +
                       ",".join(fusion_junction_info_files_list) + " " +
                       ",".join(fusion_spanning_info_files_list) +
+                      " {} ".format(args_parsed.FAF_pseudocount) +
                       " > " + fusion_summary_file )
         
         pipeliner.add_commands([Command(cmdstr, "coalesce_junc_n_span.ok")]) 
