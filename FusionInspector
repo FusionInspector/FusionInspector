@@ -421,7 +421,7 @@ class FusionInspector:
         cmdstr = str( os.sep.join([UTILDIR, "coalesce_junction_and_spanning_info.pl"]) + " " +
                       ",".join(fusion_junction_info_files_list) + " " +
                       ",".join(fusion_spanning_info_files_list) +
-                      " {} ".format(args_parsed.FAF_pseudocount) +
+                      " {} ".format(args_parsed.FAR_pseudocount) +
                       " > " + fusion_summary_file )
         
         pipeliner.add_commands([Command(cmdstr, "coalesce_junc_n_span.ok")]) 
