@@ -8,10 +8,10 @@ use lib ("$FindBin::Bin/../../PerlLib");
 use DelimParser;
 use Data::Dumper;
 
-my $usage = "\n\tusage: $0 sc.finspector.final FAF_pseudocount=0\n\n";
+my $usage = "\n\tusage: $0 sc.finspector.final FAR_pseudocount=1\n\n";
 
 my $file = $ARGV[0] or die $usage;
-my $FAF_pseudocount = $ARGV[1] || 0;
+my $FAR_pseudocount = $ARGV[1] || 0;
 
 
 main: {
@@ -77,24 +77,24 @@ main: {
             $cellrow{CounterFusionRightReads} = $cell_counter_fusion_right_reads_string;
 
 
-            $cellrow{FAF_left} = "NA";
-            $cellrow{FAF_right} = "NA";
+            $cellrow{FAR_left} = "NA";
+            $cellrow{FAR_right} = "NA";
 
             eval {
                 # possible div-by-zero if no pseudocount
-                $cellrow{FAF_left} = sprintf("%.3f",  
-                                             ($cell_junction_reads_count + $cell_spanning_frags_count + $FAF_pseudocount) / 
-                                             ($cell_junction_reads_count + $cell_spanning_frags_count + $cell_counter_fusion_left_reads_count + $FAF_pseudocount)
+                $cellrow{FAR_left} = sprintf("%.3f",  
+                                             ($cell_junction_reads_count + $cell_spanning_frags_count + $FAR_pseudocount) / 
+                                             ($cell_counter_fusion_left_reads_count + $FAR_pseudocount)
                     );
             };
 
             eval {
                 
                 # possible div-by-zero if no pseudocount
-                $cellrow{FAF_right} = sprintf("%.3f",  
+                $cellrow{FAR_right} = sprintf("%.3f",  
                                               
-                                              $cellrow{FAF_right} = ($cell_junction_reads_count + $cell_spanning_frags_count + $FAF_pseudocount) / 
-                                              ($cell_junction_reads_count + $cell_spanning_frags_count + $cell_counter_fusion_right_reads_count + $FAF_pseudocount)
+                                              $cellrow{FAR_right} = ($cell_junction_reads_count + $cell_spanning_frags_count + $FAR_pseudocount) / 
+                                              ($cell_counter_fusion_right_reads_count + $FAR_pseudocount)
                     );
             };
             

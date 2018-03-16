@@ -43,7 +43,7 @@ main: {
                     JunctionReads SpanningFrags
                     NumCounterFusionLeft CounterFusionLeftReads
                     NumCounterFusionRight CounterFusionRightReads
-                    FAF_left FAF_right);
+                    FAR_left FAR_right);
 
     my $tab_writer = new DelimParser::Writer(*STDOUT, "\t", \@fields);
 
@@ -85,17 +85,17 @@ main: {
             push (@right_contrary_reads, ".");
         }
         
-        my $FAF_left = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) 
+        my $FAR_left = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) 
             / 
-            ($num_junction_reads + $num_spanning_reads + $num_left_contrary_reads + $PSEUDOCOUNT);
+            ($num_left_contrary_reads + $PSEUDOCOUNT);
         
-        $FAF_left = sprintf("%.2f", $FAF_left);
+        $FAR_left = sprintf("%.2f", $FAR_left);
         
-        my $FAF_right = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) 
+        my $FAR_right = ($num_junction_reads + $num_spanning_reads + $PSEUDOCOUNT) 
             / 
-            ($num_junction_reads + $num_spanning_reads + $num_right_contrary_reads + $PSEUDOCOUNT);
+            ($num_right_contrary_reads + $PSEUDOCOUNT);
         
-        $FAF_right = sprintf("%.2f", $FAF_right);
+        $FAR_right = sprintf("%.2f", $FAR_right);
         
         my ($geneA, $local_brkpt_A, $chr_brkpt_A, $geneB, $local_brkpt_B, $chr_brkpt_B, $spliceType) = split(/\t/, $fusion);
                 
@@ -115,8 +115,8 @@ main: {
                                   CounterFusionLeftReads => join(",", @left_contrary_reads),
                                   NumCounterFusionRight => $num_right_contrary_reads,
                                   CounterFusionRightReads => join(",", @right_contrary_reads),
-                                  FAF_left => $FAF_left,
-                                  FAF_right => $FAF_right,
+                                  FAR_left => $FAR_left,
+                                  FAR_right => $FAR_right,
                                 } );
         
     }
