@@ -139,7 +139,7 @@ class FusionInspector:
 
         arg_parser.add_argument("--extract_fusion_reads_dir", default=None, type=str, help="directory to write fusion evidence reads in fastq format")
         arg_parser.add_argument("--no_remove_dups", action='store_true', default=False, help="do not exclude duplicate reads")
-        arg_parser.add_argument("--FAF_pseudocount", type=float, default=0, help="pseudocount to be used in fusion allelic fraction (FAF) computation")
+        arg_parser.add_argument("--FAR_pseudocount", type=float, default=1, help="pseudocount to be used in fusion allelic ratio (FAR) computation")
         
 
         args_parsed = arg_parser.parse_args()
