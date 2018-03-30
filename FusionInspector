@@ -60,88 +60,92 @@ class FusionInspector:
             formatter_class=argparse.RawTextHelpFormatter
             )
         
+        arg_parser._action_groups.pop()
+        required = arg_parser.add_argument_group('required arguments')
+        optional = arg_parser.add_argument_group('optional arguments')
         
-        arg_parser.add_argument("--fusions", dest="chim_summary_files", type=str, default="", required=True,
+        required.add_argument("--fusions", dest="chim_summary_files", type=str, default="", required=True,
                              help="fusions summary files (list, comma-delimited and no spaces)")
     
-        arg_parser.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default=os.environ.get('CTAT_GENOME_LIB'),
+        required.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default=os.environ.get('CTAT_GENOME_LIB'),
                              help="genome lib directory - see http://FusionFilter.github.io for details")
         
-        arg_parser.add_argument("--left_fq", dest="left_fq_filename", type=str, required=False, default=None,
+        required.add_argument("--left_fq", dest="left_fq_filename", type=str, required=False, default=None,
                              help="left (or single) fastq file")
         
-        arg_parser.add_argument("--right_fq", dest="right_fq_filename", type=str, required=False, default="", #intentionally not None
+        required.add_argument("--right_fq", dest="right_fq_filename", type=str, required=False, default="", #intentionally not None
                              help="right fastq file (optional)")
         
-        arg_parser.add_argument("--samples_file", dest="samples_file", type=str, required=False, default=None,
+        optional.add_argument("--samples_file", dest="samples_file", type=str, required=False, default=None,
                              help="samples file (format: sample(tab)/path/left.fq(tab)/path/right.fq")
         
-        arg_parser.add_argument("--out_dir", dest="str_out_dir", type=str, required=True, help="output directory")
+        required.add_argument("--out_dir", dest="str_out_dir", type=str, required=True, help="output directory")
 
-        arg_parser.add_argument("--out_prefix", dest="out_prefix", type=str, default='finspector', help="output filename prefix")
+        optional.add_argument("--out_prefix", dest="out_prefix", type=str, default='finspector', help="output filename prefix")
 
-        arg_parser.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=0,
+        optional.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=0,
                              help="minimum number of junction-spanning reads required")
         
-        arg_parser.add_argument("--min_sum_frags", dest="min_sum_frags", type=int, required=False, default=2,
+        optional.add_argument("--min_sum_frags", dest="min_sum_frags", type=int, required=False, default=2,
                              help="minimum fusion support = ( # junction_reads + # spanning_frags )")
 
-        arg_parser.add_argument("--min_novel_junction_support", dest="min_novel_junction_support", type=int, required=False, default=3,
+        optional.add_argument("--min_novel_junction_support", dest="min_novel_junction_support", type=int, required=False, default=3,
                              help="minimum number of junction reads required if breakpoint lacks involvement of only reference junctions")
 
-        arg_parser.add_argument("--min_spanning_frags_only", dest="min_spanning_frags_only", type=int, required=False, default=5,
+        optional.add_argument("--min_spanning_frags_only", dest="min_spanning_frags_only", type=int, required=False, default=5,
                              help="minimum number of spanning frags if no junction reads are found")
         
-        arg_parser.add_argument("--require_LDAS", type=int, required=False, default=1,
+        optional.add_argument("--require_LDAS", type=int, required=False, default=1,
                              help = "require long double anchor support for split reads when no spanning frags are found")
         
-        arg_parser.add_argument("--max_promiscuity", dest='max_promiscuity', type=int, required=False, default=10,
+        optional.add_argument("--max_promiscuity", dest='max_promiscuity', type=int, required=False, default=10,
                              help="maximum number of partners allowed for a given fusion")
         
-        arg_parser.add_argument("--min_pct_dom_promiscuity", dest="min_pct_dom_promiscuity", type=int, required=False, default=50,
+        optional.add_argument("--min_pct_dom_promiscuity", dest="min_pct_dom_promiscuity", type=int, required=False, default=50,
                              help="for promiscuous fusions, those with less than this support of the dominant scoring pair " +
                              "are filtered prior to applying the max_promiscuity filter. ")
         
-        arg_parser.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=96,
+        optional.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=96,
                              help='minimum percent identity for a fusion-supporting read alignment')
         
-        arg_parser.add_argument("--only_fusion_reads", default=False, action='store_true',
+        optional.add_argument("--only_fusion_reads", default=False, action='store_true',
                              help="include only read alignments in output that support fusion" )
         
-        arg_parser.add_argument("--capture_genome_alignments", default=False, action='store_true',
+        optional.add_argument("--capture_genome_alignments", default=False, action='store_true',
                              help='reports ref genome alignments too (for debugging only)')
                         
-        arg_parser.add_argument("--include_Trinity", dest="include_Trinity", required=False, action = "store_true", default=False,
+        optional.add_argument("--include_Trinity", dest="include_Trinity", required=False, action = "store_true", default=False,
                              help="include fusion-guided Trinity assembly")
 
-        arg_parser.add_argument("--prep_for_IGV", dest="prep_for_IGV", required=False, action="store_true", default=False,
+        optional.add_argument("--prep_for_IGV", dest="prep_for_IGV", required=False, action="store_true", default=False,
                              help="generate bam, bed, etc., for use with IGV")
 
-        arg_parser.add_argument("--write_intermediate_results", dest="write_intermediate_results", required=False, action="store_true",
+        optional.add_argument("--write_intermediate_results", dest="write_intermediate_results", required=False, action="store_true",
                              default=False, help="generate bam, bed, etc., for intermediate aligner outputs")
 
-        arg_parser.add_argument("--cleanup", dest="cleanup", required=False, action="store_true", default=False,
+        optional.add_argument("--cleanup", dest="cleanup", required=False, action="store_true", default=False,
                              help="cleanup the fusion inspector workspace, remove intermediate output files")
 
-        arg_parser.add_argument("--CPU", dest="CPU", required=False, type=int, default=4,
+        optional.add_argument("--CPU", dest="CPU", required=False, type=int, default=4,
                              help="number of threads for multithreaded processes")
         
-        arg_parser.add_argument("--annotate", dest="annotate", required=False, action='store_true', default=False,
+        optional.add_argument("--annotate", dest="annotate", required=False, action='store_true', default=False,
                              help="annotate fusions based on known cancer fusions and those found in normal tissues")
 
-        arg_parser.add_argument("--examine_coding_effect", dest='examine_coding_effect', required=False, action='store_true', default=False,
+        optional.add_argument("--examine_coding_effect", dest='examine_coding_effect', required=False, action='store_true', default=False,
                              help='explore impact of fusions on coding sequences')
         
 
-        arg_parser.add_argument("--aligner_path", default=None, type=str, help="path to the aligner tool (default: uses PATH setting)")
+        optional.add_argument("--aligner_path", default=None, type=str, help="path to the aligner tool (default: uses PATH setting)")
         
-        arg_parser.add_argument("--fusion_contigs_only", action='store_true', default=False, help="align reads only to the fusion contigs") 
+        optional.add_argument("--fusion_contigs_only", action='store_true', default=False, help="align reads only to the fusion contigs") 
 
-        arg_parser.add_argument("--extract_fusion_reads_dir", default=None, type=str, help="directory to write fusion evidence reads in fastq format")
-        arg_parser.add_argument("--no_remove_dups", action='store_true', default=False, help="do not exclude duplicate reads")
-        arg_parser.add_argument("--FAR_pseudocount", type=float, default=1, help="pseudocount to be used in fusion allelic ratio (FAR) computation")
+        optional.add_argument("--extract_fusion_reads_dir", default=None, type=str, help="directory to write fusion evidence reads in fastq format")
+        optional.add_argument("--no_remove_dups", action='store_true', default=False, help="do not exclude duplicate reads")
+        optional.add_argument("--FAR_pseudocount", type=float, default=1, help="pseudocount to be used in fusion allelic ratio (FAR) computation")
+
+        # done setting up options menu
         
-
         args_parsed = arg_parser.parse_args()
 
 
