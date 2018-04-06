@@ -140,7 +140,7 @@ class FusionInspector:
         
         optional.add_argument("--fusion_contigs_only", action='store_true', default=False, help="align reads only to the fusion contigs") 
 
-        optional.add_argument("--extract_fusion_reads_dir", default=None, type=str, help="directory to write fusion evidence reads in fastq format")
+        optional.add_argument("--extract_fusion_reads_file", default=None, type=str, help="file prefix to write fusion evidence reads in fastq format")
         optional.add_argument("--no_remove_dups", action='store_true', default=False, help="do not exclude duplicate reads")
         optional.add_argument("--FAR_pseudocount", type=float, default=1, help="pseudocount to be used in fusion allelic ratio (FAR) computation")
 
@@ -255,8 +255,8 @@ class FusionInspector:
             print("All fusion files: %s are empty. Exiting gracefully." % args_parsed.chim_summary_files, file=sys.stderr)
             sys.exit(0)
 
-        if args_parsed.extract_fusion_reads_dir:
-            args_parsed.extract_fusion_reads_dir = os.path.abspath(args_parsed.extract_fusion_reads_dir)
+        if args_parsed.extract_fusion_reads_file:
+            args_parsed.extract_fusion_reads_file = os.path.abspath(args_parsed.extract_fusion_reads_file)
 
         if args_parsed.left_fq_filename:
             args_parsed.left_fq_filename = os.path.abspath(args_parsed.left_fq_filename)
@@ -698,24 +698,23 @@ class FusionInspector:
             final_fusions_file = coding_effect_file
 
 
-        if args_parsed.extract_fusion_reads_dir:
+        if args_parsed.extract_fusion_reads_file:
 
-            fusion_reads_dir = args_parsed.extract_fusion_reads_dir
-            if not os.path.exists(fusion_reads_dir):
-                os.makedirs(fusion_reads_dir)
-
-            cmdstr = str(os.path.sep.join( [BASEDIR, "util", "misc", "get_fusion_evidence_fastqs.pl"]) +
-                         " " + unabridged_final_fusions_file + " "  + args_parsed.left_fq_filename + " ")
+            fusion_reads_file = args_parsed.extract_fusion_reads_file
             
-            if args_parsed.right_fq_filename:
-                cmdstr += args_parsed.right_fq_filename
-            else:
-                cmdstr += "NONE"
+            cmdstr = str(os.path.sep.join( [BASEDIR, "util", "misc", "get_fusion_evidence_fastqs.pl"]) +
+                         " --fusions " + unabridged_final_fusions_file)
 
-            cmdstr += " " + args_parsed.extract_fusion_reads_dir
-
+            if args_parsed.samples_file:
+                cmdstr += " --samples_file {} ".format(args_parsed.samples_file)
+            elif args_parsed.left_fq_filename:
+                cmdstr += " --left_fq {} ".format(args_parsed.left_fq_filename)
+            
+                if args_parsed.right_fq_filename:
+                    cmdstr += " --right_fq {} ".format(args_parsed.right_fq_filename)
+            
             pipeliner.add_commands([Command(cmdstr, "get_fusion_evidence_fqs.ok")]) 
-                
+        
         
         ## cleanup
         if args_parsed.cleanup:
