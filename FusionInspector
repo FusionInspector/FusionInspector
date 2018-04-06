@@ -702,7 +702,7 @@ class FusionInspector:
 
             fusion_reads_file = args_parsed.extract_fusion_reads_file
             
-            cmdstr = str(os.path.sep.join( [BASEDIR, "util", "misc", "get_fusion_evidence_fastqs.pl"]) +
+            cmdstr = str(os.path.sep.join( [BASEDIR, "util", "get_fusion_evidence_fastqs.pl"]) +
                          " --fusions " + unabridged_final_fusions_file)
 
             if args_parsed.samples_file:
@@ -712,6 +712,9 @@ class FusionInspector:
             
                 if args_parsed.right_fq_filename:
                     cmdstr += " --right_fq {} ".format(args_parsed.right_fq_filename)
+
+            cmdstr += " --output_prefix {} ".format(args_parsed.extract_fusion_reads_file)
+            
             
             pipeliner.add_commands([Command(cmdstr, "get_fusion_evidence_fqs.ok")]) 
         
