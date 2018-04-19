@@ -153,7 +153,7 @@ if args.f_include_trinity:
                     for str_compressed_line in hndl_compressed_file:
                         hndl_uncompressed_file.write( str_compressed_line ) 
         else:
-            print C_ARG_INCLUDE_TRINITY + " was given but one of the following files are expected to exist and did not:" + " or ".join([ C_STR_INCLUDE_TRINITY_BED, C_STR_INCLUDE_TRINITY_BED_GZ ])
+            print(C_ARG_INCLUDE_TRINITY + " was given but one of the following files are expected to exist and did not:" + " or ".join([ C_STR_INCLUDE_TRINITY_BED, C_STR_INCLUDE_TRINITY_BED_GZ ]))
             exit( -1 )
 
 # Make fusion detail
@@ -162,7 +162,7 @@ with open( os.path.join( absolute_fusion_directory, file_prefix + ".fusion_predi
 
     # Get indices of the columns of interest, if they do not exist error.
     detail_key_to_index = {}
-    header_line = fusion_detail_parsed.next()
+    header_line = next(fusion_detail_parsed)
     header_keys = [ C_PRED_FUSION_NAME, C_PRED_JUNCTION_READS, C_PRED_SPANNING_FRAGS, C_PRED_SPLICE_TYPE,
                     C_PRED_LEFT_GENE, C_PRED_RIGHT_GENE, C_PRED_LEFT_BREAK_POINT, C_PRED_RIGHT_BREAK_POINT ]
 
