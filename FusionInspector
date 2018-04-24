@@ -628,27 +628,34 @@ class FusionInspector:
 
         pipeliner.add_commands([Command(cmdstr, "blast_filter.ok")]) 
 
-        unabridged_final_fusions_file = final_fusions_file + ".final"
-                
-        ## make an abridged version that lacks the list of supporting reads.
+        unabridged_final_fusions_file = final_fusions_file + ".post_blast_and_promiscuity_filter"
+
+        final_fusions_file = final_fusions_file + ".final"
+        cmdstr = str("ln -sf {} {}".format(unabridged_final_fusions_file, final_fusions_file))
+        pipeliner.add_commands([Command(cmdstr, "ln_final.ok")])
         
-        cmdstr = str(UTILDIR + "/column_exclusions.pl " + final_fusions_file + ".final" +
+        ## make an abridged version that lacks the list of supporting reads.
+
+        abridged_final_fusions_file = final_fusions_file + ".abridged"
+        cmdstr = str(UTILDIR + "/column_exclusions.pl " + final_fusions_file +
                      " JunctionReads,SpanningFrags,CounterFusionLeftReads,CounterFusionRightReads " +
-                     " > " + final_fusions_file + ".final.abridged");
-        pipeliner.add_commands([Command(cmdstr, "final_abridged.ok")]) 
+                     " > " + abridged_final_fusions_file );
+        pipeliner.add_commands([Command(cmdstr, "final.abridged.ok")]) 
+        
+
         
         ## add FFPM calculations
         if args_parsed.left_fq_filename:
             cmdstr = str( os.path.sep.join([UTILDIR, "incorporate_FFPM_into_final_report.pl"]) +
                           " " + args_parsed.left_fq_filename +
-                          " " + final_fusions_file + ".final.abridged" +
-                          " > " + final_fusions_file + ".final.abridged.FFPM" )
+                          " " + abridged_final_fusions_file +
+                          " > " + abridged_final_fusions_file + ".FFPM" )
             
             pipeliner.add_commands([Command(cmdstr, "add_FFPM.ok")])
 
-            final_fusions_file = final_fusions_file + ".final.abridged.FFPM"
+            final_fusions_file = abridged_final_fusions_file + ".FFPM"
         else:
-            final_fusions_file = final_fusions_file + ".final.abridged"
+            final_fusions_file = abridged_final_fusions_file
 
         
         if args_parsed.prep_for_IGV:
