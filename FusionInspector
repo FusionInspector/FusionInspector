@@ -67,20 +67,20 @@ class FusionInspector:
         required.add_argument("--fusions", dest="chim_summary_files", type=str, default="", required=True,
                              help="fusions summary files (list, comma-delimited and no spaces)")
     
-        required.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default=os.environ.get('CTAT_GENOME_LIB'),
-                             help="genome lib directory - see http://FusionFilter.github.io for details")
-        
         required.add_argument("--left_fq", dest="left_fq_filename", type=str, required=False, default=None,
                              help="left (or single) fastq file")
         
         required.add_argument("--right_fq", dest="right_fq_filename", type=str, required=False, default="", #intentionally not None
                              help="right fastq file (optional)")
         
+        optional.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default=os.environ.get('CTAT_GENOME_LIB'),
+                             help="genome lib directory - see http://FusionFilter.github.io for details.  Uses env var CTAT_GENOME_LIB as default")
+        
         optional.add_argument("--samples_file", dest="samples_file", type=str, required=False, default=None,
                              help="samples file (format: sample(tab)/path/left.fq(tab)/path/right.fq")
         
-        required.add_argument("--out_dir", dest="str_out_dir", type=str, required=True, help="output directory")
-
+        optional.add_argument("--out_dir", dest="str_out_dir", type=str, required=False, default="FI", help="output directory")
+        
         optional.add_argument("--out_prefix", dest="out_prefix", type=str, default='finspector', help="output filename prefix")
 
         optional.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=0,
