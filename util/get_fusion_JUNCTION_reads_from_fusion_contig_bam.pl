@@ -15,7 +15,6 @@ use SeqUtil;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 
 
-
 my $MIN_ALIGN_PER_ID = 96;
 
 my $MIN_SMALL_ANCHOR = 11;
