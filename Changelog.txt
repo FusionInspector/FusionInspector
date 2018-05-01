@@ -1,3 +1,14 @@
+
+## FusionInspector v1.3.0 (May 1, 2018)
+Simplified required arguments.  Using CTAT_GENOME_LIB env var for convenience.  Just needs fusion targets and reads and it'll run.
+Capturing both pairs for the split-read fusion frags now for display in IGV.
+Minor updates for py3 compatibility
+FAF calculation is now FAR calculation (fusion allelic ratio instead of fusion allelic fraction ... documentation updated as to the difference).
+
+## FusionInspector v1.2.0 (Feb 28)
+Minor updates for compatibility with the latest STAR-Fusion and CTAT genome lib structure.
+
+
 ## v1.1.0 (July 24, 2017)
 -Now mostly supporting FusionInspector as a submodule integrated into STAR-Fusion
 -works with single-end as well as paired-end reads now.
