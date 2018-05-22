@@ -298,13 +298,13 @@ class FusionInspector:
 
         # symlink them in the workdir
         workdir_mergedContig_fasta_filename = os.sep.join([workdir, args_parsed.out_prefix + ".fa"])
-        cmdstr = str("ln -sf " + mergedContig_fasta_filename + " " + workdir_mergedContig_fasta_filename)
-        pipeliner.add_commands([Command(cmdstr, "symlink_contigs_file_workdir")])
+        cmdstr = str("cp " + mergedContig_fasta_filename + " " + workdir_mergedContig_fasta_filename)
+        pipeliner.add_commands([Command(cmdstr, "cp_contigs_file_workdir")])
         
                 
         workdir_mergedContig_gtf_filename = os.sep.join([workdir, args_parsed.out_prefix + ".gtf"])
-        cmdstr = str("ln -sf " + mergedContig_gtf_filename + " " + workdir_mergedContig_gtf_filename)
-        pipeliner.add_commands([Command(cmdstr, "symlink_gtf_file_workdir.ok")])
+        cmdstr = str("cp " + mergedContig_gtf_filename + " " + workdir_mergedContig_gtf_filename)
+        pipeliner.add_commands([Command(cmdstr, "cp_gtf_file_workdir.ok")])
                 
         ## build a cytoband file
         cytoband_file = os.sep.join([args_parsed.str_out_dir, "cytoBand.txt"])
@@ -527,8 +527,8 @@ class FusionInspector:
 
             workdir_consolidated_bam_file = os.sep.join([workdir, args_parsed.out_prefix  + ".consolidated.bam"])
             
-            cmdstr = "ln -sf " + consolidated_bam_file + " " + workdir_consolidated_bam_file
-            pipeliner.add_commands([Command(cmdstr, "symlink_consol_bam.ok")]) 
+            cmdstr = "cp " + consolidated_bam_file + " " + workdir_consolidated_bam_file
+            pipeliner.add_commands([Command(cmdstr, "cp_consol_bam.ok")]) 
             
             if args_parsed.include_Trinity:
 
@@ -631,8 +631,8 @@ class FusionInspector:
         unabridged_final_fusions_file = final_fusions_file + ".post_blast_and_promiscuity_filter"
 
         final_fusions_file = final_fusions_file + ".final"
-        cmdstr = str("ln -sf {} {}".format(unabridged_final_fusions_file, final_fusions_file))
-        pipeliner.add_commands([Command(cmdstr, "ln_final.ok")])
+        cmdstr = str("cp {} {}".format(unabridged_final_fusions_file, final_fusions_file))
+        pipeliner.add_commands([Command(cmdstr, "cp_final.ok")])
         
         ## make an abridged version that lacks the list of supporting reads.
 
