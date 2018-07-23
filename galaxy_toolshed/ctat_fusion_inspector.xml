@@ -1,0 +1,181 @@
+<tool id="ctat_fusion_inspector" name="ctat_fusion_inspector" version="1.0.0" profile="17.05">
+    <description>In silico Validation of Fusion Transcript Predictions</description>
+    <requirements>
+        <requirement type="package" version="1.2.0">fusion-inspector</requirement>
+    </requirements>
+    <command detect_errors="default">
+      <![CDATA[
+      FusionInspector 
+      --fusions $fusion_candidates_list
+      --genome_lib "${genome_resource_lib.fields.path}"
+      --left_fq $left_input
+      --right $right_input
+      --out_dir "subdir"
+      --out_prefix "finspector" 
+      --prep_for_IGV 
+      #if $trinity_status.trinity=="true"
+      --include_Trinity
+      #end if
+      ]]>
+    </command>
+    <stdio>
+      <exit_code range="1:"  level="fatal"   description="Error returned from pipeline" />
+    </stdio>
+    <regex match="Must investigate error above."
+           source="stderr"
+           level="fatal"
+           description="Unknown error encountered" />
+    <inputs>
+      <param format="tabular" name="fusion_candidates_list" type="data" multiple="True" label="Choose candidate list:" help="Fusion predictions"/>
+      <param format="fastq" name="left_input" type="data" label="Left/Forward strand reads" help=""/>
+      <param format="fastq" name="right_input" type="data" label="Right/Reverse strand reads" help=""/>
+      <!-- The HISAT and GSNAP methods are not supported and are being removed, leaving only STAR.
+      <param name="method" type="select" label="Choose method:">
+             <option value="HISAT">HISAT</option>
+             <option value="STAR">STAR</option>
+             <option value="GSNAP">GSNAP</option>
+      </param>
+      -->
+      <conditional name="trinity_status">
+           <param name="trinity" type="select" label="Use Trinity:">
+             <option value="true">True</option>
+             <option value="false">False</option>
+           </param>
+      </conditional>
+      <param name="genome_resource_lib" type="select" label="Select a reference genome">
+        <options from_data_table="ctat_genome_resource_libs">
+          <filter type="sort_by" column="2" />
+          <validator type="no_options" message="No indexes are available" />
+        </options>
+      </param>
+    </inputs>
+    <outputs>
+      <data format="txt" name="finspector_idx" label="fidx" from_work_dir="subdir/finspector.fa.fai"/>
+      <data format="txt" name="cytoBand" label="cytoBand" from_work_dir="subdir/cytoBand.txt"/>
+      <data format="fasta" name="finspector_fa" label="finspector_fasta" from_work_dir="subdir/finspector.fa"/>
+      <data format="bed" name="finspector_bed" label="finspector_bed" from_work_dir="subdir/finspector.bed"/>
+      <data format="tabular" name="FusionJuncSpan" label="FusionJuncSpan" from_work_dir="subdir/finspector.igv.FusionJuncSpan"/>
+      <data format="bed" name="junction_bed" label="junction_bed" from_work_dir="subdir/finspector.junction_reads.bam.bed"/>
+      <data format="bam" name="junction_bam" label="junction_bam" from_work_dir="subdir/finspector.junction_reads.bam"/>
+      <data format="bam" name="spanning_bam" label="spanning_bam" from_work_dir="subdir/finspector.spanning_reads.bam"/>
+      <data format="bed" name="spanning_bed" label="spanning_bed" from_work_dir="subdir/finspector.spanning_reads.bam.bed"/>
+      <data format="bed" name="trinity_bed" label="trinity_bed" from_work_dir="subdir/finspector.gmap_trinity_GG.fusions.gff3.bed.sorted.bed">
+            <filter>trinity_status['trinity'] == "true"</filter>
+      </data>
+      <data format="txt" name="fusionPredictions" label="fusion_predictions.final" from_work_dir="subdir/finspector.fusion_predictions.final"/>
+      <data format="txt" name="fusionPredictionsAbridged" label="fusion_predictions_abridged" from_work_dir="subdir/finspector.fusion_predictions.final.abridged"/>
+      <data format="json" name="fusion_json" label="fusion_json" from_work_dir="subdir/finspector.fusion_inspector_web.json"/>
+    </outputs>
+    <tests>
+      <test>
+        <param name="fusion_candidates_list" value="FusionInspector/fusion_targets.A.txt,FusionInspector/fusion_targets.B.txt,FusionInspector/fusion_targets.C.txt" />
+        <param name="left_input" value="FusionInspector/test.reads_1.fastq.gz" />
+        <param name="right_input" value="FusionInspector/test.reads_2.fastq.gz" />
+        <!-- The HISAT and GSNAP methods are not supported and are being removed, leaving only STAR.
+        <param name="method" value="STAR" />
+        -->
+        <param name="trinity" value="false" />
+        <!-- FIX - now that we added the CTAT resource lib path as a parameter, how do we find it for testing?
+        <param name="genome_resource_lib.fields.path" value="?????" />
+        -->
+        <output name="finspector_idx" file="FusionInspector/test.reads_1_2.fa.fai" />
+        <output name="cytoBand" file="FusionInspector/test.reads_1_2.cytoBand.tail.txt" compare="contains" />
+        <output name="finspector_fa" file="FusionInspector/test.reads_1_2.fa" />
+        <output name="finspector_bed" file="FusionInspector/test.reads_1_2.bed.sorted" sort="true" />
+        <output name="FusionJuncSpan" >
+            <assert_contents>
+                <has_line_matching expression=".+" />
+                <has_line line="#scaffold&#009;fusion_break_name&#009;break_left&#009;break_right&#009;num_junction_reads&#009;num_spanning_frags&#009;spanning_frag_coords" />
+            </assert_contents>
+        </output>
+        <!-- sorted output sometimes matches, but simetimes not, so now I just test for similar size. -->
+        <output name="junction_bed" file="FusionInspector/test.reads_1_2.junction_reads.bam.bed.sorted" sort="true" compare="sim_size" >
+             <assert_contents>
+                <has_line_matching expression=".+" />
+                <has_n_columns n="12" />
+            </assert_contents>
+        </output>
+        <output name="junction_bam" >
+            <assert_contents>
+                <has_line_matching expression=".+" />
+               <!-- The following checks for the magic number at the start of the bam file -->
+               <has_text_matching expression="\x1F\x8B" />
+            </assert_contents>
+        </output>
+        <output name="spanning_bam" >
+            <assert_contents>
+                <has_line_matching expression=".+" />
+               <!-- The following checks for the magic number at the start of the bam file -->
+               <has_text_matching expression="\x1F\x8B" />
+            </assert_contents>
+        </output>
+        <output name="spanning_bed" file="FusionInspector/test.reads_1_2.spanning_reads.bam.bed.sorted" sort="true" />
+        <!--
+        Since trinity is false in this test, trinity_bed does not exist.
+        <output name="trinity_bed" />
+            <assert_contents>
+                <has_line_matching expression=".+" />
+            </assert_contents>
+        </output>
+        -->
+        <output name="fusionPredictions" >
+            <assert_contents>
+                <has_line_matching expression=".+" />
+                <has_line line="#fusion_name&#009;JunctionReads&#009;SpanningFrags&#009;Splice_type&#009;LeftGene&#009;LeftBreakpoint&#009;RightGene&#009;RightBreakpoint&#009;JunctionReads&#009;SpanningFrags&#009;Annotations&#009;TrinityGG" />
+            </assert_contents>
+        </output>
+        <output name="fusionPredictionsAbridged" >
+            <assert_contents>
+                <has_line_matching expression=".+" />
+                <has_line line="#fusion_name&#009;JunctionReads&#009;SpanningFrags&#009;Splice_type&#009;LeftGene&#009;LeftBreakpoint&#009;RightGene&#009;RightBreakpoint&#009;Annotations&#009;TrinityGG" />
+            </assert_contents>
+        </output>
+        <!-- So far in my testing of the fusion_json, I have had up to 18 different lines 
+             (9 positions values switched between two entries)- 64 gives some padding. -->
+        <output name="fusion_json" file="FusionInspector/test.reads_1_2.web.json" lines_diff="64" />
+
+      </test>
+    </tests>
+    <help>
+.. class:: infomark
+
+FusionInspector is a component of the Trinity Cancer Transcriptome Analysis Toolkit (CTAT). FusionInspector assists in fusion transcript discovery by performing a supervised analysis of fusion predictions, attempting to recover and re-score evidence for such predictions. Please read more here_.
+
+.. _here: https://github.com/FusionInspector/FusionInspector/wiki
+
+**To Visualize Output**
+
+After completion, results can be visualized in galaxy. Click on the output json file name in the history (on the right). A more detailed view of that file will be shown. Click on the button in the middle that looks like a bar chart. The visualization should now open for you to explore results.
+
+**There are several output files for the CTAT Fusion Inspector Pipeline. Files of interest include:**
+
+1. **fidx**: Finspector_fasta index file (required for visualization).
+
+2. **cytoBand**: Cytogenetic information for hg19.
+
+3. **finspector_fasta**: The candidate fusion-gene contigs.
+
+4. **finspector_bed**: The reference gene structure annotations for fusion partners.
+
+5. **FusionJuncSpan**: Tabular details on junction reads and spanning reads.
+
+6. **junction_bed**: Alignments of the breakpoint-junction supporting reads.
+
+7. **junction_bam**: Alignments of the breakpoint-junction supporting reads.
+
+8. **spanning_bam**: Alignments of the breakpoint-spanning paired-end reads.
+
+9. **spanning_bed**: Alignments of the breakpoint-spanning paired-end reads.
+
+10. **trinity_bed**: Fusion-guided Trinity assembly.
+
+11. **fusion_predictions.final**: All fusion evidence described.
+
+12. **fusion_predictions_abridged**: encompasses all information in fusion_predictions.final excluding the names of the reads.
+
+13. **fusion_json**: A logistical file that enables the visualization.
+
+    </help>
+    <cite>
+    </cite>
+</tool>
