@@ -203,8 +203,7 @@ main: {
 
         
     ## run STAR
-    
-    my @tmpfiles;
+        my @tmpfiles;
     
     my $pipeliner = new Pipeliner(-verbose => 2);
 
@@ -225,7 +224,7 @@ main: {
 
     if (length($reads) > 1000) {
         my $star_params_file = "star_params.$$.txt";
-        open(my $ofh, ">$star_params_file") or die "Error, cannot write to fiel: $star_params_file";
+        open(my $ofh, ">$star_params_file") or die "Error, cannot write to file: $star_params_file";
         print $ofh "readFilesIn $reads\n";
         if ($read_group_ids) {
             print $ofh "outSAMattrRGline $read_group_ids\n";
@@ -248,27 +247,28 @@ main: {
             .  " --chimSegmentReadGapMax parameter 3 "
     }
     
-    
-    if ($only_fusion_reads_flag) {
-        $cmd .= " --outSAMfilter KeepOnlyAddedReferences ";
-    }
-    elsif ($capture_genome_alignments_flag) {
-        # no op
-        # by default, reports all alignments
-    }
-    else {
-        $cmd .= " --outSAMfilter KeepAllAddedReferences ";
+    if ($patch) {
+        
+        $cmd .= " --genomeFastaFiles $patch ";
+        
+        if ($only_fusion_reads_flag ) {
+            $cmd .= " --outSAMfilter KeepOnlyAddedReferences ";
+        }
+        elsif ($capture_genome_alignments_flag) {
+            # no op
+            # by default, reports all alignments
+        }
+        else {
+            ## ** the FusionInspector default setting ** 
+            # retains all alignments to the contigs, not just the fusion evidence.
+            $cmd .= " --outSAMfilter KeepAllAddedReferences ";
+        }
     }
     
     if ($gtf_file) {
         $cmd .= " --sjdbGTFfile $gtf_file ";
     }
-
-    if ($patch) {
-        $cmd .= " --genomeFastaFiles $patch ";
-    }
-    
-    
+        
     $cmd .= " --alignSJstitchMismatchNmax 5 -1 5 5 ";  #which allows for up to 5 mismatches for non-canonical GC/AG, and AT/AC junctions, and any number of mismatches for canonical junctions (the default values 0 -1 0 0 replicate the old behavior (from AlexD)
     
     
