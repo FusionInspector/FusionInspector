@@ -203,7 +203,7 @@ class FusionInspector:
                         # msg = "The Absolute Trinity path that was found is: {:s}".format(TrinityPath)
                         # print msg
                         # Take off the last part of the path (which is the Trinity command)
-                        TRINITY_HOME = "/".join(TrinityPath.split("/")[0:-1])
+                        TRINITY_HOME = "/".join(TrinityPath.decode("utf-8").split("/")[0:-1])
                         os.environ['TRINITY_HOME'] = TRINITY_HOME
                         sys.stdout.write("TRINITY_HOME has been set to: {:s}.\n".format(TRINITY_HOME))
                     # else: # There was no value returned by the which command. So Trinity is not in the PATH.
