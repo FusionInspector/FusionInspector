@@ -906,7 +906,7 @@ def check_files_exist(files_lst):
     missing = False
     for file in files_lst:
         if not os.path.exists(file):
-            print("Error, cannot locate file: {}\n".file(file), file=sys.stderr)
+            print("Error, cannot locate file: {}\n".format(file), file=sys.stderr)
             missing = True
 
     if missing:
