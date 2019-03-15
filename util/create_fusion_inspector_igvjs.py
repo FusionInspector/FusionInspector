@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+# encoding: utf-8
+
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
 
 import argparse
 import csv
@@ -158,7 +162,7 @@ if args.f_include_trinity:
 
 # Make fusion detail
 with open( os.path.join( absolute_fusion_directory, file_prefix + ".fusion_predictions.final.abridged" ), "r" ) as fusion_detail_contents:
-    fusion_detail_parsed = csv.reader( fusion_detail_contents, delimiter = "\t" )
+    fusion_detail_parsed = csv.reader( fusion_detail_contents, delimiter = str("\t") )
 
     # Get indices of the columns of interest, if they do not exist error.
     detail_key_to_index = {}
