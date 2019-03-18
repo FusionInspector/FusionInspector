@@ -7,3 +7,6 @@
 [submodule "FusionAnnotator"]
 	path = FusionAnnotator
 	url = https://github.com/FusionAnnotator/FusionAnnotator.git
+[submodule "fusion-reports"]
+	path = fusion-reports
+	url = https://github.com/FusionInspector/fusion-reports.git
