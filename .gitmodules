@@ -7,6 +7,3 @@
 [submodule "FusionAnnotator"]
 	path = FusionAnnotator
 	url = https://github.com/FusionAnnotator/FusionAnnotator.git
-[submodule "util/igv.js-reports"]
-	path = util/igv.js-reports
-	url = https://github.com/igvteam/igv.js-reports.git
