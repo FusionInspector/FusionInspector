@@ -12,10 +12,10 @@ all: test fusion_contigs_only incl_Trinity annotate coding_effect single_reads s
 
 
 fusion_contigs_only:
-	./runMe.pl --out_dir FusionInspector-fusionContigOnly --fusion_contigs_only --left_fq ${left_fq} --right_fq ${right_fq} --extract_fusion_reads_file FusionInspector-fusionContigOnly/fusion_reads --prep_for_IGV
+	./runMe.pl --out_dir FusionInspector-fusionContigOnly --fusion_contigs_only --left_fq ${left_fq} --right_fq ${right_fq} --extract_fusion_reads_file FusionInspector-fusionContigOnly/fusion_reads --vis
 
 incl_Trinity:
-	./runMe.pl --out_dir FusionInspector-fusionContigOnly-incl_Trinity --fusion_contigs_only --include_Trinity --left_fq ${left_fq} --right_fq ${right_fq} --prep_for_IGV --write_intermediate_results
+	./runMe.pl --out_dir FusionInspector-fusionContigOnly-incl_Trinity --fusion_contigs_only --include_Trinity --left_fq ${left_fq} --right_fq ${right_fq} --vis --write_intermediate_results
 
 annotate: fusion_contigs_only
 	./runMe.pl --out_dir FusionInspector-fusionContigOnly --fusion_contigs_only --annotate --left_fq ${left_fq} --right_fq ${right_fq}
