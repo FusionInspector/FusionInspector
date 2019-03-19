@@ -29,6 +29,8 @@ ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
 
+VERSION = "__BLEEDING_EDGE__"
+
 
 BASEDIR = os.path.dirname(__file__)
 UTILDIR = os.sep.join([BASEDIR, "util"])
@@ -144,6 +146,8 @@ class FusionInspector:
         optional.add_argument("--no_remove_dups", action='store_true', default=False, help="do not exclude duplicate reads")
         optional.add_argument("--FAR_pseudocount", type=float, default=1, help="pseudocount to be used in fusion allelic ratio (FAR) computation")
 
+        optional.add_argument("--version", action='store_true', default=False, help="provide version info: {}".format(VERSION) )
+        
         # done setting up options menu
         
         args_parsed = arg_parser.parse_args()
@@ -960,6 +964,10 @@ if __name__ == "__main__":
             if not contains_fusions(fusion_file):
                 print("No fusions listed in input file: {}, exiting gracefully.".format(fusion_file), file=sys.stderr)
                 sys.exit(0)
+        if item == "--version":
+            sys.stderr.write("\tFusionInspector version: {}\n\n".format(VERSION))
+            sys.exit(0)
+    
 
 
     # Needed to run, calls the script
