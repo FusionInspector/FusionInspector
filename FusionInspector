@@ -617,46 +617,56 @@ class FusionInspector:
         ## Score and filter the final fusion predictions
         ################################################
 
-        final_fusions_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".fusion_predictions"])
+        post_blast_promisc_filter_fusions_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".post_blast_and_promiscuity_filter"])
         
         cmdstr = str(UTILDIR + "/../FusionFilter/blast_and_promiscuity_filter.pl " +
                      " --fusion_preds " + preds_including_splice_info_file +
-                     " --out_prefix " + final_fusions_file +
+                     " --out_prefix " + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix]) +
                      " --genome_lib_dir " + args_parsed.genome_lib_dir +
                      " --max_promiscuity " + str(args_parsed.max_promiscuity) +
                      " --min_pct_dom_promiscuity " + str(args_parsed.min_pct_dom_promiscuity) )
 
         pipeliner.add_commands([Command(cmdstr, "blast_filter.ok")]) 
 
-        unabridged_final_fusions_file = final_fusions_file + ".post_blast_and_promiscuity_filter"
 
-        final_fusions_file = final_fusions_file + ".final"
-        cmdstr = str("cp {} {}".format(unabridged_final_fusions_file, final_fusions_file))
+        ## Filter based on annotation rules
+        cmdstr = str(UTILDIR + "/../FusionFilter/util/filter_by_annotation_rules.pl " +
+                     " --fusions {}".format(post_blast_promisc_filter_fusions_file) +
+                     " --genome_lib_dir {}".format(genome_lib_dir))
+
+        pipeliner.add_commands([Command(cmdstr, "annot_filter.ok")])
+
+        annot_pass_fusions_file = "{}.annot_filter.pass".format(post_blast_promisc_filter_fusions_file)
+
+        
+
+        ## add FFPM calculations
+        if args_parsed.left_fq_filename:
+            cmdstr = str( os.path.sep.join([UTILDIR, "incorporate_FFPM_into_final_report.pl"]) +
+                          " " + args_parsed.left_fq_filename +
+                          " " + annot_pass_fusions_file +
+                          " > " + annot_pass_fusions_file + ".FFPM" )
+            
+            pipeliner.add_commands([Command(cmdstr, "add_FFPM.ok")])
+
+            
+            annot_pass_fusions_file = annot_pass_fusions_file + ".FFPM"
+        
+
+                
+        final_fusions_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".FusionInspector.fusions.tsv"])
+        cmdstr = str("cp {} {}".format(annot_pass_fusions_file, final_fusions_file))
         pipeliner.add_commands([Command(cmdstr, "cp_final.ok")])
         
         ## make an abridged version that lacks the list of supporting reads.
 
-        abridged_final_fusions_file = final_fusions_file + ".abridged"
+        abridged_final_fusions_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".FusionInspector.fusions.abridged.tsv"])
         cmdstr = str(UTILDIR + "/column_exclusions.pl " + final_fusions_file +
                      " JunctionReads,SpanningFrags,CounterFusionLeftReads,CounterFusionRightReads " +
                      " > " + abridged_final_fusions_file );
         pipeliner.add_commands([Command(cmdstr, "final.abridged.ok")]) 
         
-
         
-        ## add FFPM calculations
-        if args_parsed.left_fq_filename:
-            cmdstr = str( os.path.sep.join([UTILDIR, "incorporate_FFPM_into_final_report.pl"]) +
-                          " " + args_parsed.left_fq_filename +
-                          " " + abridged_final_fusions_file +
-                          " > " + abridged_final_fusions_file + ".FFPM" )
-            
-            pipeliner.add_commands([Command(cmdstr, "add_FFPM.ok")])
-
-            final_fusions_file = abridged_final_fusions_file + ".FFPM"
-        else:
-            final_fusions_file = abridged_final_fusions_file
-
         
         if args_parsed.vis:
             ## generate the fusion-inspector-web galaxy js 

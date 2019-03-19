@@ -161,7 +161,7 @@ if args.f_include_trinity:
             exit( -1 )
 
 # Make fusion detail
-with open( os.path.join( absolute_fusion_directory, file_prefix + ".fusion_predictions.final.abridged" ), "r" ) as fusion_detail_contents:
+with open( os.path.join( absolute_fusion_directory, file_prefix + ".FusionInspector.fusions.tsv.abridged" ), "r" ) as fusion_detail_contents:
     fusion_detail_parsed = csv.reader( fusion_detail_contents, delimiter = str("\t") )
 
     # Get indices of the columns of interest, if they do not exist error.
