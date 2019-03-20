@@ -14,20 +14,6 @@ import sys
 # Argument
 C_ARG_INCLUDE_TRINITY = "--include_Trinity"
 
-# Constants keys in JSON file
-C_REFERENCE = "reference"
-C_REFERENCE_INDEX = "referenceIndex"
-C_CYTOBAND = "cytoband"
-C_REFERENCE_BED = "referenceBed"
-C_JUNCTION_SPANNING = "junctionSpanning"
-C_TRINITY_BED = "trinityBed"
-C_JUNCTION_READS = "junctionReads"
-C_JUNCTION_READS_BAM = "junctionReadsBam"
-C_JUNCTION_READS_BAI = "junctionReadsBai"
-C_SPANNING_READS = "spanningReads"
-C_SPANNING_READS_BAM = "spanningReadsBam"
-C_SPANNING_READS_BAI = "spanningReadsBai"
-#C_SAMPLE_NAME = "sampleName"
 C_FUSION_DETAIL = "fusions"
 C_FUSION_DETAIL_NAME = "Name"
 C_FUSION_DETAIL_LEFT_CHR = "Left Chr"
@@ -63,8 +49,10 @@ C_PRED_RIGHT_BREAK_POINT_ENG = "Right Breakpoint"
 # Convert splice type token to a more readable form
 C_SPLICE_REFERENCE = "ONLY_REF_SPLICE"
 C_SPLICE_REFERENCE_ENG = "Includes Reference"
+
 C_SPLICE_NOT_REFERENCE = "INCL_NON_REF_SPLICE"
 C_SPLICE_NOT_REFERENCE_ENG = "DOES NOT Include Reference"
+
 C_SPLICE_NO_JUNCTION_READS = "NO_JUNCTION_READS_IDENTIFIED"
 C_SPLICE_NO_JUNCTION_READS_ENG = "No junction/split reads identified, only spanning fragments"
 
@@ -131,19 +119,6 @@ C_STR_INCLUDE_TRINITY_BED_GZ = file_prefix + ".gmap_trinity_GG.fusions.gff3.bed.
 
 # Dict to be translated to JSON object
 dict_json = {}
-dict_json[ C_REFERENCE ] = file_prefix + ".fa"
-dict_json[ C_REFERENCE_INDEX ] = file_prefix + ".fa.fai"
-dict_json[ C_CYTOBAND ] = "cytoBand.txt"
-dict_json[ C_REFERENCE_BED ] = file_prefix + ".bed"
-dict_json[ C_JUNCTION_SPANNING ] = file_prefix + ".igv.FusionJuncSpan"
-dict_json[ C_TRINITY_BED ] = C_STR_INCLUDE_TRINITY_BED if args.f_include_trinity else "NA"
-dict_json[ C_JUNCTION_READS ] = file_prefix + ".junction_reads.bam.bed.sorted.bed.gz"
-dict_json[ C_JUNCTION_READS_BAM ] = file_prefix + ".junction_reads.bam"
-dict_json[ C_JUNCTION_READS_BAI ] = file_prefix + ".junction_reads.bam.bai"
-dict_json[ C_SPANNING_READS ] = file_prefix + ".spanning_reads.bam.bed.sorted.bed.gz"
-dict_json[ C_SPANNING_READS_BAM ] = file_prefix + ".spanning_reads.bam"
-dict_json[ C_SPANNING_READS_BAI ] = file_prefix + ".spanning_reads.bam.bai"
-#dict_json[ C_SAMPLE_NAME ] = os.path.basename( args.fusion_inspector_directory ) 
 dict_json[ C_FUSION_DETAIL ] = []
 
 # Uncompress bed file for Galaxy (which does not like compressed files).
