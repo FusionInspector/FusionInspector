@@ -130,7 +130,7 @@ if args.f_include_trinity:
             with gzip.open( str_trinity_bed_file_compressed ) as hndl_compressed_file:
                 with open( str_trinity_bed_file, "w" ) as hndl_uncompressed_file:
                     for str_compressed_line in hndl_compressed_file:
-                        hndl_uncompressed_file.write( str_compressed_line ) 
+                        hndl_uncompressed_file.write( str(str_compressed_line) ) 
         else:
             print(C_ARG_INCLUDE_TRINITY + " was given but one of the following files are expected to exist and did not:" + " or ".join([ C_STR_INCLUDE_TRINITY_BED, C_STR_INCLUDE_TRINITY_BED_GZ ]))
             exit( -1 )
