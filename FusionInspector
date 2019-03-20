@@ -674,7 +674,8 @@ class FusionInspector:
                      " > " + abridged_final_fusions_file );
         pipeliner.add_commands([Command(cmdstr, "final.abridged{}.ok".format(trinity_ok_token))]) 
         
-        
+
+        final_fusions_file = abridged_final_fusions_file ## use the abridged version from here on
         
         if args_parsed.vis:
             ## generate the fusion-inspector-web galaxy js 
