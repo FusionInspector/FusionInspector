@@ -140,4 +140,14 @@ RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git
 
 
 
+### silly, need to do this now since py3 was made the default.  
+
+RUN apt-get install -y python3-distutils
+
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python get-pip.py
+
+
+RUN pip install numpy requests igv-reports
+
 
