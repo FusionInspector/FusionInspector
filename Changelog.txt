@@ -1,3 +1,9 @@
+## FusionInspector v2.0.0 (Mar 20, 2019)
+-uses annotation-based red-herring filtering as in STAR-Fusion for final report.
+-restructured presentation of output files, final report called: finspector.FusionInspector.fusions.tsv
+-self-contained stand-alone visualizations and reports using igv-reports
+-docker support added
+
 
 ## FusionInspector v1.3.0 (May 1, 2018)
 Simplified required arguments.  Using CTAT_GENOME_LIB env var for convenience.  Just needs fusion targets and reads and it'll run.

@@ -36,5 +36,5 @@ docker run -v `pwd`/../:/data --rm trinityctat/fusioninspector:${VERSION} Fusion
        --vis \
        --include_Trinity \
        --examine_coding_effect \
-       --extract_fusion_reads_file FusionInspector-pe_samples/fusion_reads 
+       --extract_fusion_reads_file ${TESTDIR}/FusionInspector-by-docker/fusion_reads 
 
