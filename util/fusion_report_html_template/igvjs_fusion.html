@@ -154,7 +154,7 @@
                 showKaryo: false,
                 locus: initialFusion,
                 reference: {
-                    fastaURL: "finspector.fa",
+                    fastaURL: "__PREFIX__.fa",
                     cytobandURL: "cytoBand.txt",
                 },
                 tracks: [
@@ -165,7 +165,7 @@
 
                     {
                         label: "ref_annot",
-                        url: "finspector.bed",
+                        url: "__PREFIX__.bed",
                         displayMode: "SQUISHED",
                         indexed: false,
                         order: 10,
@@ -176,13 +176,13 @@
                     {
                         label: "Junction_Spanning_View",
                         type: "FusionJuncSpan",
-                        url: "finspector.igv.FusionJuncSpan",
+                        url: "__PREFIX__.igv.FusionJuncSpan",
                         displayMode: "SQUISHED",
                         indexed: false,
                         order: 20
                     },
                     {
-                        url: "finspector.junction_reads.bam.bed",
+                        url: "__PREFIX__.junction_reads.bam.bed",
                         label: "Junction_Reads",
                         displayMode: "SQUISHED",
                         minHeight: 30,
@@ -193,7 +193,7 @@
                         type: "bed"
                     },
                     {
-                        url: "finspector.junction_reads.bam",
+                        url: "__PREFIX__.junction_reads.bam",
                         label: "Junction_Reads_Alignments",
                         type: "bam",
                         height: 100,
@@ -202,7 +202,7 @@
                         order: 45
                     },
                     {
-                        url: "finspector.spanning_reads.bam.bed",
+                        url: "__PREFIX__.spanning_reads.bam.bed",
                         label: "Spanning_Reads",
                         displayMode: "SQUISHED",
                         minHeight: 30,
@@ -213,7 +213,7 @@
                         type: "bed"
                     },
                     {
-                        url: "finspector.spanning_reads.bam",
+                        url: "__PREFIX__.spanning_reads.bam",
                         type: "bam",
                         label: "Spanning_Reads_Alignments",
                         height: 100,
@@ -224,10 +224,10 @@
                 ]
             };
 
-        if (data["finspector.gmap_trinity_GG.fusions.gff3.bed.sorted.bed"]) {
+        if (data["__PREFIX__.gmap_trinity_GG.fusions.gff3.bed.sorted.bed"]) {
             options.tracks.push({
                 label: "Trinity_Fusion",
-                url: "finspector.gmap_trinity_GG.fusions.bed",
+                url: "__PREFIX__.gmap_trinity_GG.fusions.bed",
                 displayMode: "EXPANDED",
                 color: "green",
                 indexed: false,
