@@ -41,5 +41,5 @@ clean:
 	rm -rf ./FusionInspector-outdir
 	rm -rf ./FusionInspector-single_reads ./FusionInspector-single_reads-fc_only
 	rm -rf ./FusionInspector-pe_samples
-
+	rm -rf ./FusionInspector-by-docker
 

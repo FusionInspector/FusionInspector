@@ -143,7 +143,7 @@ RUN pip install numpy requests igv-reports
 
 RUN apt-get install -y git
 
-ENV FI_HASH=9cad61e19175bee4c86976a685f4e4ebe05c04dc
+ENV FI_HASH=6d7ca6389c281b2e2b407ae70ca318ce237d14f9
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
