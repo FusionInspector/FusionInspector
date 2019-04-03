@@ -125,21 +125,6 @@ RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 
 
-##################
-## FusionInspector  v2.0.0
-
-RUN apt-get install -y git
-
-ENV FI_HASH=af5d692fc4934d22ac84f3f3a042da372d649d47
-
-RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
-    cd FusionInspector/ && \
-    git checkout -b ${FI_HASH} && \
-    git submodule update && \
-    mv * $BIN
-
-
-
 ### silly, need to do this now since py3 was made the default.  
 
 RUN apt-get install -y python3-distutils
@@ -150,4 +135,19 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 
 RUN pip install numpy requests igv-reports
 
+
+
+
+##################
+## FusionInspector  v2.0.0
+
+RUN apt-get install -y git
+
+ENV FI_HASH=9cad61e19175bee4c86976a685f4e4ebe05c04dc
+
+RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
+    cd FusionInspector/ && \
+    git checkout -b ${FI_HASH} && \
+    git submodule init && git submodule update && \
+    mv * $BIN
 
