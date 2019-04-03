@@ -1,5 +1,6 @@
 ## FusionInspector v2.0.1 (April 3, 2019)
 -bugfix issue wrt submodule integration of fusion-reports
+-updated docker to include use of STAR v2.7.0f
 
 
 ## FusionInspector v2.0.0 (Mar 20, 2019)
