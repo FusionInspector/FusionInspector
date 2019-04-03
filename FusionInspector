@@ -700,6 +700,7 @@ class FusionInspector:
             cmdstr = str(os.path.sep.join([BASEDIR, "fusion-reports", "create_fusion_report.py"]) +
                          " --html_template {}".format(html_template) +
                          " --fusions_json {}".format(json_file) +
+                         " --input_file_prefix {}".format(args_parsed.out_prefix) +
                          " --html_output {}".format(os.path.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".fusion_inspector_web.html"]) ) )
 
             pipeliner.add_commands([Command(cmdstr, "fusion_reports_html{}.ok".format(trinity_ok_token))])
