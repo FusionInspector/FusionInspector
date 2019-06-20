@@ -63,7 +63,7 @@ main: {
             
         }
         
-        my $num_junction_reads = scalar(@junction_reads);
+        my $num_junction_reads = &count_frags(@junction_reads); # need to be careful when read pairs overlap and they're both split reads.
         my $num_spanning_reads = scalar(@spanning_reads);
         
         my @left_contrary_reads;
@@ -252,6 +252,22 @@ sub remove_residual_junction_from_spanning_reads {
     }
 
     return(@spanning_retain);
+}
+
+####
+sub count_frags {
+    my @read_names = @_;
+    
+    my %frags;
+
+    foreach my $read_name (@read_names) {
+        $read_name =~ s/\/[12]$//;
+        $frags{$read_name}++;
+    }
+
+    my $count = scalar(keys %frags);
+
+    return($count);
 }
 
 
