@@ -37,6 +37,21 @@ RUN cpanm install Carp::Assert
 RUN cpanm install JSON::XS.pm
 
 
+## Python 3 stuff
+
+RUN ln -sf /usr/bin/python3 /usr/bin/python
+
+RUN apt-get install -y python3-distutils
+
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python get-pip.py
+
+
+RUN pip install numpy requests igv-reports
+
+
+
+
 ######################
 ## Tool installations:
 ######################
@@ -60,7 +75,7 @@ RUN SAMTOOLS_URL="https://github.com/samtools/samtools/releases/download/${SAMTO
 ########
 # Trinity
 
-ENV TRINITY_VERSION=2.8.4
+ENV TRINITY_VERSION=2.8.5
 
 RUN TRINITY_URL="https://github.com/trinityrnaseq/trinityrnaseq/archive/Trinity-v${TRINITY_VERSION}.tar.gz" && \
    cd $SRC && \
@@ -121,29 +136,13 @@ RUN GMAP_URL="http://research-pub.gene.com/gmap/src/gmap-gsnap-$GMAP_VERSION.tar
 
 
 
-RUN ln -sf /usr/bin/python3 /usr/bin/python
-
-
-
-### silly, need to do this now since py3 was made the default.  
-
-RUN apt-get install -y python3-distutils
-
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python get-pip.py
-
-
-RUN pip install numpy requests igv-reports
-
-
-
 
 ##################
 ## FusionInspector  v2.0.0
 
 RUN apt-get install -y git
 
-ENV FI_HASH=6d7ca6389c281b2e2b407ae70ca318ce237d14f9
+ENV FI_HASH=658610ed84e245eebe355e20479ce91998f37ffe
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
