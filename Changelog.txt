@@ -1,3 +1,9 @@
+
+## FusionInspector v2.0.2 (Apr. 20, 2019)
+-bugfix, avoiding over-counting split fragments now... if both frag reads overlap and provide split reads, we count the fragment once as intended now.
+-upgrading STAR to 2.7.1a
+
+
 ## FusionInspector v2.0.1 (April 3, 2019)
 -bugfix issue wrt submodule integration of fusion-reports
 -updated docker to include use of STAR v2.7.0f

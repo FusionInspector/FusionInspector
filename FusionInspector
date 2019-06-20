@@ -29,7 +29,7 @@ ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
 
-VERSION = "2.0.1"
+VERSION = "2.0.2"
 
 
 BASEDIR = os.path.dirname(__file__)
