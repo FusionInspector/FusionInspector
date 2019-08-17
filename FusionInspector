@@ -375,7 +375,7 @@ class FusionInspector:
 
         if args_parsed.STAR_max_mate_dist:
             cmdstr += " --max_mate_dist {} ".format(args_parsed.STAR_max_mate_dist)
-			cmdstr += " --max_intron_length {} ".format(args_parsed.STAR_max_mate_dist)
+            cmdstr += " --max_intron_length {} ".format(args_parsed.STAR_max_mate_dist)
         
         
         if args_parsed.aligner_path:
