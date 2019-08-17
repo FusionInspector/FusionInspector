@@ -15,7 +15,7 @@ from Pipeliner import Pipeliner, Command
 
 
 __example__ = "FusionInspector --left_fq ../BT474--ACACA--STAC2.left.fq --right_fq ../BT474--ACACA--STAC2.right.fq \
-              --fusions fusion_gene_candidates.dat --out_dir myoutdir --out_prefix ladeda"
+              --fusions fusion_gene_candidates.dat --output_dir myoutdir --out_prefix ladeda"
 
 
 import logging
@@ -29,7 +29,7 @@ ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
 
-VERSION = "2.0.2"
+VERSION = "__BLEEDING_EDGE__"
 
 
 BASEDIR = os.path.dirname(__file__)
@@ -81,7 +81,7 @@ class FusionInspector:
         optional.add_argument("--samples_file", dest="samples_file", type=str, required=False, default=None,
                              help="samples file (format: sample(tab)/path/left.fq(tab)/path/right.fq")
         
-        optional.add_argument("--out_dir", dest="str_out_dir", type=str, required=False, default="FI", help="output directory")
+        optional.add_argument("-O", "--output_dir", dest="str_out_dir", type=str, required=False, default="FI", help="output directory")
         
         optional.add_argument("--out_prefix", dest="out_prefix", type=str, default='finspector', help="output filename prefix")
 
@@ -147,6 +147,8 @@ class FusionInspector:
         optional.add_argument("--FAR_pseudocount", type=float, default=1, help="pseudocount to be used in fusion allelic ratio (FAR) computation")
 
         optional.add_argument("--version", action='store_true', default=False, help="provide version info: {}".format(VERSION) )
+
+        optional.add_argument("--STAR_max_mate_dist", type=int, default=None, help="max mate distance and max intron length for STAR")
         
         # done setting up options menu
         
@@ -371,6 +373,10 @@ class FusionInspector:
             # reads direct:
             cmdstr += " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\""
 
+        if args_parsed.STAR_max_mate_dist:
+            cmdstr += " --max_mate_dist {} ".format(args_parsed.STAR_max_mate_dist)
+            cmdstr += " --max_intron_length {} ".format(args_parsed.STAR_max_mate_dist)
+        
         
         if args_parsed.aligner_path:
             cmdstr += " --star_path " + args_parsed.aligner_path

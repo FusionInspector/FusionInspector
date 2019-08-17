@@ -37,6 +37,8 @@ my $usage = <<__EOUSAGE__;
 #  --only_fusion_reads         restrict alignments only to the fusion-supporting reads
 #  --capture_genome_alignments reports alignments to the reference genome in addition to the fusion contigs. (for debugging)
 #  --chim_search               include Chimeric.junction outputs
+#  --max_mate_dist <int>       maximum distance between mates allowed
+#  --max_intron_length <int>   masximum length allowed for introns.
 # 
 #################################################################################################
 
@@ -64,6 +66,8 @@ my $only_fusion_reads_flag = 0;
 my $capture_genome_alignments_flag = 0;
 my $chim_search;
 my $samples_file;
+my $max_mate_dist;
+my $max_intron_length;
 
 
 &GetOptions( 'h' => \$help_flag,
@@ -83,6 +87,9 @@ my $samples_file;
              'only_fusion_reads' => \$only_fusion_reads_flag,
              'capture_genome_alignments' => \$capture_genome_alignments_flag,
              'chim_search' => \$chim_search,
+
+             'max_mate_dist=i' => \$max_mate_dist,
+             'max_intron_length=i' => \$max_intron_length,
              
     );
 
@@ -166,6 +173,14 @@ main: {
         }
         chdir $out_dir or die "Error, cannot cd to $out_dir";
     }
+
+    my $MIN_RAM = 1024**3; # 1G
+    my $genome_size = -s $genome;
+    my $estimated_ram = $genome_size * 15;
+    
+    if ($estimated_ram < $MIN_RAM) {
+        $estimated_ram = $MIN_RAM;
+    }
     
     my $star_index = "$genome.star.idx";
     if (! -d $star_index) {
@@ -178,13 +193,15 @@ main: {
         # from Alex D.:
         # scale down the --genomeSAindexNbases parameter as log2(GenomeLength)/2 - 1
         
-        my $genome_size = -s $genome;
+    
         my $genomeSAindexNbases = int(log($genome_size) / log(2) / 2); # close enough.
-        
+    
+
+    
         my $cmd = "$star_prog --runThreadN $CPU --runMode genomeGenerate --genomeDir $star_index "
             . " --genomeFastaFiles $genome "
             . " --genomeSAindexNbases $genomeSAindexNbases"
-            . " --limitGenomeGenerateRAM 40419136213 ";
+            . " --limitGenomeGenerateRAM $estimated_ram "; #40419136213 ";
         if ($gtf_file) {
             $cmd .= " --sjdbGTFfile $gtf_file "
                 . " --sjdbOverhang 150 ";
@@ -214,14 +231,18 @@ main: {
         . " --genomeDir $star_index "
         . " --outSAMtype BAM SortedByCoordinate "
         . " --twopassMode Basic "
-        . " --alignMatesGapMax 100000 "
-        . " --alignIntronMax 100000 "
         . " --alignSJDBoverhangMin 10 "
         . " --genomeSuffixLengthMax 10000"
-        . " --limitBAMsortRAM 20000000000";
-
-
-
+        . " --limitBAMsortRAM $estimated_ram "; #20000000000";
+    
+    
+    if ($max_mate_dist) {
+        $cmd .= " --alignMatesGapMax $max_mate_dist ";
+    }
+    if ($max_intron_length) {
+        $cmd .= " --alignIntronMax $max_intron_length ";
+    }
+    
     if (length($reads) > 1000) {
         my $star_params_file = "star_params.$$.txt";
         open(my $ofh, ">$star_params_file") or die "Error, cannot write to file: $star_params_file";

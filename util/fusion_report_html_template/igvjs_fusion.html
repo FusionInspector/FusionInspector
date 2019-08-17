@@ -31,16 +31,21 @@
 
 <body>
 <h2>Fusion Inspector</h2>
+
 <div class="constainer-fluid" id="sampleHeader" style="background-color: #E7E7EF">
     <nav class="navbar navbar-default" style="background-color: #E7E7EF">
         <!--<div class="col-xs-3" id="sampleId"><p class="navbar-text"><b>Sample:</b></p></div>-->
+
+		<!-- disabling for now... need callback to change from igv selector
         <div class="col-xs-3" id="FusionNameDetail"><p class="navbar-text"><b>Fusion Name:</b> Not Selected</p></div>
         <div class="col-xs-3" id="FusionJunctionDetail"><p class="navbar-text"><b>Junction Read Count:</b> Not Selected
         </p></div>
         <div class="col-xs-3" id="FusionSpanningDetail"><p class="navbar-text"><b>Spanning Read Count:</b> Not Selected
         </p></div>
+ 		-->
     </nav>
 </div>
+
 <!-- End fusion details -->
 <hr>
 
@@ -116,7 +121,7 @@
     function loadIGVBrowser(curFusion, curJunctionReads, curSpanningReads) {
 
         // Update header no matter if the browser is being made.
-        setFusionDetails(curFusion, curJunctionReads, curSpanningReads);
+        //setFusionDetails(curFusion, curJunctionReads, curSpanningReads); //diabled because requires callback from igv browser when fusion is changed from there.
 
         // Do not remake browser.
         if (!fusionInspectorState.cache["curBrowser"]) {
@@ -255,9 +260,10 @@
     }
 
     function setFusionDetails(fusionName, fusionJunctReads, fusionSpanFrags) {
-        $("#FusionNameDetail").html("<p class='navbar-text'><b>Fusion Name:</b> " + fusionName + "</p>");
-        $("#FusionJunctionDetail").html("<p class='navbar-text'><b>Junction Read Count:</b> " + fusionJunctReads + "</p>");
-        $("#FusionSpanningDetail").html("<p class='navbar-text'><b>Spanning Read Count:</b> " + fusionSpanFrags + "</p>");
+        // diabling for now - need igv callback
+	    // $("#FusionNameDetail").html("<p class='navbar-text'><b>Fusion Name:</b> " + fusionName + "</p>");
+        // $("#FusionJunctionDetail").html("<p class='navbar-text'><b>Junction Read Count:</b> " + fusionJunctReads + "</p>");
+        // $("#FusionSpanningDetail").html("<p class='navbar-text'><b>Spanning Read Count:</b> " + fusionSpanFrags + "</p>");
     }
 
     function orderTableKeysBeginning(arrayToOrder, forcedOrder) {
