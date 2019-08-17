@@ -15,7 +15,7 @@ from Pipeliner import Pipeliner, Command
 
 
 __example__ = "FusionInspector --left_fq ../BT474--ACACA--STAC2.left.fq --right_fq ../BT474--ACACA--STAC2.right.fq \
-              --fusions fusion_gene_candidates.dat --out_dir myoutdir --out_prefix ladeda"
+              --fusions fusion_gene_candidates.dat --output_dir myoutdir --out_prefix ladeda"
 
 
 import logging
@@ -81,7 +81,7 @@ class FusionInspector:
         optional.add_argument("--samples_file", dest="samples_file", type=str, required=False, default=None,
                              help="samples file (format: sample(tab)/path/left.fq(tab)/path/right.fq")
         
-        optional.add_argument("--out_dir", dest="str_out_dir", type=str, required=False, default="FI", help="output directory")
+        optional.add_argument("-O", "--output_dir", dest="str_out_dir", type=str, required=False, default="FI", help="output directory")
         
         optional.add_argument("--out_prefix", dest="out_prefix", type=str, default='finspector', help="output filename prefix")
 
