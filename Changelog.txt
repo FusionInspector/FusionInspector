@@ -1,3 +1,7 @@
+## FusionInspector v2.1.0 (Aug 17, 2019)
+-harmonized --output_dir usage w/ STAR-Fusion. Also, now accepting --STAR_max_mate_dist
+-igv html file has fusion header info disabled for now. Will update later after igv callback mechanism in place for updates.
+
 
 ## FusionInspector v2.0.2 (Apr. 20, 2019)
 -bugfix, avoiding over-counting split fragments now... if both frag reads overlap and provide split reads, we count the fragment once as intended now.
