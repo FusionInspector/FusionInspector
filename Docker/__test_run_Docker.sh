@@ -2,10 +2,8 @@
 
 set -ve
 
-
-CTAT_GENOME_LIB="GRCh38_gencode_v29_CTAT_lib_Mar272019.plug-n-play"
-
-CTAT_GENOME_LIB_URL="https://data.broadinstitute.org/Trinity/CTAT_RESOURCE_LIB/__genome_libs_StarFv1.6/GRCh38_gencode_v29_CTAT_lib_Mar272019.plug-n-play.tar.gz"
+CTAT_GENOME_LIB="GRCh37_gencode_v19_CTAT_lib_Aug152019.plug-n-play"
+CTAT_GENOME_LIB_URL="https://data.broadinstitute.org/Trinity/CTAT_RESOURCE_LIB/GRCh37_gencode_v19_CTAT_lib_Aug152019.plug-n-play.tar.gz"
 
 
 if [ ! -s "../${CTAT_GENOME_LIB}.tar.gz" ] && [ ! -d "../${CTAT_GENOME_LIB}" ]; then
@@ -29,7 +27,7 @@ right_fq="${TESTDIR}/test.reads_2.fastq.gz"
 
 docker run -v `pwd`/../:/data --rm trinityctat/fusioninspector:${VERSION} FusionInspector  \
        --fusions $fusion_files_list \
-       --out_dir ${TESTDIR}/FusionInspector-by-docker \
+       --output_dir ${TESTDIR}/FusionInspector-by-docker \
        --left_fq ${left_fq} \
        --right_fq ${right_fq} \
        --genome_lib /data/${CTAT_GENOME_LIB}/ctat_genome_lib_build_dir  \

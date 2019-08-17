@@ -109,20 +109,6 @@ RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v0.9.1/Salmon-0
     ln -s $SRC/Salmon-latest_linux_x86_64/bin/salmon $BIN/.
 
 
-
-
-##############
-## STAR
-
-ENV STAR_VERSION=2.7.1a
-RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" &&\
-    wget -P $SRC $STAR_URL &&\
-    tar -xvf $SRC/${STAR_VERSION}.tar.gz -C $SRC && \
-    mv $SRC/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /usr/local/bin
-
-
-
-
 ########
 # GMAP  (compile this last because this version unfortunately disrupts some headers in DL_LIBRARY_PATH)
 
@@ -131,18 +117,32 @@ WORKDIR $SRC
 RUN GMAP_URL="http://research-pub.gene.com/gmap/src/gmap-gsnap-$GMAP_VERSION.tar.gz" && \
     wget $GMAP_URL && \
     tar xvf gmap-gsnap-$GMAP_VERSION.tar.gz && \
-    cd gmap-$GMAP_VERSION && ./configure && make && make install
+    cd gmap-$GMAP_VERSION && ./configure --prefix=`pwd` && make && make install && cp ./bin/* $BIN/
+
+
+
+
+
+
+##############
+## STAR
+
+ENV STAR_VERSION=2.7.2a
+RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" &&\
+    wget -P $SRC $STAR_URL &&\
+    tar -xvf $SRC/${STAR_VERSION}.tar.gz -C $SRC && \
+    mv $SRC/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /usr/local/bin
 
 
 
 
 
 ##################
-## FusionInspector  v2.0.0
+## FusionInspector  v2.1.0
 
 RUN apt-get install -y git
 
-ENV FI_HASH=658610ed84e245eebe355e20479ce91998f37ffe
+ENV FI_HASH=79f3679
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
