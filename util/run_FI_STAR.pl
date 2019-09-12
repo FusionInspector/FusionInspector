@@ -291,6 +291,8 @@ main: {
     }
         
     $cmd .= " --alignSJstitchMismatchNmax 5 -1 5 5 ";  #which allows for up to 5 mismatches for non-canonical GC/AG, and AT/AC junctions, and any number of mismatches for canonical junctions (the default values 0 -1 0 0 replicate the old behavior (from AlexD)
+
+    $cmd .= " --scoreGapNoncan -6 "; # default is -8 ... want to penalize slightly less, othwerise can get mismatches near false splice junctions in otherwise optimal alignments.
     
     
     if ($reads =~ /\.gz$/) {
