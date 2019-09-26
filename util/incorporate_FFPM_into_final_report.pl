@@ -28,19 +28,14 @@ main: {
     
     while (my $row = $tab_reader->get_row()) {
 
-        if ($num_frags >= 100000) {
-            
-            my $J = $row->{JunctionReadCount};
-            my $S = $row->{SpanningFragCount};
-            
-            my $J_FFPM = &compute_FFPM($J, $num_frags);
-            my $S_FFPM = &compute_FFPM($S, $num_frags);
-            
-            $row->{FFPM} = $J_FFPM + $S_FFPM;
-        }
-        else {
-            $row->{FFPM} = "NA";
-        }
+        my $J = $row->{JunctionReadCount};
+        my $S = $row->{SpanningFragCount};
+        
+        my $J_FFPM = &compute_FFPM($J, $num_frags);
+        my $S_FFPM = &compute_FFPM($S, $num_frags);
+        
+        $row->{FFPM} = $J_FFPM + $S_FFPM;
+        
         $tab_writer->write_row($row);
     }
     close $fh;
