@@ -1,3 +1,6 @@
+## FusionInspector v2.2.0 (Sep 28, 2019)
+-added --no_FFPM for applications where 'inspect' mode is used from STAR-Fusion and the FFPM values would be nonsensical.
+
 ## FusionInspector v2.1.0 (Aug 17, 2019)
 -harmonized --output_dir usage w/ STAR-Fusion. Also, now accepting --STAR_max_mate_dist
 -igv html file has fusion header info disabled for now. Will update later after igv callback mechanism in place for updates.
