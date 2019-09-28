@@ -29,8 +29,8 @@ ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
 
-#VERSION = "__BLEEDING_EDGE__"
-VERSION = "2.1.0"
+VERSION = "__BLEEDING_EDGE__"
+#VERSION = "2.1.0"
 
 
 BASEDIR = os.path.dirname(__file__)
@@ -150,6 +150,9 @@ class FusionInspector:
         optional.add_argument("--version", action='store_true', default=False, help="provide version info: {}".format(VERSION) )
 
         optional.add_argument("--STAR_max_mate_dist", type=int, default=None, help="max mate distance and max intron length for STAR")
+        
+        optional.add_argument("--no_FFPM", action='store_true', default=False, help="do not compute FFPM value - ie. using inspect instead of validate mode, in which case FFPM would not be meaningful given the full sample of reads is not evaluated")
+        
         
         # done setting up options menu
         
@@ -654,9 +657,8 @@ class FusionInspector:
         annot_pass_fusions_file = "{}.annot_filter.pass".format(post_blast_promisc_filter_fusions_file)
 
         
-
         ## add FFPM calculations
-        if args_parsed.left_fq_filename:
+        if args_parsed.left_fq_filename and not args_parsed.no_FFPM: # note, doesn't yet work with samples file, instead needs left.fq
             cmdstr = str( os.path.sep.join([UTILDIR, "incorporate_FFPM_into_final_report.pl"]) +
                           " " + args_parsed.left_fq_filename +
                           " " + annot_pass_fusions_file +
