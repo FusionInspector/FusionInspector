@@ -77,7 +77,19 @@ unless ($gtf_file && $bam_file && $junction_info_file) {
 }
 
 
+my %exon_bounds;
+my %orig_coord_info;
+my %scaffold_to_gene_structs;
+my %scaffold_to_gene_breaks;
+my %spanning_only_info;
 
+my %junction_reads_ignore;
+my %fusion_junctions;
+my %fusion_breakpoint_info;
+
+my %fusion_to_spanning_reads;
+my %fusion_to_contrary_support;
+my %spanning_read_want;
 
 
 main: {
@@ -85,15 +97,9 @@ main: {
 
     ##############################################################
     ## Get the reference gene coordinates on each fusion-scaffold
-    
 
-    my %exon_bounds;
-    my %orig_coord_info;
-    my %scaffold_to_gene_structs = &parse_gtf_file($gtf_file, \%exon_bounds, \%orig_coord_info);
+    %scaffold_to_gene_structs = &parse_gtf_file($gtf_file, \%exon_bounds, \%orig_coord_info);
 
-    my %spanning_only_info;
-    
-    my %scaffold_to_gene_breaks;
     {
         foreach my $scaffold (keys %scaffold_to_gene_structs) {
 
@@ -133,10 +139,6 @@ main: {
     
     #####################################
     ## Capture the fusion breakpoint info
-    
-    my %junction_reads_ignore;
-    my %fusion_junctions;
-    my %fusion_breakpoint_info;
     
     {
         open (my $fh, "$junction_info_file") or die "error, cannot open file $junction_info_file";
@@ -187,24 +189,65 @@ main: {
     }
 
 
-    
     ####################################################
     ## for each paired read, get the bounds of that read
-
-    my %scaffold_read_pair_to_read_bounds;    
-    my %core_counter;
+    
+       
     {
+
+        #########################################################################
+        ##  Generate the spanning fragment and contrary read support info summary
+        
+
+        ## output the spanning read info
+        my $spanning_read_info_file = "$bam_file.fusion_spanning_info";
+        open (my $ofh, ">$spanning_read_info_file") or die "Error, cannot write to $spanning_read_info_file";
+
+        print STDERR "-outputting the spanning read info: $spanning_read_info_file.\n";
+                
+        my @fields = qw(LeftGene LeftLocalBreakpoint LeftBreakpoint
+                        RightGene RightLocalBreakpoint RightBreakpoint
+                        SpliceType 
+                        SpanningFragCount SpanningFrags
+                        NumCounterFusionLeft CounterFusionLeftReads
+                        NumCounterFusionRight CounterFusionRightReads);
+
+        my $tab_writer = new DelimParser::Writer($ofh, "\t", \@fields);
+
+
+
+        my %scaffold_read_pair_to_read_bounds;
+        my %core_counter;
         ## find the reads that matter:
+        my $scaffold;
+        my $prev_scaffold = "";
+        
         my $counter = 0;
         my $sam_reader = new SAM_reader($bam_file);
         while (my $sam_entry = $sam_reader->get_next()) {
             $counter++;
             print STDERR "\r[$counter]   " if $counter % 1000 == 0;
             
-            #print STDERR Dumper($sam_entry);
-
             if ($sam_entry->is_duplicate()) {
                 next;
+            }
+            
+            $scaffold = $sam_entry->get_scaffold_name();
+            
+            if ($scaffold ne $prev_scaffold) {
+                if ($DEBUG) {
+                        print STDERR "scaffold read pair to read bounds: " . Dumper(\%scaffold_read_pair_to_read_bounds);
+                }
+                if (%scaffold_read_pair_to_read_bounds) {
+                    &capture_spanning_frags($prev_scaffold, 
+                                            \%scaffold_read_pair_to_read_bounds,
+                                            \%core_counter,
+                                            $tab_writer);
+                    
+                }
+                %scaffold_read_pair_to_read_bounds = (); # reinit
+                %core_counter = (); # reinit
+                $prev_scaffold = $scaffold;
             }
             
             my $qual_val = $sam_entry->get_mapping_quality();
@@ -239,14 +282,11 @@ main: {
                 next;
             }
             
-            
-            my $scaffold = $sam_entry->get_scaffold_name();
             unless (exists $scaffold_to_gene_breaks{$scaffold}) { next; } # StarFI includes the whole genome, not just the fusion scaffs
-
-
+            
             my $scaffold_pos = $sam_entry->get_scaffold_position();
 
-            my $mate_scaffold_name = $sam_entry->get_mate_scaffold_name();
+            my $mate_scaffold_name = $sam_entry->get_mate_scaffold_name();            
             my $mate_scaffold_pos = $sam_entry->get_mate_scaffold_position();
             
             unless ($mate_scaffold_name eq $scaffold || $mate_scaffold_name eq "=") { next; }
@@ -297,180 +337,17 @@ main: {
                                 
             }
         }
-    
-        if ($DEBUG) {
-            print STDERR "scaffold read pair to read bounds: " . Dumper(\%scaffold_read_pair_to_read_bounds);
+        
+        if (%scaffold_read_pair_to_read_bounds) {
+            &capture_spanning_frags($scaffold, \%scaffold_read_pair_to_read_bounds, \%core_counter, $tab_writer);
         }
         
+        
 
+        close $ofh; # donw writing fusion report.
     }
     
 
-    ##########################################
-    # determine which reads are spanning reads
-       
-    my %fusion_to_spanning_reads;
-
-    my %fusion_to_contrary_support;
-    
-    my %spanning_read_want;
-
-    {
-        foreach my $scaffold (keys %scaffold_to_gene_breaks) {
-            my ($gene_bound_left, $gene_bound_right) = @{$scaffold_to_gene_breaks{$scaffold}};
-                        
-            if ($gene_bound_left > $gene_bound_right) { 
-                die "Error, gene bounds out of range for $scaffold: $gene_bound_left - $gene_bound_right "; 
-            }
-            
-            
-            foreach my $fragment (keys %{$scaffold_read_pair_to_read_bounds{$scaffold}}) {
-                
-                if ($core_counter{"$scaffold|$fragment"} != 2) { next; } # ignore those fragments that have multiply-mapping reads to this contig.
-                
-                my @pair_coords = grep { defined $_ } @{$scaffold_read_pair_to_read_bounds{$scaffold}->{$fragment}};
-                
-                ## data structure format: $scaffold_read_pair_to_read_bounds{$scaffold}->{$core}->[$pair_end-1] = [$span_lend, $span_rend, $strand];
-                
-                if (scalar @pair_coords > 1) {
-                    # need both paired ends
-                    
-                    @pair_coords = sort {$a->{span_lend} <=> $b->{span_lend}} @pair_coords;
-                    
-                    my $left_read_lend = $pair_coords[0]->{span_lend};
-                    my $left_read_rend = $pair_coords[0]->{span_rend};
-
-                    my $right_read_lend = $pair_coords[1]->{span_lend};
-                    my $right_read_rend = $pair_coords[1]->{span_rend};
-                    
-                    my $left_read_orient = $pair_coords[0]->{strand};
-                    my $right_read_orient = $pair_coords[1]->{strand};
-
-                    my $read_group = $pair_coords[0]->{read_group};
-                    
-                    unless ($left_read_orient eq '+' && $right_read_orient eq '-') { 
-                        # not proper pairs after all!!
-                        print STDERR "-skipping pair $scaffold|$fragment, discordantly aligned\n" if $DEBUG;
-                        next; 
-                    }  
-                    
-                    #####################################################################
-                    ## assign fragment as fusion support based on breakpoint coordinates.
-
-
-                    my $is_fusion_spanning_fragment_flag = 0;
-                    if ($left_read_rend <= $gene_bound_left && $right_read_lend >= $gene_bound_right
-                        
-                        # ensure ok quality
-                        && $pair_coords[0]->{qual} > 0 && $pair_coords[1]->{qual} > 0
-
-                        # ensure single hit
-                        && $pair_coords[0]->{NH} == 1 && $pair_coords[1]->{NH} == 1
-                        ) 
-                    {
-                        $is_fusion_spanning_fragment_flag = 1;
-                        $spanning_read_want{"$scaffold|$fragment"}++; # capture for SAM-retreival next.
-                        #print STDERR "-want $scaffold|$fragment in sam\n";
-                    }
-                    else {
-                        if ($DEBUG) {
-                            print STDERR "-fragment: $scaffold|$fragment not flagged as fusion spanning. "
-                                . " frag coords: $left_read_lend-$left_read_rend:$left_read_orient -- $right_read_lend-$right_read_rend:$right_read_orient gene_bounds: $gene_bound_left,$gene_bound_right\n" . Dumper(\@pair_coords);
-                        }
-                    }
-                    
-
-                    ##########
-                    ## encode the read group into the fragment name:
-                    
-                    if ($read_group) {
-                        $fragment = "&" . $read_group . "@" . $fragment;
-                    }
-                    
-                    
-                    #################
-                    ## assign spanning frags to the specific breakpoints
-
-                    my $assigned_to_breakpoint_flag = 0;
-                    
-                    my $candidate_fusion_breakpoints_aref = $fusion_junctions{$scaffold};
-                    if (ref $candidate_fusion_breakpoints_aref) {
-                        
-                        print STDERR "Candidate fusion breakpoints for scaffold: $scaffold: " . Dumper($candidate_fusion_breakpoints_aref) if $DEBUG;
-                        
-                        foreach my $fusion_breakpoint (@{$candidate_fusion_breakpoints_aref}) {
-                            my ($break_lend, $break_rend) = split(/-/, $fusion_breakpoint);
-                            print STDERR "** Breakpoint: $break_lend, $break_rend\n" if $DEBUG;
-                            
-                            print STDERR "$fragment\tr1: $left_read_lend-$left_read_rend   r2: $right_read_lend-$right_read_rend  brk: $fusion_breakpoint\n" if $DEBUG;
-
-                            if($is_fusion_spanning_fragment_flag) {
-                                
-                                if ($left_read_rend < $break_lend + $FUZZ && $break_rend - $FUZZ < $right_read_lend) {
-                                    
-                                    # <=======>                                                    <=======>   # reads
-                                    #           |------------------------------------------------|   # breakpoints on scaffold
-                                    
-                                    
-                                    # junction-specific spanning fragment support assignment
-                                    
-                                    # must meet the more restrictive criteria wrt qual and NH
-                                    push (@{$fusion_to_spanning_reads{"$scaffold|$fusion_breakpoint"}}, $fragment);
-                                    $assigned_to_breakpoint_flag = 1;
-
-                                    #print STDERR "\t-capturing spanning breakpoint frag: $fragment\n";
-                                }
-                                                                                                                              
-                            }
-                            else {
-                                ## Not a fusion-spanning fragment.
-                                ## See if it's fusion-countering evidence
-                                
-                                
-                                if ($left_read_lend + $FUZZ < $break_lend 
-                                    && $break_lend < $right_read_rend - $FUZZ
-                                    && $right_read_rend < $gene_bound_right) {
-                                    
-                                    # <==---?------?----==>   # reads
-                                    #           |------------------------------------------------|   # breakpoints on scaffold
-                                    
-                                   
-
-                                    ## contrary support at left junction
-                                    push (@{$fusion_to_contrary_support{"$scaffold|$fusion_breakpoint"}->{left}}, $fragment);
-                                }
-                                elsif ($left_read_lend + $FUZZ < $break_rend 
-                                       && $break_rend < $right_read_rend - $FUZZ
-                                       && $left_read_lend > $gene_bound_left) {
-                                    
-
-                                    #                                                  <==-----?----?----===>   # reads
-                                    #           |------------------------------------------------|   # breakpoints on scaffold
-                                    
-
-
-                                    ## contrary support at right junction
-                                    push (@{$fusion_to_contrary_support{"$scaffold|$fusion_breakpoint"}->{right}}, $fragment);
-                                }
-                                
-                            }
-                        } # end of foreach breakpoing candidate
-                    } # end of if have candidate breakpoints
-                    
-                    if ($is_fusion_spanning_fragment_flag && ! $assigned_to_breakpoint_flag) {
-                        # still capture it even though there's no junction read to assign it to.
-                        
-                        my $fuzzy_breakpoint = join("-", $gene_bound_left, $gene_bound_right);
-                        push (@{$fusion_to_spanning_reads{"$scaffold|$fuzzy_breakpoint"}}, $fragment);
-                        
-                    }
-                                        
-                } # endif have read pair coords
-            } # end of foreach fragment
-        } # end of foreach scaffold
-    } # just an isolated code block
-    
-    
     #################################################
     # output the spanning reads we want in SAM format
     
@@ -500,90 +377,7 @@ main: {
         }
     }
     
-    {
-        #########################################################################
-        ##  Generate the spanning fragment and contrary read support info summary
-        
 
-        ## output the spanning read info
-        my $spanning_read_info_file = "$bam_file.fusion_spanning_info";
-        open (my $ofh, ">$spanning_read_info_file") or die "Error, cannot write to $spanning_read_info_file";
-
-        print STDERR "-outputting the spanning read info: $spanning_read_info_file.\n";
-                
-        my @fields = qw(LeftGene LeftLocalBreakpoint LeftBreakpoint
-                        RightGene RightLocalBreakpoint RightBreakpoint
-                        SpliceType 
-                        SpanningFragCount SpanningFrags
-                        NumCounterFusionLeft CounterFusionLeftReads
-                        NumCounterFusionRight CounterFusionRightReads);
-
-        my $tab_writer = new DelimParser::Writer($ofh, "\t", \@fields);
-
-
-        foreach my $fusion_n_breakpoint (sort keys %fusion_to_spanning_reads) {
-            my ($fusion_name, $breakpoint) = split(/\|/, $fusion_n_breakpoint);
-            my ($geneA, $geneB) = split(/--/, $fusion_name);
-
-            my $fusion_info = $fusion_breakpoint_info{$fusion_n_breakpoint};
-            
-            unless ($fusion_info) {
-                # spanning frags, no junction breakpoint
-                $fusion_info = $spanning_only_info{$fusion_name};
-                unless ($fusion_info) {
-                    confess "Error, no fusion info for [$fusion_name] ";
-                }
-            }
-            
-            my ($coordA, $coordB) = split(/-/, $breakpoint);
-            
-            my @spanning_reads = @{$fusion_to_spanning_reads{$fusion_n_breakpoint}};
-            
-            my $num_spanning = scalar(@spanning_reads);
-            
-            ## examine contrary support
-            my @contrary_left_support;
-            if (my $support_aref = $fusion_to_contrary_support{$fusion_n_breakpoint}->{left}) {
-                @contrary_left_support = @$support_aref;
-            }
-            my @contrary_right_support;
-            if (my $support_aref = $fusion_to_contrary_support{$fusion_n_breakpoint}->{right}) {
-                @contrary_right_support = @$support_aref;
-            }
-            
-            
-            my $num_left_contrary_support = scalar(@contrary_left_support);
-            my $num_right_contrary_support = scalar(@contrary_right_support);
-            
-            my $contrary_left_support_txt = join(",", @contrary_left_support) || ".";
-            my $contrary_right_support_txt = join(",", @contrary_right_support) || ".";
-
-            
-            my ($LeftGene, $LeftLocalBreakpoint, $LeftBreakpoint,
-                $RightGene, $RightLocalBreakpoint, $RightBreakpoint,
-                $SpliceType) = split(/\t/, $fusion_info);
-
-            
-            $tab_writer->write_row( { LeftGene => $LeftGene,
-                                      LeftLocalBreakpoint => $LeftLocalBreakpoint,
-                                      LeftBreakpoint => $LeftBreakpoint,
-                                      RightGene => $RightGene,
-                                      RightLocalBreakpoint => $RightLocalBreakpoint,
-                                      RightBreakpoint => $RightBreakpoint,
-                                      SpliceType => $SpliceType,
-                                      SpanningFragCount => $num_spanning,
-                                      SpanningFrags => join(",", @spanning_reads),
-                                      NumCounterFusionLeft => $num_left_contrary_support,
-                                      CounterFusionLeftReads => $contrary_left_support_txt,
-                                      NumCounterFusionRight => $num_right_contrary_support,
-                                      CounterFusionRightReads => $contrary_right_support_txt,
-                                    } );
-            
-        }
-        close $ofh;
-    }
-    
-    
     exit(0);
 }
 
@@ -728,3 +522,239 @@ sub partition_gene_structs {
 
     return(@gene_struct_tuple);
 }
+
+
+####
+sub capture_spanning_frags {
+    my ($scaffold, $scaffold_read_pair_to_read_bounds_href, $core_counter_href, $tab_writer) = @_;
+    
+    print STDERR "-fusion SPANNING read extraction for scaff: $scaffold\n";
+    
+    my %scaffold_read_pair_to_read_bounds = %$scaffold_read_pair_to_read_bounds_href;
+    my %core_counter = %$core_counter_href;
+    
+    ##########################################
+    # determine which reads are spanning reads
+
+    my ($gene_bound_left, $gene_bound_right) = @{$scaffold_to_gene_breaks{$scaffold}};
+                        
+    if ($gene_bound_left > $gene_bound_right) { 
+        die "Error, gene bounds out of range for $scaffold: $gene_bound_left - $gene_bound_right "; 
+    }
+    
+    
+    foreach my $fragment (keys %{$scaffold_read_pair_to_read_bounds{$scaffold}}) {
+        
+        if ($core_counter{"$scaffold|$fragment"} != 2) { next; } # ignore those fragments that have multiply-mapping reads to this contig.
+        
+        my @pair_coords = grep { defined $_ } @{$scaffold_read_pair_to_read_bounds{$scaffold}->{$fragment}};
+        
+        ## data structure format: $scaffold_read_pair_to_read_bounds{$scaffold}->{$core}->[$pair_end-1] = [$span_lend, $span_rend, $strand];
+        
+        if (scalar @pair_coords > 1) {
+            # need both paired ends
+            
+            @pair_coords = sort {$a->{span_lend} <=> $b->{span_lend}} @pair_coords;
+            
+            my $left_read_lend = $pair_coords[0]->{span_lend};
+            my $left_read_rend = $pair_coords[0]->{span_rend};
+            
+            my $right_read_lend = $pair_coords[1]->{span_lend};
+            my $right_read_rend = $pair_coords[1]->{span_rend};
+            
+            my $left_read_orient = $pair_coords[0]->{strand};
+            my $right_read_orient = $pair_coords[1]->{strand};
+            
+            my $read_group = $pair_coords[0]->{read_group};
+            
+            unless ($left_read_orient eq '+' && $right_read_orient eq '-') { 
+                # not proper pairs after all!!
+                print STDERR "-skipping pair $scaffold|$fragment, discordantly aligned\n" if $DEBUG;
+                next; 
+            }  
+            
+            #####################################################################
+            ## assign fragment as fusion support based on breakpoint coordinates.
+            
+            
+            my $is_fusion_spanning_fragment_flag = 0;
+            if ($left_read_rend <= $gene_bound_left && $right_read_lend >= $gene_bound_right
+                
+                # ensure ok quality
+                && $pair_coords[0]->{qual} > 0 && $pair_coords[1]->{qual} > 0
+                
+                # ensure single hit
+                && $pair_coords[0]->{NH} == 1 && $pair_coords[1]->{NH} == 1
+                ) 
+            {
+                $is_fusion_spanning_fragment_flag = 1;
+                $spanning_read_want{"$scaffold|$fragment"}++; # capture for SAM-retreival next.
+                #print STDERR "-want $scaffold|$fragment in sam\n";
+            }
+            else {
+                if ($DEBUG) {
+                    print STDERR "-fragment: $scaffold|$fragment not flagged as fusion spanning. "
+                        . " frag coords: $left_read_lend-$left_read_rend:$left_read_orient -- $right_read_lend-$right_read_rend:$right_read_orient gene_bounds: $gene_bound_left,$gene_bound_right\n" . Dumper(\@pair_coords);
+                }
+            }
+            
+            
+            ##########
+            ## encode the read group into the fragment name:
+            
+            if ($read_group) {
+                $fragment = "&" . $read_group . "@" . $fragment;
+            }
+            
+            
+            #################
+            ## assign spanning frags to the specific breakpoints
+            
+            my $assigned_to_breakpoint_flag = 0;
+            
+            my $candidate_fusion_breakpoints_aref = $fusion_junctions{$scaffold};
+            if (ref $candidate_fusion_breakpoints_aref) {
+                
+                print STDERR "Candidate fusion breakpoints for scaffold: $scaffold: " . Dumper($candidate_fusion_breakpoints_aref) if $DEBUG;
+                
+                foreach my $fusion_breakpoint (@{$candidate_fusion_breakpoints_aref}) {
+                    my ($break_lend, $break_rend) = split(/-/, $fusion_breakpoint);
+                    print STDERR "** Breakpoint: $break_lend, $break_rend\n" if $DEBUG;
+                    
+                    print STDERR "$fragment\tr1: $left_read_lend-$left_read_rend   r2: $right_read_lend-$right_read_rend  brk: $fusion_breakpoint\n" if $DEBUG;
+                    
+                    if($is_fusion_spanning_fragment_flag) {
+                        
+                        if ($left_read_rend < $break_lend + $FUZZ && $break_rend - $FUZZ < $right_read_lend) {
+                            
+                            # <=======>                                                    <=======>   # reads
+                            #           |------------------------------------------------|   # breakpoints on scaffold
+                            
+                            
+                            # junction-specific spanning fragment support assignment
+                            
+                            # must meet the more restrictive criteria wrt qual and NH
+                            push (@{$fusion_to_spanning_reads{"$scaffold|$fusion_breakpoint"}}, $fragment);
+                            $assigned_to_breakpoint_flag = 1;
+                            
+                            #print STDERR "\t-capturing spanning breakpoint frag: $fragment\n";
+                        }
+                        
+                    }
+                    else {
+                        ## Not a fusion-spanning fragment.
+                        ## See if it's fusion-countering evidence
+                        
+                        
+                        if ($left_read_lend + $FUZZ < $break_lend 
+                            && $break_lend < $right_read_rend - $FUZZ
+                            && $right_read_rend < $gene_bound_right) {
+                            
+                            # <==---?------?----==>   # reads
+                            #           |------------------------------------------------|   # breakpoints on scaffold
+                            
+                            
+                            
+                            ## contrary support at left junction
+                            push (@{$fusion_to_contrary_support{"$scaffold|$fusion_breakpoint"}->{left}}, $fragment);
+                        }
+                        elsif ($left_read_lend + $FUZZ < $break_rend 
+                               && $break_rend < $right_read_rend - $FUZZ
+                               && $left_read_lend > $gene_bound_left) {
+                            
+                            
+                            #                                                  <==-----?----?----===>   # reads
+                            #           |------------------------------------------------|   # breakpoints on scaffold
+                            
+                            
+                            
+                            ## contrary support at right junction
+                            push (@{$fusion_to_contrary_support{"$scaffold|$fusion_breakpoint"}->{right}}, $fragment);
+                        }
+                        
+                    }
+                } # end of foreach breakpoing candidate
+            } # end of if have candidate breakpoints
+            
+            if ($is_fusion_spanning_fragment_flag && ! $assigned_to_breakpoint_flag) {
+                # still capture it even though there's no junction read to assign it to.
+                
+                my $fuzzy_breakpoint = join("-", $gene_bound_left, $gene_bound_right);
+                push (@{$fusion_to_spanning_reads{"$scaffold|$fuzzy_breakpoint"}}, $fragment);
+                
+            }
+            
+        } # endif have read pair coords
+    } # end of foreach fragment
+
+
+
+    ## output fusion records for that scaffold:
+            foreach my $fusion_n_breakpoint (sort keys %fusion_to_spanning_reads) {
+            my ($fusion_name, $breakpoint) = split(/\|/, $fusion_n_breakpoint);
+            my ($geneA, $geneB) = split(/--/, $fusion_name);
+
+            my $fusion_info = $fusion_breakpoint_info{$fusion_n_breakpoint};
+            
+            unless ($fusion_info) {
+                # spanning frags, no junction breakpoint
+                $fusion_info = $spanning_only_info{$fusion_name};
+                unless ($fusion_info) {
+                    confess "Error, no fusion info for [$fusion_name] ";
+                }
+            }
+            
+            my ($coordA, $coordB) = split(/-/, $breakpoint);
+            
+            my @spanning_reads = @{$fusion_to_spanning_reads{$fusion_n_breakpoint}};
+            
+            my $num_spanning = scalar(@spanning_reads);
+            
+            ## examine contrary support
+            my @contrary_left_support;
+            if (my $support_aref = $fusion_to_contrary_support{$fusion_n_breakpoint}->{left}) {
+                @contrary_left_support = @$support_aref;
+            }
+            my @contrary_right_support;
+            if (my $support_aref = $fusion_to_contrary_support{$fusion_n_breakpoint}->{right}) {
+                @contrary_right_support = @$support_aref;
+            }
+            
+            
+            my $num_left_contrary_support = scalar(@contrary_left_support);
+            my $num_right_contrary_support = scalar(@contrary_right_support);
+            
+            my $contrary_left_support_txt = join(",", @contrary_left_support) || ".";
+            my $contrary_right_support_txt = join(",", @contrary_right_support) || ".";
+
+            
+            my ($LeftGene, $LeftLocalBreakpoint, $LeftBreakpoint,
+                $RightGene, $RightLocalBreakpoint, $RightBreakpoint,
+                $SpliceType) = split(/\t/, $fusion_info);
+
+            
+            $tab_writer->write_row( { LeftGene => $LeftGene,
+                                      LeftLocalBreakpoint => $LeftLocalBreakpoint,
+                                      LeftBreakpoint => $LeftBreakpoint,
+                                      RightGene => $RightGene,
+                                      RightLocalBreakpoint => $RightLocalBreakpoint,
+                                      RightBreakpoint => $RightBreakpoint,
+                                      SpliceType => $SpliceType,
+                                      SpanningFragCount => $num_spanning,
+                                      SpanningFrags => join(",", @spanning_reads),
+                                      NumCounterFusionLeft => $num_left_contrary_support,
+                                      CounterFusionLeftReads => $contrary_left_support_txt,
+                                      NumCounterFusionRight => $num_right_contrary_support,
+                                      CounterFusionRightReads => $contrary_right_support_txt,
+                                    } );
+            
+        }
+
+
+
+    return;
+}
+    
+
+    
+        

@@ -1,14 +1,17 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # encoding: utf-8
 
 
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+#from __future__ import (absolute_import, division,
+#                        print_function, unicode_literals)
 
 
 import os, re, sys
 import argparse
 import subprocess
+
+if sys.version_info[0] < 3:
+    raise Exception("This script requires Python 3")
 
 sys.path.insert(0, os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "PyLib"]))
 from Pipeliner import Pipeliner, Command
@@ -29,8 +32,8 @@ ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
 
-#VERSION = "__BLEEDING_EDGE__"
-VERSION = "2.2.0"
+VERSION = "__BLEEDING_EDGE__"
+#VERSION = "2.2.0"
 
 
 BASEDIR = os.path.dirname(__file__)
