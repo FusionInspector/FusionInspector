@@ -1,6 +1,7 @@
 ## FusionInspector v2.2.1 (Oct 18, 2019)
 -reduce RAM consumption during spanning read analysis
-
+-upgrade to STAR 2.7.2b
+-upgrade igv-reports 0.9.6
 
 ## FusionInspector v2.2.0 (Sep 28, 2019)
 -added --no_FFPM for applications where 'inspect' mode is used from STAR-Fusion and the FFPM values would be nonsensical.

@@ -127,13 +127,11 @@ RUN GMAP_URL="http://research-pub.gene.com/gmap/src/gmap-gsnap-$GMAP_VERSION.tar
 ##############
 ## STAR
 
-ENV STAR_VERSION=2.7.2a
+ENV STAR_VERSION=2.7.2b
 RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" &&\
     wget -P $SRC $STAR_URL &&\
     tar -xvf $SRC/${STAR_VERSION}.tar.gz -C $SRC && \
     mv $SRC/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /usr/local/bin
-
-
 
 
 
@@ -150,3 +148,5 @@ RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git
     git submodule init && git submodule update && \
     mv * $BIN
 
+
+RUN pip install -U igv-reports
