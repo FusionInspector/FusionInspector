@@ -37,7 +37,7 @@ samples_file_PE:
 
 
 clean:
-	rm -rf ./FusionInspector-fusionContigOnly ./FusionInspector-fusionContigOnly-incl_Trinity
+	rm -rf ./FusionInspector-fusionContigOnly ./FusionInspector-fusionContigOnly-incl_Trinity ./FusionInspector-by-singularity
 	rm -rf ./FusionInspector-outdir
 	rm -rf ./FusionInspector-single_reads ./FusionInspector-single_reads-fc_only
 	rm -rf ./FusionInspector-pe_samples

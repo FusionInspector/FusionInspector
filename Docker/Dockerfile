@@ -2,40 +2,12 @@ FROM ubuntu:18.04
 
 MAINTAINER bhaas@broadinstitute.org
 
-RUN apt-get update && apt-get install -y gcc g++ perl python3 automake make cmake \
+RUN apt-get update && apt-get install -y gcc g++ perl python3 automake make \
                                        wget curl libdb-dev \
-				       bzip2 zlibc zlib1g zlib1g-dev  default-jre \
-                       python-setuptools python-dev build-essential \
-				       unzip libbz2-dev  liblzma-dev && \
+                                       bzip2 zlibc zlib1g zlib1g-dev  default-jre \
+                       python3-setuptools python3-dev build-essential python3-distutils \
+                                       unzip libbz2-dev  liblzma-dev && \
     apt-get clean
-
-
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python get-pip.py
-
-RUN pip install numpy
-
-
-RUN curl -L https://cpanmin.us | perl - App::cpanminus
-
-## set up tool config and deployment area:
-
-ENV SRC /usr/local/src
-ENV BIN /usr/local/bin
-
-ENV DATA /usr/local/data
-RUN mkdir $DATA
-
-
-## perl lib installations
-
-RUN cpanm install PerlIO::gzip
-RUN cpanm install Set::IntervalTree
-RUN cpanm install DB_File
-RUN cpanm install URI::Escape
-RUN cpanm install Carp::Assert
-RUN cpanm install JSON::XS.pm
-
 
 ## Python 3 stuff
 
@@ -46,10 +18,30 @@ RUN apt-get install -y python3-distutils
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python get-pip.py
 
-
 RUN pip install numpy requests igv-reports
 
 
+
+## set up tool config and deployment area:
+
+ENV SRC /usr/local/src
+ENV BIN /usr/local/bin
+
+ENV DATA /usr/local/data
+RUN mkdir $DATA
+
+
+
+## perl lib installations
+
+RUN curl -L https://cpanmin.us | perl - App::cpanminus
+
+RUN cpanm install PerlIO::gzip
+RUN cpanm install Set::IntervalTree
+RUN cpanm install DB_File
+RUN cpanm install URI::Escape
+RUN cpanm install Carp::Assert
+RUN cpanm install JSON::XS.pm
 
 
 ######################
@@ -74,6 +66,8 @@ RUN SAMTOOLS_URL="https://github.com/samtools/samtools/releases/download/${SAMTO
 
 ########
 # Trinity
+
+RUN apt-get install -y cmake apt-utils && apt-get clean
 
 ENV TRINITY_VERSION=2.8.5
 

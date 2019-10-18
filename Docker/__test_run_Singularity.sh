@@ -2,9 +2,10 @@
 
 set -ve
 
-## assumes we've run the docker test already
-
-CTAT_GENOME_LIB="GRCh37_gencode_v19_CTAT_lib_Aug152019.plug-n-play"
+if [ -z ${CTAT_GENOME_LIB} ]; then
+    echo "Error, must have CTAT_GENOME_LIB env var set"
+    exit 1
+fi
 
 
 VERSION=`cat VERSION.txt`
@@ -16,12 +17,13 @@ fusion_files_list="${TESTDIR}/fusion_targets.A.txt,${TESTDIR}/fusion_targets.B.t
 left_fq="${TESTDIR}/test.reads_1.fastq.gz"
 right_fq="${TESTDIR}/test.reads_2.fastq.gz"
 
-cd ../ && singularity exec -e Docker/FusionInspector.v${VERSION}.simg FusionInspector  \
+cd ../ && singularity exec -e -B ${CTAT_GENOME_LIB}:/ctat_genome_lib:ro \
+          Docker/FusionInspector.v${VERSION}.simg FusionInspector  \
        --fusions $fusion_files_list \
        --output_dir ${TESTDIR}/FusionInspector-by-singularity \
        --left_fq ${left_fq} \
        --right_fq ${right_fq} \
-       --genome_lib ${CTAT_GENOME_LIB}/ctat_genome_lib_build_dir  \
+       --genome_lib /ctat_genome_lib  \
        --out_prefix finspector \
        --vis \
        --include_Trinity \
