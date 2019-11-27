@@ -96,6 +96,8 @@ main: {
     print join("\t", "#scaffold", "fusion_break_name", "break_left", "break_right",
                "num_junction_reads", "num_spanning_frags", "spanning_frag_coords") . "\n";
 
+    my %warnings_seen;
+
     foreach my $fusion_contig (sort keys %fusion_info) {
         
         my @breakpoint_structs = @{$fusion_info{$fusion_contig}};
@@ -123,7 +125,10 @@ main: {
                     push (@span_coordsets, $coords);
                 }
                 else {
-                    print STDERR "ERROR - no coordinates for $fusion_contig frag [$spanning_frag]\n";
+                    unless ($warnings_seen{$spanning_frag}) {
+                        print STDERR "warning - no viz coordinates for $fusion_contig frag [$spanning_frag], likely spanning size exceeds max val\n";
+                        $warnings_seen{$spanning_frag} = 1;
+                    }
                 }
             }
             
