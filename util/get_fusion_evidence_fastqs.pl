@@ -219,14 +219,14 @@ sub write_fastq_files {
                     
                     my ($fusion_instance_filename, $rest) = split(/\|[JS]\|/, $fusion_instance);
 
-                    open(my $isoform_ofh, ">>$BY_ISOFORM/${fusion_instance_filename}${output_fastq_file_suffix}") or die "Error, cannot append to file $BY_ISOFORM/${fusion_instance}${output_fastq_file_suffix}";
+                    open(my $isoform_ofh, ">>$BY_ISOFORM/${fusion_instance_filename}${output_fastq_file_suffix}.fq") or die "Error, cannot append to file $BY_ISOFORM/${fusion_instance}${output_fastq_file_suffix}.fq";
                     print $isoform_ofh join("\n", ($_1, $_2, $_3, $_4)) . "\n";
                     close $isoform_ofh;
                 }
                 delete $reads_to_capture{$core_read_name} if exists $reads_to_capture{$core_read_name};
             }
         }
-                
+        
     }
 
     print STDERR "\nDone writing to $output_fastq_file\n\n";
