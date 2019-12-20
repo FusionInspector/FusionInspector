@@ -31,7 +31,14 @@ my $usage = <<__EOUSAGE__;
 #
 #  --output_prefix <string>     output prefix
 #
+# * optional:
+#
+#  --by_isoform <string>        define fusions according to breakpoint instead of more generically by gene pair
+#                               Provide the name of the directory to store the fusion files.  The fq read files will be
+#                               named according to the fusion^isoform_brkpt name.
+#
 ######################################################################################
+
 
 __EOUSAGE__
 
@@ -45,17 +52,23 @@ my $left_fq;
 my $right_fq;
 my $output_prefix;
 my $samples_file;
+my $BY_ISOFORM;
+
 
 &GetOptions( 'help|h' => \$help_flag,
-
+             
              'fusions=s' => \$fusion_results_file,
              
              'left_fq=s' => \$left_fq,
              'right_fq=s' => \$right_fq,
              
              'samples_file=s' => \$samples_file,
-
+             
              'output_prefix=s' => \$output_prefix,
+             
+             'by_isoform=s' => \$BY_ISOFORM,
+             
+             
     );
 
 if ($help_flag) {
@@ -66,6 +79,17 @@ unless ($fusion_results_file && ($left_fq  || $samples_file) && $output_prefix) 
     die $usage;
 }
 
+
+if ($BY_ISOFORM) {
+    
+    if (-d $BY_ISOFORM) {
+        die "Error, directory $BY_ISOFORM already exists.  Choose a new name or remove the current directory before rerunning.";
+    }
+    my $ret = system("mkdir -p $BY_ISOFORM");
+    if ($ret) {
+        die "Error, couldn't create directory $BY_ISOFORM ";
+    }
+}
 
 main: {
 
@@ -78,7 +102,14 @@ main: {
     while (my $row = $tab_reader->get_row()) {
         my $fusion_name = $row->{'#FusionName'} or die "Error, cannot get fusion name from " . Dumper($row);
         
-        my $junction_reads_list_txt = $row->{JunctionReads};
+        if ($BY_ISOFORM) {
+            my $left_brkpt = $tab_reader->get_row_val($row, "LeftBreakpoint");
+            my $right_brkpt = $tab_reader->get_row_val($row, "RightBreakpoint");
+            my $brkpt_info = "${left_brkpt}-${right_brkpt}";
+            $fusion_name .= "^$brkpt_info";
+        }
+        
+        my $junction_reads_list_txt = $tab_reader->get_row_val($row, "JunctionReads");
         
         foreach my $junction_read (split(/,/, $junction_reads_list_txt)) {
 
@@ -96,32 +127,35 @@ main: {
                 $updated_frag_name .= $pair_end;
             }
             $updated_frag_name .= "|$junction_read";
-
-            $core_frag_name_to_fusion_name{$junction_read} = $updated_frag_name;
+            
+            push (@{$core_frag_name_to_fusion_name{$junction_read}}, $updated_frag_name);
         }
         
-        my $spanning_frag_list_txt = $row->{SpanningFrags};
+        my $spanning_frag_list_txt = $tab_reader->get_row_val($row, "SpanningFrags");
+        
         foreach my $spanning_frag (split(/,/, $spanning_frag_list_txt)) {
 
             if ($spanning_frag eq '.') { next; }
             
             $spanning_frag =~ s/^\&[^\@]+\@//; # remove any sample encoding here.
             my $updated_frag_name = "$fusion_name|S|$spanning_frag";
-            $core_frag_name_to_fusion_name{$spanning_frag} = $updated_frag_name;
+            
+            push(@{$core_frag_name_to_fusion_name{$spanning_frag}}, $updated_frag_name);
         }
     }
-
-
+    
+    
     my $sample_names = "";;
     
     if ($samples_file) {
         ($sample_names, $left_fq, $right_fq) = &parse_samples_file($samples_file);
     }
-    
-    &write_fastq_files($left_fq, "$output_prefix.fusion_evidence_reads_1.fq", \%core_frag_name_to_fusion_name, $sample_names);
+
+        
+    &write_fastq_files($left_fq, $output_prefix, "_1", \%core_frag_name_to_fusion_name, $sample_names);
     
     if ($right_fq) {
-        &write_fastq_files($right_fq, "$output_prefix.fusion_evidence_reads_2.fq", \%core_frag_name_to_fusion_name, $sample_names);
+        &write_fastq_files($right_fq, $output_prefix, "_2", \%core_frag_name_to_fusion_name, $sample_names);
     }
     
     print STDERR "\nDone.\n\n";
@@ -133,15 +167,16 @@ main: {
 
 ####
 sub write_fastq_files {
-    my ($input_fastq_files, $output_fastq_file, $core_frag_name_to_fusion_name_href, $sample_names) = @_;
+    my ($input_fastq_files, $output_prefix, $output_fastq_file_suffix, $core_frag_name_to_fusion_name_href, $sample_names) = @_;
 
+
+    my $output_fastq_file = "$output_prefix.fusion_evidence_reads${output_fastq_file_suffix}.fq";
 
     my @samples = split(/,/, $sample_names);
     
     open (my $ofh, ">$output_fastq_file") or die "Error, cannot write to $output_fastq_file";
 
     my %reads_to_capture = %{$core_frag_name_to_fusion_name_href};
-    
     
     foreach my $input_fastq_file (split(/,/, $input_fastq_files)) {
         print STDERR "-searching fq file: $input_fastq_file\n";
@@ -154,24 +189,43 @@ sub write_fastq_files {
             my $core_read_name = $fq_record->get_core_read_name();
             #print STDERR "[$core_read_name]\n";
             
-            if (my $fusion_name = $core_frag_name_to_fusion_name_href->{$core_read_name}) {
-
-                delete $reads_to_capture{$core_read_name} if exists $reads_to_capture{$core_read_name};
+            my $fusion_instances_with_read_aref = $core_frag_name_to_fusion_name_href->{$core_read_name};
+            
+            if (ref $fusion_instances_with_read_aref) {
+                
+                my @fusion_instances = @$fusion_instances_with_read_aref;
                 
                 my $record_text = $fq_record->get_fastq_record();
                 chomp $record_text;
                 my @lines = split(/\n/, $record_text);
-                my ($_1, $_2, $_3, $_4) = @lines;
+                    
+                my $reported_in_full_file = 0;
+                
+                foreach my $fusion_instance (@fusion_instances) {    
 
-                if ($sample_name) {
-                    # encode it in the read name:
-                    $_1 =~ s/^\@/\@\&${sample_name}\@/;
+                    my ($_1, $_2, $_3, $_4) = @lines;
+
+                    if ($sample_name) {
+                        # encode it in the read name:
+                        $_1 =~ s/^\@/\@\&${sample_name}\@/;
+                    }
+                    $_3 = "+$fusion_instance"; # encode the fusion name in the 3rd line, which is otherwise useless anyway
+                    
+                    unless ($reported_in_full_file) {
+                        # report in the full file only once.
+                        print $ofh join("\n", ($_1, $_2, $_3, $_4)) . "\n";
+                        $reported_in_full_file = 1;
+                    }
+                    
+                    my ($fusion_instance_filename, $rest) = split(/\|[JS]\|/, $fusion_instance);
+
+                    open(my $isoform_ofh, ">>$BY_ISOFORM/${fusion_instance_filename}${output_fastq_file_suffix}.fq") or die "Error, cannot append to file $BY_ISOFORM/${fusion_instance}${output_fastq_file_suffix}.fq";
+                    print $isoform_ofh join("\n", ($_1, $_2, $_3, $_4)) . "\n";
+                    close $isoform_ofh;
                 }
-                $_3 = "+$fusion_name"; # encode the fusion name in the 3rd line, which is otherwise useless anyway
-                print $ofh join("\n", ($_1, $_2, $_3, $_4)) . "\n";
+                delete $reads_to_capture{$core_read_name} if exists $reads_to_capture{$core_read_name};
             }
         }
-        
         
     }
 
