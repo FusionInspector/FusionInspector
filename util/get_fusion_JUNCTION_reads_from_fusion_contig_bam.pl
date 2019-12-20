@@ -17,10 +17,10 @@ use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 
 my $MIN_ALIGN_PER_ID = 96;
 
-my $MIN_SMALL_ANCHOR = 11;
+my $MIN_SMALL_ANCHOR = 10;
 my $MIN_LARGE_ANCHOR = 25;
 my $MAX_END_CLIP = 10;
-my $MIN_SEQ_ENTROPY = 1.5;
+my $MIN_SEQ_ENTROPY = 1.2;
 
 my $DEBUG = 0;
 

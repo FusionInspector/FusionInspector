@@ -21,7 +21,7 @@ my $junction_info_file;
 my $MAX_END_CLIP = 10;
 
 my $MIN_ALIGN_PER_ID = 96;
-my $MIN_SEQ_ENTROPY = 1.5;
+my $MIN_SEQ_ENTROPY = 1.2;
 
 my $FUZZ = 5; # small fuzzy alignment bounds for spanning frags around breakpoint
 
