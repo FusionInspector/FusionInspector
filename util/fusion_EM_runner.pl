@@ -70,8 +70,8 @@ main: {
     foreach my $row (@fusion_rows) {
         my $fusion_isoform_name = $row->{fusion_isoform_name};
         my ($est_J, $est_S) = $fusion_em->get_fusion_estimated_J_S($fusion_isoform_name);
-        $row->{est_J} = $est_J;
-        $row->{est_S} = $est_S;
+        $row->{est_J} = sprintf("%.2f", $est_J);
+        $row->{est_S} = sprintf("%.2f", $est_S);
         
         $tab_writer->write_row($row);
     }
