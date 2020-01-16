@@ -322,7 +322,7 @@ main: {
                 next; 
             } # only examine exon-overlapping entries
             
-            my $full_read_name = $sam_entry->get_full_read_name();
+            my $full_read_name = $sam_entry->reconstruct_full_read_name();
             if ($full_read_name =~ /^(\S+)\/([12])$/) {
                 my ($core, $pair_end) = ($1, $2);
                 $core_counter{"$scaffold|$core"}++;  # track how many alignments we have for this rnaseq fragment
