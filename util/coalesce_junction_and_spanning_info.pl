@@ -36,15 +36,15 @@ main: {
     }
 
 
-    my @fields = qw(LeftGene LeftLocalBreakpoint LeftBreakpoint
-                    RightGene RightLocalBreakpoint RightBreakpoint
-                    SpliceType
-                    JunctionReadCount SpanningFragCount LargeAnchorSupport
-                    JunctionReads SpanningFrags
-                    NumCounterFusionLeft CounterFusionLeftReads
-                    NumCounterFusionRight CounterFusionRightReads
-                    FAR_left FAR_right);
-
+    my @fields = ("#FusionName", "JunctionReadCount", "SpanningFragCount", 
+                  "LeftGene", "LeftLocalBreakpoint", "LeftBreakpoint",
+                  "RightGene", "RightLocalBreakpoint", "RightBreakpoint",
+                  "SpliceType", "LargeAnchorSupport", 
+                  "JunctionReads", "SpanningFrags",
+                  "NumCounterFusionLeft", "CounterFusionLeftReads",
+                  "NumCounterFusionRight", "CounterFusionRightReads",
+                  "FAR_left", "FAR_right");
+    
     my $tab_writer = new DelimParser::Writer(*STDOUT, "\t", \@fields);
 
     foreach my $fusion (keys %fusion_info) {
@@ -98,25 +98,31 @@ main: {
         $FAR_right = sprintf("%.2f", $FAR_right);
         
         my ($geneA, $local_brkpt_A, $chr_brkpt_A, $geneB, $local_brkpt_B, $chr_brkpt_B, $spliceType) = split(/\t/, $fusion);
-                
-        $tab_writer->write_row( { LeftGene => $geneA,
-                                  LeftLocalBreakpoint => $local_brkpt_A,
-                                  LeftBreakpoint => $chr_brkpt_A,
-                                  RightGene => $geneB,
-                                  RightLocalBreakpoint => $local_brkpt_B,
-                                  RightBreakpoint => $chr_brkpt_B,
-                                  SpliceType => $spliceType,
-                                  JunctionReadCount => $num_junction_reads,
-                                  SpanningFragCount => $num_spanning_reads,
-                                  LargeAnchorSupport => $has_large_anchor_junction_support,
-                                  JunctionReads => join(",", @junction_reads),
-                                  SpanningFrags => join(",", @spanning_reads),
-                                  NumCounterFusionLeft => $num_left_contrary_reads,
-                                  CounterFusionLeftReads => join(",", @left_contrary_reads),
-                                  NumCounterFusionRight => $num_right_contrary_reads,
-                                  CounterFusionRightReads => join(",", @right_contrary_reads),
-                                  FAR_left => $FAR_left,
-                                  FAR_right => $FAR_right,
+            
+        my ($geneA_symbol, @restA) = split(/\^/, $geneA);
+        my ($geneB_symbol, @restB) = split(/\^/, $geneB);
+        
+        $tab_writer->write_row( { 
+
+            '#FusionName' => "$geneA_symbol--$geneB_symbol",
+            LeftGene => $geneA,
+            LeftLocalBreakpoint => $local_brkpt_A,
+            LeftBreakpoint => $chr_brkpt_A,
+            RightGene => $geneB,
+            RightLocalBreakpoint => $local_brkpt_B,
+            RightBreakpoint => $chr_brkpt_B,
+            SpliceType => $spliceType,
+            JunctionReadCount => $num_junction_reads,
+            SpanningFragCount => $num_spanning_reads,
+            LargeAnchorSupport => $has_large_anchor_junction_support,
+            JunctionReads => join(",", @junction_reads),
+            SpanningFrags => join(",", @spanning_reads),
+            NumCounterFusionLeft => $num_left_contrary_reads,
+            CounterFusionLeftReads => join(",", @left_contrary_reads),
+            NumCounterFusionRight => $num_right_contrary_reads,
+            CounterFusionRightReads => join(",", @right_contrary_reads),
+            FAR_left => $FAR_left,
+            FAR_right => $FAR_right,
                                 } );
         
     }
