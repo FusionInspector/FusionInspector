@@ -28,11 +28,12 @@ my $usage = <<__EOUSAGE__;
 #
 #  --gtf_file <string>              finspector.gtf
 #  --fasta_file <string>            finspector.fa
-#  --junction_info_file <string>    file.fusion_junction_info 
 #
 # Optional:
 #
 #  --output <string>           output filename (default: writes to stdout)
+#  --junction_info_file <string>    file.fusion_junction_info (restrict output to regions near detected breakpoints)
+#
 #
 #  --min_reputer_len <int>     default: $min_reputer_len
 #  --breakpoint_range <int>    distance allowed around breakpoints (default: $BREAKPOINT_RANGE)
@@ -74,7 +75,7 @@ if ($help_flag) {
     die $usage;
 }
 
-unless ($gtf_file && $fasta_file && $junction_info_file) {
+unless ($gtf_file && $fasta_file) {
     die $usage;
 }
 
@@ -132,7 +133,7 @@ main: {
     }
 
     my %scaffold_to_junction_breakpoints;
-    {
+    if ($junction_info_file) {
         open(my $fh, $junction_info_file) or die "Error, cannot open file: $junction_info_file";
         my $delim_reader = new DelimParser::Reader($fh, "\t");
         while(my $row = $delim_reader->get_row()) {
@@ -165,10 +166,13 @@ main: {
 
         my $itree = $scaffold_itree_to_exon_structs{$contig_acc} or die "Error, no interval tree for $contig_acc";
 
-        my $fusion_breakpoints_aref = $scaffold_to_junction_breakpoints{$contig_acc};
-        unless ($fusion_breakpoints_aref) {
-            # no fusion calls here... skip
-            next;
+        my $fusion_breakpoints_aref = undef;
+        if ($junction_info_file) {
+            $fusion_breakpoints_aref = $scaffold_to_junction_breakpoints{$contig_acc};
+            unless ($fusion_breakpoints_aref) {
+                # no fusion calls here... skip
+                next;
+            }
         }
         
         
@@ -219,11 +223,13 @@ main: {
                 next;
             }
 
-            unless (&near_fusion_breakpoint([$geneA_match_lend, $geneA_match_rend],
-                                            [$geneB_match_lend, $geneB_match_rend],
-                                            $fusion_breakpoints_aref,
-                                            $BREAKPOINT_RANGE)) {
-                next;
+            if ($junction_info_file) {
+                unless (&near_fusion_breakpoint([$geneA_match_lend, $geneA_match_rend],
+                                                [$geneB_match_lend, $geneB_match_rend],
+                                                $fusion_breakpoints_aref,
+                                                $BREAKPOINT_RANGE)) {
+                    next;
+                }
             }
             
             # output bed entry
