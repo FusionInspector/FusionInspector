@@ -1,0 +1,107 @@
+#!/usr/bin/env Rscript
+
+suppressPackageStartupMessages(library("argparse"))
+suppressPackageStartupMessages(library("tidyverse"))
+
+parser = ArgumentParser()
+parser$add_argument("--fusion_preds_tsv", help="fusion prediction info in FusionInspector tsv format", required=TRUE, nargs=1)
+parser$add_argument("--microhomologies_tsv", help="fusion contig microhomologies", required=TRUE, nargs=1)
+parser$add_argument("--plots_dir", help="directory for writing plot pdf files", required=TRUE, nargs=1)
+
+
+args = parser$parse_args()
+
+fusion_preds_tsv = args$fusion_preds_tsv
+microhomologies_tsv = args$microhomologies_tsv
+plots_dir = args$plots_dir
+
+if (! file.exists(plots_dir)) {
+    dir.create(plots_dir)
+}
+
+
+## functions:
+
+# stingray plot
+
+stingray_plot = function(data) {
+
+  plotdata = data %>% mutate(log2FFPM = log2(FFPM + 1),
+                             log2_FAR_left = log2(FAR_left+1),
+                             log2_FAR_right = -1*log2(FAR_right+1)) %>%
+                      gather(key=FAR_type, value=log2_FAR, log2_FAR_left, log2_FAR_right)
+
+
+  ymax = max(abs(plotdata$log2_FAR))
+  p = ggplot(plotdata, aes(y=log2_FAR, x=log2FFPM, color=FAR_type)) + geom_point() + ylim(-1*ymax, ymax)
+
+  return(p)
+}
+
+
+breakpoint_plot = function(fusion_data, microhomology_data) {
+
+    p = fusion_data %>% ggplot(aes(x=LeftLocalBreakpoint, y=RightLocalBreakpoint)) + geom_point(aes(size=FFPM, color=SpliceType))
+
+    if (! is.null(microhomology_data) ) {
+        p = p + geom_point(data=microhomology_data, aes(x=lend, y=rend, size=0.1))
+    }
+
+    return(p)
+}
+
+
+## main:
+
+fusion_preds = read.table(fusion_preds_tsv, header=T, row.names=NULL, sep="\t", stringsAsFactors=F, com='')
+colnames(fusion_preds) = str_replace(colnames(fusion_preds), "^X\\.", "")
+grouped_fusion_preds = split(x=fusion_preds, f=fusion_preds$FusionName)
+fusion_names = names(grouped_fusion_preds)
+
+
+microhomologies = read.table(microhomologies_tsv, header=T, row.names=NULL, sep="\t", stringsAsFactors=F)
+grouped_microhomologies = split(x=microhomologies, f=microhomologies$contig)
+
+
+
+
+
+for (fusion_name in fusion_names) {
+
+
+    message("processing: ", fusion_name)
+
+    pdf(file.path(plots_dir, paste0(fusion_name, ".pdf")))
+
+    fusion_preds_data = grouped_fusion_preds[[fusion_name]]
+
+    ## make stingray plot for all sample fusions.
+    all_stingray_plot = stingray_plot(fusion_preds_data)
+
+    plot(all_stingray_plot)
+
+    ## make breakpoint plot
+    fusion_pair_microhomologies = NULL
+    if (fusion_name %in% names(grouped_microhomologies)) {
+        fusion_pair_microhomologies = grouped_microhomologies[[fusion_name]]
+    }
+    all_brkpt_plot = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies)
+
+    plot(all_brkpt_plot)
+
+
+    ## now, make the per-sample plots
+
+    sample_grouped_fusion_preds = split(fusion_preds_data, fusion_preds_data$sample)
+    for (sample_name in names(sample_grouped_fusion_preds)) {
+        message("\t-sample:", sample_name)
+        sample_data = sample_grouped_fusion_preds[[sample_name]]
+        sample_stingray_plot = stingray_plot(sample_data)
+        plot(sample_stingray_plot)
+
+        sample_brkpt_plot = breakpoint_plot(sample_data, fusion_pair_microhomologies)
+        plot(sample_brkpt_plot)
+    }
+
+    dev.off()
+}
