@@ -60,7 +60,7 @@ main: {
     my %contig_to_gene_structs = &parse_gene_pair_info($gtf_file);
     
 
-    print join("\t", "contig", "lend", "rend") . "\n"; # header
+    print join("\t", "contig", "feature_type", "lend", "rend") . "\n"; # header
     
     foreach my $contig (keys %contig_to_gene_structs) {
         my $contig_seq = uc $seqs_hash{$contig} or die "Error, cannot find seq for $contig";
@@ -69,9 +69,33 @@ main: {
         
         my @microhomologies = &find_microhomologies($contig_seq, $geneA_struct, $geneB_struct, $KMER_SIZE);
 
-        foreach my $microhomology (@microhomologies) {
-            my ($x, $y) = @$microhomology;
-            print join("\t", $contig, $x, $y) . "\n";
+        if (@microhomologies) {
+                    
+            foreach my $microhomology (@microhomologies) {
+                my ($x, $y) = @$microhomology;
+                print join("\t", $contig, "MicroH", $x, $y) . "\n";
+            }
+
+            my %seen;
+            ## include exon structures for vis
+            for my $exon_coordset (@{$geneA_struct->{exons}}) {
+                my ($exon_lend, $exon_rend) = @$exon_coordset;
+                my $token = join("::", "GeneA", $exon_lend, $exon_rend);
+                if (! $seen{$token}) {
+                    print join("\t", $contig, "GeneA", $exon_lend, $exon_rend) . "\n";
+                    $seen{$token} = 1;
+                }
+                                    
+            }
+            
+            for my $exon_coordset (@{$geneB_struct->{exons}}) {
+                my ($exon_lend, $exon_rend) = @$exon_coordset;
+                my $token = join("::", "GeneA", $exon_lend, $exon_rend);
+                if (! $seen{$token}) {
+                    print join("\t", $contig, "GeneB", $exon_lend, $exon_rend) . "\n";
+                    $seen{$token} = 1;
+                }
+            }
         }
     }
     
@@ -127,16 +151,19 @@ sub parse_gene_pair_info {
             my @coordsets = @{$contig_info_href->{$gene_id}};
             @coordsets = sort {$a->[0]<=>$b->[0]} @coordsets;
             
+            my @exon_coords = @coordsets; # retain original ones before collapsing
+            
             @coordsets = &Overlap_piler::simple_coordsets_collapser(@coordsets);
             
             my $range_lend = $coordsets[0]->[0];
             my $range_rend = $coordsets[$#coordsets]->[1];
-
+            
             
             push (@gene_structs, { gene_id => $gene_id,
                                    gene_lend => $range_lend,
                                    gene_rend => $range_rend,
                                    coordsets => \@coordsets,
+                                   exons => \@exon_coords,
                   } );
         }
         
@@ -167,9 +194,8 @@ sub find_microhomologies {
             my $kmer = substr($contig_seq, $i, $KMER_SIZE);
             push (@{$kmer_to_pos_geneA{$kmer}}, $i);
         }
-        
     }
-
+    
     ## find matches in geneB
     my @exon_coords_geneB = @{$geneB_struct->{coordsets}};
 
