@@ -161,6 +161,7 @@ main: {
                                                                         $row->{JunctionReads});
             
             foreach my $fusion_read (split(/,/, $fusion_read_list)) {
+                $fusion_read =~ s/\/[12]$//; #want core read name. 
                 $junction_reads_ignore{$fusion_read}++;
             }
 
@@ -306,14 +307,14 @@ main: {
             
             my $token = join("$;", $read_name, $scaffold);
 
-            my $full_read_name = $sam_entry->reconstruct_full_read_name();            
+            my $core_read_name = $sam_entry->get_core_read_name();            
 
-            if ($junction_reads_ignore{$full_read_name}) { next; }
-
+            if ($junction_reads_ignore{$core_read_name}) { next; } # junction reads cannot be used as spanning frags.
+            
             my $read_seq = $sam_entry->get_sequence();
             my $entropy = &SeqUtil::compute_entropy($read_seq);
             unless ($entropy >= $MIN_SEQ_ENTROPY) { next; }
-                        
+            
         
             my ($genome_coords_aref, $read_coords_aref) = $sam_entry->get_alignment_coords();
             unless (&overlaps_exon($genome_coords_aref, $exon_bounds{$scaffold}) ) { 
@@ -321,7 +322,7 @@ main: {
                 next; 
             } # only examine exon-overlapping entries
             
-            
+            my $full_read_name = $sam_entry->reconstruct_full_read_name();
             if ($full_read_name =~ /^(\S+)\/([12])$/) {
                 my ($core, $pair_end) = ($1, $2);
                 $core_counter{"$scaffold|$core"}++;  # track how many alignments we have for this rnaseq fragment
@@ -334,7 +335,7 @@ main: {
                                                                                           read_group => $read_group,
                 };
                 
-                                
+                
             }
         }
         
@@ -535,7 +536,7 @@ sub capture_spanning_frags {
     
     ##########################################
     # determine which reads are spanning reads
-
+    
     my ($gene_bound_left, $gene_bound_right) = @{$scaffold_to_gene_breaks{$scaffold}};
                         
     if ($gene_bound_left > $gene_bound_right) { 
@@ -625,7 +626,7 @@ sub capture_spanning_frags {
                     
                     if($is_fusion_spanning_fragment_flag) {
                         
-                        if ($left_read_rend < $break_lend + $FUZZ && $break_rend - $FUZZ < $right_read_lend) {
+                        if ($left_read_rend <= $break_lend + $FUZZ && $break_rend - $FUZZ < $right_read_lend) {
                             
                             # <=======>                                                    <=======>   # reads
                             #           |------------------------------------------------|   # breakpoints on scaffold
@@ -646,8 +647,8 @@ sub capture_spanning_frags {
                         ## See if it's fusion-countering evidence
                         
                         
-                        if ($left_read_lend + $FUZZ < $break_lend 
-                            && $break_lend < $right_read_rend - $FUZZ
+                        if ($left_read_lend < $break_lend 
+                            && $break_lend < $right_read_rend
                             && $right_read_rend < $gene_bound_right) {
                             
                             # <==---?------?----==>   # reads
@@ -658,8 +659,8 @@ sub capture_spanning_frags {
                             ## contrary support at left junction
                             push (@{$fusion_to_contrary_support{"$scaffold|$fusion_breakpoint"}->{left}}, $fragment);
                         }
-                        elsif ($left_read_lend + $FUZZ < $break_rend 
-                               && $break_rend < $right_read_rend - $FUZZ
+                        elsif ($left_read_lend < $break_rend 
+                               && $break_rend < $right_read_rend
                                && $left_read_lend > $gene_bound_left) {
                             
                             
@@ -686,11 +687,11 @@ sub capture_spanning_frags {
             
         } # endif have read pair coords
     } # end of foreach fragment
-
-
-
+    
+    
+    
     ## output fusion records for that scaffold:
-            foreach my $fusion_n_breakpoint (sort keys %fusion_to_spanning_reads) {
+    foreach my $fusion_n_breakpoint (sort keys %fusion_to_spanning_reads) {
             my ($fusion_name, $breakpoint) = split(/\|/, $fusion_n_breakpoint);
             my ($geneA, $geneB) = split(/--/, $fusion_name);
 

@@ -151,8 +151,6 @@ class FusionInspector:
         optional.add_argument("--FAR_pseudocount", type=float, default=1, help="pseudocount to be used in fusion allelic ratio (FAR) computation")
 
         optional.add_argument("--version", action='store_true', default=False, help="provide version info: {}".format(VERSION) )
-
-        optional.add_argument("--STAR_max_mate_dist", type=int, default=None, help="max mate distance and max intron length for STAR")
         
         optional.add_argument("--no_FFPM", action='store_true', default=False, help="do not compute FFPM value - ie. using inspect instead of validate mode, in which case FFPM would not be meaningful given the full sample of reads is not evaluated")
         
@@ -379,11 +377,6 @@ class FusionInspector:
         else:
             # reads direct:
             cmdstr += " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\""
-
-        if args_parsed.STAR_max_mate_dist:
-            cmdstr += " --max_mate_dist {} ".format(args_parsed.STAR_max_mate_dist)
-            cmdstr += " --max_intron_length {} ".format(args_parsed.STAR_max_mate_dist)
-        
         
         if args_parsed.aligner_path:
             cmdstr += " --star_path " + args_parsed.aligner_path

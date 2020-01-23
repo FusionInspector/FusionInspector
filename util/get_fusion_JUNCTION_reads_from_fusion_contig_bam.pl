@@ -98,6 +98,8 @@ main: {
     my %fusion_large_anchors;
 
     my %sam_index_capture;
+
+    my %elimination_counter;
     
     my $counter = 0;
     ## find the reads that matter:
@@ -121,6 +123,9 @@ main: {
                 
         my $qual_val = $sam_entry->get_mapping_quality();
         unless ($qual_val > 0) { 
+            
+            $elimination_counter{"Qual < 0"}++;
+            
             if ($DEBUG) { print STDERR "-skipping due to mapping qual <= 0\n"; }
             next; 
         }
@@ -135,6 +140,7 @@ main: {
             $line =~ /NH:i:(\d+)/ or die "Error, cannot extract hit count (NH:i:) from sam entry: $line";
             my $num_hits = $1;
             if ($num_hits != 1) {
+                $elimination_counter{"num_hits > 1"}++;
                 if ($DEBUG) { print STDERR "-skipping, num hits ($num_hits) indicates not unique\n"; }
                 next;
             }
@@ -151,11 +157,13 @@ main: {
         
         my $alignment_length = $sam_entry->get_alignment_length();
         unless ($alignment_length) {
+            $elimination_counter{"no alignment length"}++;
             if ($DEBUG) { print STDERR "-skipping, no alignment length\n"; }
             next;
         }
         my $per_id = ($alignment_length - $mismatch_count) / $alignment_length * 100;
         if ($per_id < $MIN_ALIGN_PER_ID) {
+            $elimination_counter{"per_id < $MIN_ALIGN_PER_ID"}++;
             if ($DEBUG) { print STDERR "-skipping, per_id $per_id < min required: $MIN_ALIGN_PER_ID\n";}
             next;
         }
@@ -163,6 +171,7 @@ main: {
         ## check end clipping of alignment
         my $cigar = $sam_entry->get_cigar_alignment();
         if (&alignment_has_excessive_soft_clipping($cigar)) {
+            $elimination_counter{"excessive soft clipping"}++;
             if ($DEBUG) { print STDERR "-skipping, excessive soft clipping ($cigar)\n";  }
             next;
         }
@@ -176,7 +185,8 @@ main: {
         my $scaffold = $sam_entry->get_scaffold_name();
         if ($scaffold ne $prev_scaff) {
             
-            if (! exists $scaffold_to_gene_structs{$scaffold}) { 
+            if (! exists $scaffold_to_gene_structs{$scaffold}) {
+                $elimination_counter{"unknown fusion target"}++;
                 if ($DEBUG) { print STDERR "-skipping, not a known fusion contig target\n"; }
                 next;  # STAR aligns to the whole genome + fusion contigs.
             }
@@ -216,7 +226,10 @@ main: {
             
             print STDERR "Exon hits: " . Dumper(\@exon_hits) if $DEBUG;
 
-            unless (scalar @exon_hits > 1) { next; } 
+            unless (scalar @exon_hits > 1) { 
+                $elimination_counter{"exons hit < 2"}++;
+                next; 
+            } 
             
             my %genes_matched;
             foreach my $exon_hit (@exon_hits) {
@@ -227,7 +240,10 @@ main: {
             }
             my $num_genes_matched = scalar(keys %genes_matched);
             print STDERR "Genes matched: $num_genes_matched\n" if $DEBUG;
-            unless ($num_genes_matched > 1) { next; }
+            unless ($num_genes_matched > 1) { 
+                $elimination_counter{ "num genes matched < 2"}++;
+                next; 
+            }
 
             print STDERR "Genes matched: " . join(" ", keys %genes_matched) . "\n" if $DEBUG;
             
@@ -256,6 +272,7 @@ main: {
 
                     print STDERR "-$read_name fails min small anchor length check:  left: $left_brkpt_length < $MIN_SMALL_ANCHOR || right: $right_brkpt_length < $MIN_SMALL_ANCHOR ... skipping.\n" if $DEBUG; 
                     
+                    $elimination_counter{"small anchor length"}++;
                     next;
                 }
 
@@ -264,10 +281,13 @@ main: {
                         &&
                         &has_min_anchor_seq_entropy(\$read_sequence, $right_immediate_breakpoint_segment, $MIN_SEQ_ENTROPY) ) {
 
-                    print STDERR "-$read_name fails min anchor & seq_entropy check... skipping\n" if $DEBUG;
+                    print STDERR "-$read_name fails seq_entropy check... skipping\n" if $DEBUG;
                     
+                    $elimination_counter{"low complexity anchor region"}++;
                     next;
                 }
+                
+                $elimination_counter{" ** passed ** "}++;
                 
                 # calling it a fusion read.
                 $fusion_split_reads{$core_read_name} = 1;
@@ -293,8 +313,10 @@ main: {
             }
         }
         
-
-    }
+    } #end of sam reading
+    
+    print STDERR "junction read elimination tally: " . Dumper(\%elimination_counter);
+        
     
 
     {
@@ -690,7 +712,7 @@ sub has_min_anchor_seq_entropy {
         return(1);
     }
     else {
-        #print "$read_subseq : $entropy : FAIL\n";
+        if ($DEBUG) { print STDERR "$read_subseq : $entropy : FAIL\n"};
         return(0);
     }
 }
