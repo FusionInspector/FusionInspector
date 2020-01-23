@@ -8,7 +8,7 @@ use lib ($ENV{EUK_MODULES});
 use Overlap_piler;
 use Fasta_reader;
 
-my $KMER_SIZE = 6;
+my $KMER_SIZE = 10;
 
 my $usage = <<__EOUSAGE__;
 
