@@ -11,7 +11,7 @@ use Nuc_translator;
 use Overlap_piler;
 use Data::Dumper;
 
-my $max_intron_length = 500;
+my $max_intron_length = 1000;
 my $genome_flank_size = 1000;
 
 my $usage = <<__EOUSAGE__;
@@ -30,7 +30,7 @@ my $usage = <<__EOUSAGE__;
 #
 #  --shrink_introns
 #
-#  --max_intron_length <int>        default: max_intron_length  (only when --shrink_introns used)
+#  --max_intron_length <int>        default: $max_intron_length  (only when --shrink_introns used)
 #
 #  --genome_flank <int>             amt. of genomic sequence to extract flanking each gene (default: $genome_flank_size)
 #
