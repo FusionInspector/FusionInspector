@@ -39,11 +39,12 @@ stingray_plot = function(data) {
 }
 
 
-breakpoint_plot = function(fusion_data, microhomology_data) {
+breakpoint_plot = function(fusion_data, microhomology_data, title) {
 
     p = fusion_data %>% ggplot() +
-        geom_point(aes(x=LeftLocalBreakpoint, y=RightLocalBreakpoint, size=FFPM, color=SpliceType))
+        geom_point(aes(x=LeftLocalBreakpoint, y=RightLocalBreakpoint, size=FFPM, color=SpliceType, shape=SpliceDinuc, alpha=0.1))
 
+    p = p + ggtitle(title)
 
     ## plot gene structures.
     ## geneA on x-axis, geneB on y-axis
@@ -72,16 +73,21 @@ breakpoint_plot = function(fusion_data, microhomology_data) {
     geneA_minY = geneB_lend - 0.8*padding
     geneA_maxY = geneA_minY + 0.03*geneB_length
 
-    p = p + geom_rect(data=geneA_info, aes(xmin=lend, xmax=rend, ymin=geneA_minY, ymax=geneA_maxY))
+    p = p + geom_rect(data=geneA_info, aes(xmin=lend, xmax=rend, ymin=geneA_minY, ymax=geneA_maxY), fill=NA, color='black')
 
+    geneA_midY = mean(c(geneA_minY, geneA_maxY))
+
+    p = p + geom_segment(aes(x=geneA_lend, xend=geneA_rend, y=geneA_midY, yend=geneA_midY)) # geneB center line
 
     ## draw geneB
 
     geneB_minX = geneA_lend - 0.8*padding
     geneB_maxX = geneB_minX + 0.05*geneA_length
 
-    p = p + geom_rect(data=geneB_info, aes(ymin=lend, ymax=rend, xmin=geneB_minX, xmax=geneB_maxX))
+    p = p + geom_rect(data=geneB_info, aes(ymin=lend, ymax=rend, xmin=geneB_minX, xmax=geneB_maxX), fill=NA, color='black')
 
+    geneB_midX = mean(c(geneB_minX, geneB_maxX))
+    p = p + geom_segment(aes(x=geneB_midX, xend=geneB_midX, y=geneB_lend, yend=geneB_rend)) # geneB center line
 
     microhomology_info = microhomology_data %>% filter(feature_type == "MicroH")
 
@@ -93,14 +99,23 @@ breakpoint_plot = function(fusion_data, microhomology_data) {
 }
 
 
+########
 ## main:
 
+####################
+## parse fusion data
 fusion_preds = read.table(fusion_preds_tsv, header=T, row.names=NULL, sep="\t", stringsAsFactors=F, com='')
 colnames(fusion_preds) = str_replace(colnames(fusion_preds), "^X\\.", "")
+
+## add splice type info for consenus vs. non-consensus dinucleotides
+
+fusion_preds = fusion_preds %>% mutate(SpliceDinuc=ifelse(LeftBreakDinuc %in% c("GT", "GC") & RightBreakDinuc == "AG", "Consensus", "Non"))
+
 grouped_fusion_preds = split(x=fusion_preds, f=fusion_preds$FusionName)
 fusion_names = names(grouped_fusion_preds)
 
 
+## parse microhomolgy data
 microhomologies = read.table(microhomologies_tsv, header=T, row.names=NULL, sep="\t", stringsAsFactors=F)
 grouped_microhomologies = split(x=microhomologies, f=microhomologies$contig)
 
@@ -117,18 +132,16 @@ for (fusion_name in fusion_names) {
     fusion_preds_data = grouped_fusion_preds[[fusion_name]]
 
     ## make stingray plot for all sample fusions.
-    all_stingray_plot = stingray_plot(fusion_preds_data)
+    #all_stingray_plot = stingray_plot(fusion_preds_data)
 
     #plot(all_stingray_plot)
 
 
-
     ## make breakpoint plot
     fusion_pair_microhomologies = grouped_microhomologies[[fusion_name]]
-    all_brkpt_plot = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies)
+    all_brkpt_plot = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies, title=fusion_name)
     plot(all_brkpt_plot)
 
-    next;
 
     ## now, make the per-sample plots
 
@@ -136,10 +149,10 @@ for (fusion_name in fusion_names) {
     for (sample_name in names(sample_grouped_fusion_preds)) {
         message("\t-sample:", sample_name)
         sample_data = sample_grouped_fusion_preds[[sample_name]]
-        sample_stingray_plot = stingray_plot(sample_data)
-        plot(sample_stingray_plot)
+        #sample_stingray_plot = stingray_plot(sample_data)
+        #plot(sample_stingray_plot)
 
-        sample_brkpt_plot = breakpoint_plot(sample_data, fusion_pair_microhomologies)
+        sample_brkpt_plot = breakpoint_plot(sample_data, fusion_pair_microhomologies, title=paste(fusion_name, sample_name, sep=" : "))
         plot(sample_brkpt_plot)
     }
 
