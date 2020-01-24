@@ -41,10 +41,52 @@ stingray_plot = function(data) {
 
 breakpoint_plot = function(fusion_data, microhomology_data) {
 
-    p = fusion_data %>% ggplot(aes(x=LeftLocalBreakpoint, y=RightLocalBreakpoint)) + geom_point(aes(size=FFPM, color=SpliceType))
+    p = fusion_data %>% ggplot() +
+        geom_point(aes(x=LeftLocalBreakpoint, y=RightLocalBreakpoint, size=FFPM, color=SpliceType))
 
-    if (! is.null(microhomology_data) ) {
-        p = p + geom_point(data=microhomology_data, aes(x=lend, y=rend, size=0.1))
+
+    ## plot gene structures.
+    ## geneA on x-axis, geneB on y-axis
+
+    geneA_info = microhomology_data %>% filter(feature_type == "GeneA")
+    geneB_info = microhomology_data %>% filter(feature_type == "GeneB")
+
+    ## plot gene structures.
+    padding = 1000
+
+    geneA_lend = min(geneA_info$lend)
+    geneA_rend = max(geneA_info$rend)
+    geneA_length = geneA_rend - geneA_lend + 2*padding
+
+    geneB_lend = min(geneB_info$lend)
+    geneB_rend = max(geneB_info$rend)
+    geneB_length = geneB_rend - geneB_lend + 2*padding
+
+    ## set up scales for view
+    p = p +
+        xlim(geneA_lend - padding, geneA_rend + padding) +
+        ylim(geneB_lend - padding, geneB_rend + padding)
+
+
+    ## draw geneA
+    geneA_minY = geneB_lend - 0.8*padding
+    geneA_maxY = geneA_minY + 0.03*geneB_length
+
+    p = p + geom_rect(data=geneA_info, aes(xmin=lend, xmax=rend, ymin=geneA_minY, ymax=geneA_maxY))
+
+
+    ## draw geneB
+
+    geneB_minX = geneA_lend - 0.8*padding
+    geneB_maxX = geneB_minX + 0.05*geneA_length
+
+    p = p + geom_rect(data=geneB_info, aes(ymin=lend, ymax=rend, xmin=geneB_minX, xmax=geneB_maxX))
+
+
+    microhomology_info = microhomology_data %>% filter(feature_type == "MicroH")
+
+    if (nrow(microhomology_data) > 0 ) {
+        p = p + geom_point(data=microhomology_info, aes(x=lend, y=rend), size=0.5)
     }
 
     return(p)
@@ -65,7 +107,6 @@ grouped_microhomologies = split(x=microhomologies, f=microhomologies$contig)
 
 
 
-
 for (fusion_name in fusion_names) {
 
 
@@ -78,17 +119,16 @@ for (fusion_name in fusion_names) {
     ## make stingray plot for all sample fusions.
     all_stingray_plot = stingray_plot(fusion_preds_data)
 
-    plot(all_stingray_plot)
+    #plot(all_stingray_plot)
+
+
 
     ## make breakpoint plot
-    fusion_pair_microhomologies = NULL
-    if (fusion_name %in% names(grouped_microhomologies)) {
-        fusion_pair_microhomologies = grouped_microhomologies[[fusion_name]]
-    }
+    fusion_pair_microhomologies = grouped_microhomologies[[fusion_name]]
     all_brkpt_plot = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies)
-
     plot(all_brkpt_plot)
 
+    next;
 
     ## now, make the per-sample plots
 

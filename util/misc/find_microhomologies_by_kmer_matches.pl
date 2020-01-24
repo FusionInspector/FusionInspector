@@ -66,7 +66,29 @@ main: {
         my $contig_seq = uc $seqs_hash{$contig} or die "Error, cannot find seq for $contig";
         
         my ($geneA_struct, $geneB_struct) = @{$contig_to_gene_structs{$contig}};
+
+        # report gene structure info
+        my %seen;
+        ## include exon structures for vis
+        for my $exon_coordset (@{$geneA_struct->{exons}}) {
+            my ($exon_lend, $exon_rend) = @$exon_coordset;
+            my $token = join("::", "GeneA", $exon_lend, $exon_rend);
+            if (! $seen{$token}) {
+                print join("\t", $contig, "GeneA", $exon_lend, $exon_rend) . "\n";
+                $seen{$token} = 1;
+            }
+            
+        }
         
+        for my $exon_coordset (@{$geneB_struct->{exons}}) {
+            my ($exon_lend, $exon_rend) = @$exon_coordset;
+            my $token = join("::", "GeneA", $exon_lend, $exon_rend);
+            if (! $seen{$token}) {
+                print join("\t", $contig, "GeneB", $exon_lend, $exon_rend) . "\n";
+                $seen{$token} = 1;
+            }
+        }
+                
         my @microhomologies = &find_microhomologies($contig_seq, $geneA_struct, $geneB_struct, $KMER_SIZE);
 
         if (@microhomologies) {
@@ -76,26 +98,6 @@ main: {
                 print join("\t", $contig, "MicroH", $x, $y) . "\n";
             }
 
-            my %seen;
-            ## include exon structures for vis
-            for my $exon_coordset (@{$geneA_struct->{exons}}) {
-                my ($exon_lend, $exon_rend) = @$exon_coordset;
-                my $token = join("::", "GeneA", $exon_lend, $exon_rend);
-                if (! $seen{$token}) {
-                    print join("\t", $contig, "GeneA", $exon_lend, $exon_rend) . "\n";
-                    $seen{$token} = 1;
-                }
-                                    
-            }
-            
-            for my $exon_coordset (@{$geneB_struct->{exons}}) {
-                my ($exon_lend, $exon_rend) = @$exon_coordset;
-                my $token = join("::", "GeneA", $exon_lend, $exon_rend);
-                if (! $seen{$token}) {
-                    print join("\t", $contig, "GeneB", $exon_lend, $exon_rend) . "\n";
-                    $seen{$token} = 1;
-                }
-            }
         }
     }
     
