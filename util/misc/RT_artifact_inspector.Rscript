@@ -39,10 +39,30 @@ stingray_plot = function(data) {
 }
 
 
-breakpoint_plot = function(fusion_data, microhomology_data, title) {
+breakpoint_plot = function(fusion_data, microhomology_data, title, fusion_brkpt_size_by=c("FFPM", "num_samples")) {
 
-    p = fusion_data %>% ggplot() +
-        geom_point(aes(x=LeftLocalBreakpoint, y=RightLocalBreakpoint, size=FFPM, color=SpliceType, shape=SpliceDinuc, alpha=0.1))
+    fusion_brkpt_size_by = match.arg(fusion_brkpt_size_by)
+
+    if (fusion_brkpt_size_by == "FFPM") {
+
+
+        p = fusion_data %>% ggplot() +
+            geom_point(aes(x=LeftLocalBreakpoint, y=RightLocalBreakpoint, size=FFPM,
+                           color=SpliceType, shape=SpliceDinuc), alpha=0.3)
+
+    } else if (fusion_brkpt_size_by == "num_samples") {
+
+        p = fusion_data %>% mutate(brkpt = paste(LeftBreakpoint, RightBreakpoint, sep="::")) %>%
+                            group_by(brkpt) %>% mutate(num_samples = n()) %>% ungroup() %>%
+                            ggplot() +
+                            geom_point(aes(x=LeftLocalBreakpoint, y=RightLocalBreakpoint, size=num_samples,
+                                           color=SpliceType, shape=SpliceDinuc), alpha=0.3)
+
+    } else {
+        ## shouldn't happen.
+        stop("Error, not recognizing fusion_brkpt_size_by_param: ", fusion_brkpt_size_by)
+    }
+
 
     p = p + ggtitle(title)
 
@@ -139,9 +159,13 @@ for (fusion_name in fusion_names) {
 
     ## make breakpoint plot
     fusion_pair_microhomologies = grouped_microhomologies[[fusion_name]]
-    all_brkpt_plot = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies, title=fusion_name)
-    plot(all_brkpt_plot)
+    all_brkpt_plot_ffpm = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies,
+                                          title=paste0(fusion_name, " FFPM"), "FFPM")
+    plot(all_brkpt_plot_ffpm)
 
+    all_brkpt_plot_num_samples = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies,
+                                                 title=paste0(fusion_name, " num samples"), "num_samples")
+    plot(all_brkpt_plot_num_samples)
 
     ## now, make the per-sample plots
 
