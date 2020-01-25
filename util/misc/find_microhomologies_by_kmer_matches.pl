@@ -82,7 +82,7 @@ main: {
         
         for my $exon_coordset (@{$geneB_struct->{exons}}) {
             my ($exon_lend, $exon_rend) = @$exon_coordset;
-            my $token = join("::", "GeneA", $exon_lend, $exon_rend);
+            my $token = join("::", "GeneB", $exon_lend, $exon_rend);
             if (! $seen{$token}) {
                 print join("\t", $contig, "GeneB", $exon_lend, $exon_rend) . "\n";
                 $seen{$token} = 1;
@@ -127,6 +127,10 @@ sub parse_gene_pair_info {
             
             if ($info =~ /gene_id \"([^\"]+)\";/) {
                 my $gene_id = $1;
+                my @pts = split(/\^/, $gene_id);
+                if (scalar @pts > 2) {
+                    $gene_id = $pts[1]; # ie. formatting like: A1BG-AS1--APOA2^A1BG-AS1^ENSG00000268895.4
+                }
                 push (@{$gene_to_exon_coords{$contig}->{$gene_id}}, [$lend, $rend]);
             }
             else {
@@ -144,9 +148,9 @@ sub parse_gene_pair_info {
     
         my @gene_ids = keys %$contig_info_href;
         if (scalar(@gene_ids) != 2) {
-            die "Error, didn't extract exactly two genes from gtf file";
+            die "Error, didn't extract exactly two genes from gtf file.  Contig: $contig, with " . scalar(@gene_ids) . " genes: " . join(", ", @gene_ids) . "\n";
         }
-
+        
         my @gene_structs;
         
         foreach my $gene_id (@gene_ids) {
@@ -159,7 +163,6 @@ sub parse_gene_pair_info {
             
             my $range_lend = $coordsets[0]->[0];
             my $range_rend = $coordsets[$#coordsets]->[1];
-            
             
             push (@gene_structs, { gene_id => $gene_id,
                                    gene_lend => $range_lend,
