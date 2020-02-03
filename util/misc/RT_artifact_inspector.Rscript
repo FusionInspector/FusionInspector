@@ -45,7 +45,6 @@ breakpoint_plot = function(fusion_data, microhomology_data, title, fusion_brkpt_
 
     if (fusion_brkpt_size_by == "FFPM") {
 
-
         p = fusion_data %>% ggplot() +
             geom_point(aes(x=LeftLocalBreakpoint, y=RightLocalBreakpoint, size=FFPM,
                            color=SpliceType, shape=SpliceDinuc), alpha=0.3)
@@ -159,6 +158,8 @@ for (fusion_name in fusion_names) {
 
     ## make breakpoint plot
     fusion_pair_microhomologies = grouped_microhomologies[[fusion_name]]
+
+
     all_brkpt_plot_ffpm = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies,
                                           title=paste0(fusion_name, " FFPM"), "FFPM")
     plot(all_brkpt_plot_ffpm)
@@ -167,7 +168,10 @@ for (fusion_name in fusion_names) {
                                                  title=paste0(fusion_name, " num samples"), "num_samples")
     plot(all_brkpt_plot_num_samples)
 
+
     ## now, make the per-sample plots
+
+    if (! "sample" %in% colnames(fusion_preds_data)) { next; }
 
     sample_grouped_fusion_preds = split(fusion_preds_data, fusion_preds_data$sample)
     for (sample_name in names(sample_grouped_fusion_preds)) {
