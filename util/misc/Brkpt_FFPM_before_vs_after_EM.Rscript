@@ -27,6 +27,8 @@ if (! file.exists(plots_dir)) {
     dir.create(plots_dir)
 }
 
+
+
 ########
 ## main:
 
@@ -50,45 +52,41 @@ grouped_microhomologies = split(x=microhomologies, f=microhomologies$contig)
 
 for (fusion_name in fusion_names) {
 
+
     message("processing: ", fusion_name)
 
-    pdf(file.path(plots_dir, paste0(fusion_name, ".pdf")))
+    pdf(file.path(plots_dir, paste0(fusion_name, ".pre-vs-post-EM.pdf")))
 
     fusion_preds_data = grouped_fusion_preds[[fusion_name]]
 
-    ## make stingray plot for all sample fusions.
-    all_stingray_plot = stingray_plot(fusion_preds_data, include_background=TRUE)
 
     ## make breakpoint plot
     fusion_pair_microhomologies = grouped_microhomologies[[fusion_name]]
 
+    ## Post-EM
+    p_post = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies,
+                             title=paste0(fusion_name, "post-EM FFPM"), "FFPM")
 
-    all_brkpt_plot_ffpm = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies,
-                                          title=paste0(fusion_name, " FFPM"), "FFPM")
+    ## recompute the FFPM based on the original pre-EM counts:
+    fusion_preds_data = fusion_preds_data %>% mutate(sum_frags =  est_J + est_S)
+    total_M_reads = median(fusion_preds_data$sum_frags/fusion_preds_data$FFPM)
+    message("total_M_reads estimated at: ", total_M_reads)
 
-    all_brkpt_plot_num_samples = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies,
-                                                 title=paste0(fusion_name, " num samples"), "num_samples")
+    ## redefine sum frags based on the earlier Junction and Spanning rad counts.
+    fusion_preds_data = fusion_preds_data %>% mutate(sum_frags =  JunctionReadCount + SpanningFragCount)
 
-    pg = plot_grid(all_stingray_plot, all_brkpt_plot_ffpm, ncol=1, rel_heights=c(0.5, 0.5))
+    fusion_preds_data$FFPM = fusion_preds_data$sum_frags/total_M_reads
+
+
+    ## Pre-EM
+    p_pre = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies,
+                            title=paste0(fusion_name, "pre-EM FFPM"), "FFPM")
+
+
+    pg = plot_grid(p_pre, p_post, ncol=1, rel_heights=c(0.5, 0.5))
     plot(pg)
 
 
-    ## now, make the per-sample plots
-
-    if (! "sample" %in% colnames(fusion_preds_data)) { next; }
-
-    plot(all_brkpt_plot_num_samples)
-
-    sample_grouped_fusion_preds = split(fusion_preds_data, fusion_preds_data$sample)
-    for (sample_name in names(sample_grouped_fusion_preds)) {
-        message("\t-sample:", sample_name)
-        sample_data = sample_grouped_fusion_preds[[sample_name]]
-        #sample_stingray_plot = stingray_plot(sample_data)
-        #plot(sample_stingray_plot)
-
-        sample_brkpt_plot = breakpoint_plot(sample_data, fusion_pair_microhomologies, title=paste(fusion_name, sample_name, sep=" : "))
-        plot(sample_brkpt_plot)
-    }
 
     dev.off()
 }
