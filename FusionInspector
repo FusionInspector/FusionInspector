@@ -114,7 +114,7 @@ class FusionInspector:
         optional.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=96,
                              help='minimum percent identity for a fusion-supporting read alignment')
         
-        optional.add_argument("--only_fusion_reads", default=False, action='store_true',
+        optional.add_argument("--only_fusion_reads", action='store_true', default=False,
                              help="include only read alignments in output that support fusion" )
         
         optional.add_argument("--capture_genome_alignments", default=False, action='store_true',
@@ -155,6 +155,9 @@ class FusionInspector:
         optional.add_argument("--no_FFPM", action='store_true', default=False, help="do not compute FFPM value - ie. using inspect instead of validate mode, in which case FFPM would not be meaningful given the full sample of reads is not evaluated")
         
         optional.add_argument("--no_splice_score_boost", action='store_true', default=False, help="do not augment alignment score for spliced alignments")
+
+        optional.add_argument("--no_shrink_introns", action='store_true', default=False, help="do not shrink introns")
+        optional.add_argument("--shrink_intron_max_length", default=1000, type=int, help="maximum length of introns when shrunk")
 
         
         # done setting up options menu
@@ -300,8 +303,11 @@ class FusionInspector:
                       " --fusions " + args_parsed.chim_summary_files +
                       " --gtf " + args_parsed.gtf_filename +
                       " --genome_fa " + args_parsed.genome_fasta_filename +
-                      " --shrink_introns --max_intron_length 1000 " +
-                      " --out_prefix " + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix] ) )
+                     " --out_prefix " + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix] ) )
+
+        if not args_parsed.no_shrink_introns:
+            cmdstr += " --shrink_introns --max_intron_length {} ".format(args_parsed.shrink_intron_max_length)
+        
         
         mergedContig_fasta_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".fa"])
         mergedContig_gtf_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".gtf"])
