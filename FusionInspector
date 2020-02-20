@@ -159,6 +159,9 @@ class FusionInspector:
         optional.add_argument("--no_shrink_introns", action='store_true', default=False, help="do not shrink introns")
         optional.add_argument("--shrink_intron_max_length", default=1000, type=int, help="maximum length of introns when shrunk")
 
+        optional.add_argument("--max_sensitivity", action='store_true', default=False, help=" max sensitivity settings (specificity unchecked) equivalent to --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --max_promiscuity 1000000 --min_pct_dom_promiscuity 0.00001 --min_per_id 1 --no_remove_dups ")
+        
+
         
         # done setting up options menu
         
@@ -168,6 +171,18 @@ class FusionInspector:
         if not (args_parsed.left_fq_filename or args_parsed.samples_file):
             print("Error, must specify --left_fq or --samples_file", file=sys.stderr)
             sys.exit(1)
+
+        if args_parsed.max_sensitivity:
+            logger.info("--max_sensitivity settings in effect:  --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --max_promiscuity 1000000 --min_pct_dom_promiscuity 0.00001 --min_per_id 1 --no_remove_dups")
+            args_parsed.min_sum_frags = 1
+            args_parsed.min_spanning_frags_only = 1
+            args_parsed.min_novel_junction_support = 1
+            args_parsed.require_LDAS = 0
+            args_parsed.max_promiscuity = 1000000
+            args_parsed.min_pct_dom_promiscuity = 0.00001
+            args_parsed.min_per_id = 1
+            args_parsed.no_remove_dups = True
+
         
         if args_parsed.include_Trinity:
             # 2017-12-20
