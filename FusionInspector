@@ -419,21 +419,19 @@ class FusionInspector:
         ###########################
             
         fusion_junction_info_files_list = []
-        fusion_junction_reads_list = []
+        fusion_junction_sam_files_list = []
         
         fusion_spanning_info_files_list = []
-        fusion_spanning_reads_list = []
+        fusion_spanning_sam_files_list = []
 
 
         for bam_file in bam_files_list:
             fusion_junction_info_files_list.append(bam_file + ".fusion_junction_info")
-            fusion_junction_reads_list.append(bam_file + ".fusion_junc_reads.sam")
+            fusion_junction_sam_files_list.append(bam_file + ".fusion_junc_reads.sam")
 
             fusion_spanning_info_files_list.append(bam_file + ".fusion_spanning_info")
-            fusion_spanning_reads_list.append(bam_file + ".fusion_span_reads.sam")
+            fusion_spanning_sam_files_list.append(bam_file + ".fusion_span_reads.sam")
             
-
-
 
         fusion_summary_file = os.sep.join([workdir, args_parsed.out_prefix + ".fusion_preds.coalesced.summary"]) 
 
@@ -491,7 +489,7 @@ class FusionInspector:
 
             consolidated_junction_reads_bam =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".junction_reads.bam"])
             cmdstr = str(UTILDIR + "/retrieve_fusion_junction_reads_by_accession.pl " + summary_junctions_reads_list_filename
-                         + " " + ",".join(fusion_junction_reads_list) +
+                         + " " + ",".join(fusion_junction_sam_files_list) +
                          " | samtools view -@ " + str(args_parsed.CPU) + " -bT " + mergedContig_fasta_filename + " - " +
                          " | samtools sort -@ " + str(args_parsed.CPU) + " - -o " + consolidated_junction_reads_bam)
             cmdstr = "bash -c \"set -eof pipefail; {}\"".format(cmdstr)
@@ -520,7 +518,7 @@ class FusionInspector:
 
             consolidated_spanning_reads_bam =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".spanning_reads.bam"])
             cmdstr = str(UTILDIR + "/retrieve_fusion_spanning_reads_by_accession.pl " + summary_spanning_reads_list_filename
-                         + " " + ",".join(fusion_spanning_reads_list) +
+                         + " " + ",".join(fusion_spanning_sam_files_list) +
                          " | samtools view -@ " + str(args_parsed.CPU) + " -bT " + mergedContig_fasta_filename + " - " +
                          " | samtools sort -@ " + str(args_parsed.CPU) + " - -o " + consolidated_spanning_reads_bam)
             # + " || : ") # again, cant afford for this to fail due to lack of evidence reads.
@@ -535,16 +533,19 @@ class FusionInspector:
 
 
             # consolidate all fusion-contig aligned reads into a single bam file
-            consolidated_bam_file =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix  + ".consolidated"])
-            
-            cmdstr = str(UTILDIR + "/consolidate_bams_and_uniq_reads.pl " +
-                         workdir_mergedContig_fasta_filename + " " +
-                         ",".join(bam_files_list) + " " +
-                         consolidated_bam_file)
+            #consolidated_bam_file =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix  + ".consolidated"])
 
-            consolidated_bam_file += ".cSorted.bam"
+            consolidated_bam_file = bam_files_list[0]  # just STAR now.
+                
+            ## only using STAR now.... just use the existing star bam file.
+            #cmdstr = str(UTILDIR + "/consolidate_bams_and_uniq_reads.pl " +
+            #             workdir_mergedContig_fasta_filename + " " +
+            #             ",".join(bam_files_list) + " " +
+            #            consolidated_bam_file)
 
-            pipeliner.add_commands([Command(cmdstr, "consolidate_bam_and_uniq_readss.ok")]) 
+            #consolidated_bam_file += ".cSorted.bam"
+
+            #pipeliner.add_commands([Command(cmdstr, "consolidate_bam_and_uniq_readss.ok")]) 
             
 
             workdir_consolidated_bam_file = os.sep.join([workdir, args_parsed.out_prefix  + ".consolidated.bam"])
@@ -587,7 +588,7 @@ class FusionInspector:
                 ## just make the coords file
 
                 cmdstr = str(UTILDIR + "/SAM_to_frag_coords.pl --sam " + workdir_consolidated_bam_file +
-                             " --max_insert_size 100000 "); 
+                             " --max_insert_size 10000000 "); 
 
                 pipeliner.add_commands([Command(cmdstr, "prep_igv_sam_frag_coordss.ok")]) 
 
