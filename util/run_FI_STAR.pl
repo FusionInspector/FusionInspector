@@ -39,7 +39,8 @@ my $usage = <<__EOUSAGE__;
 #  --chim_search               include Chimeric.junction outputs
 #  --max_mate_dist <int>       maximum distance between mates allowed
 #  --max_intron_length <int>   masximum length allowed for introns.
-# 
+#  --no_splice_score_boost     do not augment alignment score for spliced alignments 
+#
 #################################################################################################
 
 
@@ -68,7 +69,7 @@ my $chim_search;
 my $samples_file;
 my $max_mate_dist;
 my $max_intron_length;
-
+my $no_splice_score_boost = 0;
 
 &GetOptions( 'h' => \$help_flag,
              'genome=s' => \$genome,
@@ -91,6 +92,7 @@ my $max_intron_length;
              'max_mate_dist=i' => \$max_mate_dist,
              'max_intron_length=i' => \$max_intron_length,
              
+             'no_splice_score_boost' => \$no_splice_score_boost,
     );
 
 
@@ -289,11 +291,16 @@ main: {
     if ($gtf_file) {
         $cmd .= " --sjdbGTFfile $gtf_file ";
     }
-        
-    $cmd .= " --alignSJstitchMismatchNmax 5 -1 5 5 ";  #which allows for up to 5 mismatches for non-canonical GC/AG, and AT/AC junctions, and any number of mismatches for canonical junctions (the default values 0 -1 0 0 replicate the old behavior (from AlexD)
 
-    $cmd .= " --scoreGapNoncan -6 "; # default is -8 ... want to penalize slightly less, othwerise can get mismatches near false splice junctions in otherwise optimal alignments.
-    
+    if ($no_splice_score_boost) {
+        $cmd .= " --alignSJstitchMismatchNmax 5 5 5 5 "; # same for all breakpoints
+        $cmd .= " --scoreGapGCAG -8 "; # match the other dinuc pair penalties.
+        
+    } else {
+        $cmd .= " --alignSJstitchMismatchNmax 5 -1 5 5 ";  #which allows for up to 5 mismatches for non-canonical GC/AG, and AT/AC junctions, and any number of mismatches for canonical junctions (the default values 0 -1 0 0 replicate the old behavior (from AlexD)
+        
+        $cmd .= " --scoreGapNoncan -6 "; # default is -8 ... want to penalize slightly less, othwerise can get mismatches near false splice junctions in otherwise optimal alignments.
+    }
     
     if ($reads =~ /\.gz$/) {
         $cmd .= " --readFilesCommand 'gunzip -c' ";
