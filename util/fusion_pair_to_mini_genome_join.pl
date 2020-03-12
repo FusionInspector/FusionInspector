@@ -172,8 +172,6 @@ main: {
     @chim_pairs = @tmp_chim_pairs;
     
 
-
-
     open (my $out_genome_ofh, ">$out_prefix.fa.tmp") or die "Error, cannot write to $out_prefix.fa.tmp";
     open (my $out_gtf_ofh, ">$out_prefix.gtf.tmp") or die "Error, cannot write to $out_prefix.gtf.tmp";
     
@@ -478,9 +476,16 @@ sub extract_gene_gtfs {
         my $line = $_;
         
         my @x = split(/\t/, $line);
+        
+        my $chr = $x[0];
         my $feat_type = $x[2];
-        unless ($feat_type eq 'exon') { next; } # only exon records of gtf file
+        my $lend = $x[3];
+        my $rend = $x[4];
+        my $orient = $x[6];        
+        my $info = $x[8];
 
+        unless ($feat_type eq 'exon') { next; } # only exon records of gtf file
+        
         my $gene_id = "";
         my $gene_name = "";
         
@@ -488,30 +493,30 @@ sub extract_gene_gtfs {
         # use the ID given by the user
         my $gene_id_use;
         
-        if (/gene_id \"([^\"]+)\"/) {
+        if ($info =~ /gene_id \"([^\"]+)\"/) {
             $gene_id = $1;
             $gene_id_use = $gene_id;
         }
-        if (/gene_name \"([^\"]+)\"/) {
+        if ($info =~ /gene_name \"([^\"]+)\"/) {
             $gene_name = $1;
             $gene_id_use = $gene_name;
             
-            if ($gene_id) {
+            if ($gene_id && $gene_id ne $gene_name) {
                 # for viewing purposes
-                $line =~ s/$gene_id/$gene_name\^$gene_id/;
+                $info =~ s/$gene_id/$gene_name\^$gene_id/;
+                $x[8] = $info;
                 $gene_id_use = "$gene_name^$gene_id"; # preferred
             }
         }
         
+        
         unless ($gene_want_href->{$gene_id} || $gene_want_href->{$gene_name}) { next; }
 
+
+        $line = join("\t", @x);
                 
         $line .= " FI_gene_label \"$gene_id_use\";";
         
-        my $chr = $x[0];
-        my $lend = $x[3];
-        my $rend = $x[4];
-        my $orient = $x[6];
         
         my $orig_info = "$chr,$lend,$rend,$orient";
         $line .= " orig_coord_info \"$orig_info\";\n";
@@ -534,6 +539,7 @@ sub extract_gene_gtfs {
 sub get_gene_span_info {
     my ($gene_gtf_text) = @_;
 
+        
     my ($chr, $min_lend, $max_rend, $orient);
 
     my $revised_gene_gtf_text = "";
