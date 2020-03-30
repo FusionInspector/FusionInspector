@@ -92,7 +92,7 @@ class FusionInspector:
         optional.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=0,
                              help="minimum number of junction-spanning reads required")
         
-        optional.add_argument("--min_sum_frags", dest="min_sum_frags", type=int, required=False, default=2,
+        optional.add_argument("--min_sum_frags", dest="min_sum_frags", type=int, required=False, default=1,
                              help="minimum fusion support = ( # junction_reads + # spanning_frags )")
 
         optional.add_argument("--min_novel_junction_support", dest="min_novel_junction_support", type=int, required=False, default=3,
