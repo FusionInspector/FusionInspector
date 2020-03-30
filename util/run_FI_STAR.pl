@@ -235,7 +235,9 @@ main: {
         . " --twopassMode Basic "
         . " --alignSJDBoverhangMin 10 "
         . " --genomeSuffixLengthMax 10000"
-        . " --limitBAMsortRAM $estimated_ram "; #20000000000";
+        . " --limitBAMsortRAM $estimated_ram "  #20000000000";
+        . " --alignInsertionFlush Right  "
+        ; 
     
     
     if ($max_mate_dist) {
