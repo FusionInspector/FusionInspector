@@ -483,8 +483,8 @@ sub extract_gene_gtfs {
         my $rend = $x[4];
         my $orient = $x[6];        
         my $info = $x[8];
-
-        unless ($feat_type eq 'exon') { next; } # only exon records of gtf file
+        
+        unless ($feat_type eq 'exon' || $feat_type eq 'CDS') { next; } # only exon records of gtf file
         
         my $gene_id = "";
         my $gene_name = "";
