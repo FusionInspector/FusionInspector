@@ -627,14 +627,22 @@ class FusionInspector:
 
                 pipeliner.add_commands([Command(cmdstr, "prep_igv_juncspan_fmt.ok")]) 
 
+
+                ## add pfam matches in genome coordinates:
+
+                cmdstr = str(UTILDIR + "/get_pfam_domain_info.pl --finspector_gtf {} ".format(mergedContig_gtf_filename) +
+                             " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir) +
+                             " > {} ".format(os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.Pfam.gtf"])) )
+
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_pfam.ok")])
                 
-
-
+                
+                
         ################################################################
         ## Perform some reformatting to get us to the star fusion format
         ################################################################
 
-
+        
 
 
         trinity_ok_token = "wTrinity" if args_parsed.include_Trinity else ""
