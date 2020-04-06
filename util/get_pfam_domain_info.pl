@@ -44,6 +44,7 @@ unless ($finspector_gtf && $genome_lib_dir) {
     die $usage;
 }
 
+my $MATCH_COUNTER;
 
 main: {
 
@@ -97,10 +98,12 @@ main: {
             my @coordsets = @{$pfam_entries_href->{$pfam_acc}};
             my @collapsed_coordsets = &Overlap_piler::simple_coordsets_collapser(@coordsets);
             
+            $MATCH_COUNTER++;
+
             foreach my $collapsed_coordset (@collapsed_coordsets) {
                 my ($match_lend, $match_rend) = @$collapsed_coordset;
 
-                print join("\t", $contig, "Pfam", "match", $match_lend, $match_rend, ".", "+", ".", "$pfam_acc") . "\n";
+                print join("\t", $contig, "Pfam", "match", $match_lend, $match_rend, ".", "+", ".", "ID=pfam_match_$MATCH_COUNTER; Target=$pfam_acc") . "\n";
             }
         }
     }

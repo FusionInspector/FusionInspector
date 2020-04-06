@@ -630,12 +630,16 @@ class FusionInspector:
 
                 ## add pfam matches in genome coordinates:
 
+                pfam_igv_gff3_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.Pfam.gff3"])
                 cmdstr = str(UTILDIR + "/get_pfam_domain_info.pl --finspector_gtf {} ".format(mergedContig_gtf_filename) +
                              " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir) +
-                             " > {} ".format(os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.Pfam.gtf"])) )
+                             " > {} ".format(pfam_igv_gff3_filename) )
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_pfam_gff3.ok")])
 
-                pipeliner.add_commands([Command(cmdstr, "prep_igv_pfam.ok")])
-                
+                ## must convert to bed for viewing
+                pfam_igv_bed_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.Pfam.bed"])
+                cmdstr = str(UTILDIR + "/transcript_gff3_to_bed.pl {} > {}".format(pfam_igv_gff3_filename, pfam_igv_bed_filename) )
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_pfam_bed.ok")])
                 
                 
         ################################################################

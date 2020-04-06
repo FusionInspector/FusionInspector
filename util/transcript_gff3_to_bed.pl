@@ -77,8 +77,10 @@ main: {
         my $seg_len = abs($rend - $lend) + 1;
         
         $trans_id_info{$trans_id}->{sum_len} += $seg_len;
-        $trans_id_info{$trans_id}->{sum_per_id_len} += ($seg_len * $per_id);
-        
+
+        if ($per_id ne "." ) {
+            $trans_id_info{$trans_id}->{sum_per_id_len} += ($seg_len * $per_id);
+        }
 
 	}
 
@@ -96,9 +98,13 @@ main: {
 			foreach my $trans_id (keys %$trans_href) {
 
                 my $trans_info_struct = $trans_id_info{$trans_id} or die "Error, no info stored for $trans_id";
-                                
-                my $avg_per_id = $trans_info_struct->{sum_per_id_len} / $trans_info_struct->{sum_len};
-                if ($avg_per_id < $min_per_id) { next; }
+                
+                my $avg_per_id = ".";
+                if (exists $trans_info_struct->{sum_per_id_len}) {
+                    my $avg_per_id = $trans_info_struct->{sum_per_id_len} / $trans_info_struct->{sum_len};
+                    if ($avg_per_id < $min_per_id) { next; }
+                    $avg_per_id = int($avg_per_id+0.5);
+                }
                 
 				my $coords_href = $trans_href->{$trans_id};
 
@@ -112,8 +118,8 @@ main: {
 				
 				$gene_obj->populate_gene_object($coords_href, $coords_href);
 			
-				print $gene_obj->to_BED_format(score => int($avg_per_id+0.5));
-								
+				print $gene_obj->to_BED_format(score => $avg_per_id);
+                
 			}
 		}
 	}
