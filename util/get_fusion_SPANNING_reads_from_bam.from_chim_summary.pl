@@ -235,6 +235,8 @@ main: {
             
             $scaffold = $sam_entry->get_scaffold_name();
             
+            unless (exists $scaffold_to_gene_breaks{$scaffold}) { next; } # StarFI includes the whole genome, not just the fusion scaffs
+            
             if ($scaffold ne $prev_scaffold) {
                 if ($DEBUG) {
                         print STDERR "scaffold read pair to read bounds: " . Dumper(\%scaffold_read_pair_to_read_bounds);
@@ -253,6 +255,8 @@ main: {
             
             my $qual_val = $sam_entry->get_mapping_quality();
             
+            my $read_name = $sam_entry->get_read_name();
+
             ## examine number of mismatches in read alignment
             my $line = $sam_entry->get_original_line();
             my $mismatch_count = 0;
@@ -267,10 +271,16 @@ main: {
             
             my $alignment_length = $sam_entry->get_alignment_length();
             unless ($alignment_length) {
+                if ($DEBUG) {
+                    print STDERR "-skipping $read_name, no alignment length.\n";
+                }
                 next;
             }
             my $per_id = ($alignment_length - $mismatch_count) / $alignment_length * 100;
             if ($per_id < $MIN_ALIGN_PER_ID) {
+                if ($DEBUG) {
+                    print STDERR "-skipping $read_name, per_id $per_id < $MIN_ALIGN_PER_ID required.\n";
+                }
                 next;
             }
 
@@ -279,11 +289,14 @@ main: {
                         
             ## check end clipping of alignment
             my $cigar = $sam_entry->get_cigar_alignment();
-            if (&alignment_has_excessive_soft_clipping($cigar)) {
+            if ($scaffold !~ /IGH/ && # //FIXME:  IGH here is a hack... should have more prinicpled ways of dealing with except cases.
+                &alignment_has_excessive_soft_clipping($cigar)) {
+                if ($DEBUG) {
+                    print STDERR "-skipping $read_name, excessive softclipping: $cigar.\n";
+                }
                 next;
             }
             
-            unless (exists $scaffold_to_gene_breaks{$scaffold}) { next; } # StarFI includes the whole genome, not just the fusion scaffs
             
             my $scaffold_pos = $sam_entry->get_scaffold_position();
 
@@ -298,10 +311,17 @@ main: {
             my ($span_lend, $span_rend) = sort {$a<=>$b} $sam_entry->get_genome_span();
             
             # be sure that each read on its own is entirely encapsulated within a single gene region (not crossing the bounds)
-            unless ($span_rend <= $scaff_gene_left_rend || $span_lend >= $scaff_gene_right_lend) { next; }
+            unless ($span_rend <= $scaff_gene_left_rend || $span_lend >= $scaff_gene_right_lend) { 
+                
+                if ($DEBUG) {
+                    print STDERR "-skipping $read_name, not spanning both genes.\n";
+                }
+                
+                next; 
+            }
             
 
-            my $read_name = $sam_entry->get_read_name();
+            
             
             my $strand = $sam_entry->get_query_strand();
             
@@ -309,11 +329,22 @@ main: {
 
             my $core_read_name = $sam_entry->get_core_read_name();            
 
-            if ($junction_reads_ignore{$core_read_name}) { next; } # junction reads cannot be used as spanning frags.
+            if ($junction_reads_ignore{$core_read_name}) { 
+                # junction reads cannot be used as spanning frags.
+                if ($DEBUG) {
+                    print STDERR "-skipping $read_name, prev identified as a breakpoint (junction) read.\n";
+                }
+                next; 
+            } 
             
             my $read_seq = $sam_entry->get_sequence();
             my $entropy = &SeqUtil::compute_entropy($read_seq);
-            unless ($entropy >= $MIN_SEQ_ENTROPY) { next; }
+            unless ($entropy >= $MIN_SEQ_ENTROPY) { 
+                if ($DEBUG) {
+                    print STDERR "-skipping $read_name, entropy $entropy < $MIN_SEQ_ENTROPY required.\n";
+                }
+                next; 
+            }
             
         
             my ($genome_coords_aref, $read_coords_aref) = $sam_entry->get_alignment_coords();
