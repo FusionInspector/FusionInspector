@@ -1,3 +1,10 @@
+## FusionInspector v2.3.0 (Apr 7, 2020)
+-compatibility updates for exploring IGH superlocus fusions (ie. w/ CRLF2)
+-Pfam domains are shown in the interactive IGV-based FusionInspector html report view.
+-incorporates EM for improved FFPM calculations and fusion fragment support assignment.
+-can report isoform-specific evidence read fastqs
+
+
 ## FusionInspector v2.2.1 (Oct 18, 2019)
 -reduce RAM consumption during spanning read analysis
 -upgrade to STAR 2.7.2b
