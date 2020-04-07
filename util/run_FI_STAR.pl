@@ -13,6 +13,10 @@ use Carp;
 use Getopt::Long qw(:config no_ignore_case bundling pass_through);
 
 
+my $max_mate_dist = 2e6;
+my $max_intron_length = 2e6;
+
+
 my $usage = <<__EOUSAGE__;
 
 #################################################################################################
@@ -37,8 +41,8 @@ my $usage = <<__EOUSAGE__;
 #  --only_fusion_reads         restrict alignments only to the fusion-supporting reads
 #  --capture_genome_alignments reports alignments to the reference genome in addition to the fusion contigs. (for debugging)
 #  --chim_search               include Chimeric.junction outputs
-#  --max_mate_dist <int>       maximum distance between mates allowed
-#  --max_intron_length <int>   masximum length allowed for introns.
+#  --max_mate_dist <int>       maximum distance between mates allowed (default: $max_mate_dist)
+#  --max_intron_length <int>   maximum length allowed for introns (default: $max_intron_length)
 #  --no_splice_score_boost     do not augment alignment score for spliced alignments 
 #
 #################################################################################################
@@ -67,8 +71,6 @@ my $only_fusion_reads_flag = 0;
 my $capture_genome_alignments_flag = 0;
 my $chim_search;
 my $samples_file;
-my $max_mate_dist;
-my $max_intron_length;
 my $no_splice_score_boost = 0;
 
 &GetOptions( 'h' => \$help_flag,
@@ -225,8 +227,6 @@ main: {
         my @tmpfiles;
     
     my $pipeliner = new Pipeliner(-verbose => 2);
-
-
     
     my $cmd = "$star_prog "
         . " --runThreadN $CPU "
@@ -237,16 +237,9 @@ main: {
         . " --genomeSuffixLengthMax 10000"
         . " --limitBAMsortRAM $estimated_ram "  #20000000000";
         . " --alignInsertionFlush Right  "
-        ; 
-    
-    
-    if ($max_mate_dist) {
-        $cmd .= " --alignMatesGapMax $max_mate_dist ";
-    }
-    if ($max_intron_length) {
-        $cmd .= " --alignIntronMax $max_intron_length ";
-    }
-    
+        . " --alignMatesGapMax $max_mate_dist "
+        . " --alignIntronMax $max_intron_length ";
+        
     if (length($reads) > 1000) {
         my $star_params_file = "star_params.$$.txt";
         open(my $ofh, ">$star_params_file") or die "Error, cannot write to file: $star_params_file";
