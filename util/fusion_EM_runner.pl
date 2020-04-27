@@ -63,8 +63,11 @@ main: {
 
     ## output with estimated J and S vals
 
-    my @adjusted_column_headers = (@column_headers[0..2], "est_J", "est_S", @column_headers[3..$#column_headers]);
-        
+    my @adjusted_column_headers = @column_headers;
+    unless (grep { $_ eq "est_J" } @adjusted_column_headers) {
+        @adjusted_column_headers = (@column_headers[0..2], "est_J", "est_S", @column_headers[3..$#column_headers]);
+    }
+    
     my $tab_writer = new DelimParser::Writer(*STDOUT, "\t", \@adjusted_column_headers);
     
     foreach my $row (@fusion_rows) {

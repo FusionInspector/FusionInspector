@@ -8,10 +8,9 @@ use lib ("$FindBin::Bin/../../PerlLib");
 use DelimParser;
 use Data::Dumper;
 
-my $usage = "\n\tusage: $0 sc.finspector.final FAR_pseudocount=1\n\n";
+my $usage = "\n\tusage: $0 finspector.FusionInspector.fusions.tsv \n\n";
 
 my $file = $ARGV[0] or die $usage;
-my $FAR_pseudocount = $ARGV[1] || 0;
 
 
 main: {
@@ -24,6 +23,8 @@ main: {
     my @out_col_headers = @column_headers;
 
     @out_col_headers = ($out_col_headers[0], 'Cell', @out_col_headers[1..$#out_col_headers]);
+
+    @out_col_headers = grep { $_ !~ /est_|CounterFusion|FAR/ } @out_col_headers;
     
     my $delim_writer = new DelimParser::Writer(*STDOUT, "\t", \@out_col_headers);
 
@@ -33,34 +34,20 @@ main: {
         
         my $JunctionReads = $delim_parser->get_row_val($row, 'JunctionReads');
         my $SpanningFrags = $delim_parser->get_row_val($row, 'SpanningFrags');
-        my $CounterFusionLeftReads = $delim_parser->get_row_val($row, 'CounterFusionLeftReads');
-        my $CounterFusionRightReads = $delim_parser->get_row_val($row, 'CounterFusionRightReads');
-                
         
         my %cell_to_JunctionReads = &partition_by_cell($JunctionReads);
         my %cell_to_SpanningFrags = &partition_by_cell($SpanningFrags);
-        my %cell_to_CounterFusionLeftReads = &partition_by_cell($CounterFusionLeftReads);
-        my %cell_to_CounterFusionRightReads = &partition_by_cell($CounterFusionRightReads);
         
         foreach my $cell (&unique(keys %cell_to_JunctionReads,
-                                  keys %cell_to_SpanningFrags,
-                                  keys %cell_to_CounterFusionLeftReads,
-                                  keys %cell_to_CounterFusionRightReads)) {
-
-
-
+                                  keys %cell_to_SpanningFrags) ) {
+            
             my ($cell_junction_reads_count, 
                 $cell_junction_reads_string) = &capture_cell_read_info($cell, \%cell_to_JunctionReads);
             
             my ($cell_spanning_frags_count, 
                 $cell_spanning_frags_string) = &capture_cell_read_info($cell, \%cell_to_SpanningFrags);
             
-            my ($cell_counter_fusion_left_reads_count, 
-                $cell_counter_fusion_left_reads_string) = &capture_cell_read_info($cell, \%cell_to_CounterFusionLeftReads);
-
-            my ($cell_counter_fusion_right_reads_count, 
-                $cell_counter_fusion_right_reads_string) = &capture_cell_read_info($cell, \%cell_to_CounterFusionRightReads);
-
+            
             # generate single cell result:
             $cellrow{Cell} = $cell;
             
@@ -70,35 +57,6 @@ main: {
             $cellrow{SpanningFragCount} = $cell_spanning_frags_count;
             $cellrow{SpanningFrags} = $cell_spanning_frags_string;
 
-            $cellrow{NumCounterFusionLeft} = $cell_counter_fusion_left_reads_count;
-            $cellrow{CounterFusionLeftReads} = $cell_counter_fusion_left_reads_string;
-
-            $cellrow{NumCounterFusionRight} = $cell_counter_fusion_right_reads_count;
-            $cellrow{CounterFusionRightReads} = $cell_counter_fusion_right_reads_string;
-
-
-            $cellrow{FAR_left} = "NA";
-            $cellrow{FAR_right} = "NA";
-
-            eval {
-                # possible div-by-zero if no pseudocount
-                $cellrow{FAR_left} = sprintf("%.3f",  
-                                             ($cell_junction_reads_count + $cell_spanning_frags_count + $FAR_pseudocount) / 
-                                             ($cell_counter_fusion_left_reads_count + $FAR_pseudocount)
-                    );
-            };
-
-            eval {
-                
-                # possible div-by-zero if no pseudocount
-                $cellrow{FAR_right} = sprintf("%.3f",  
-                                              
-                                              $cellrow{FAR_right} = ($cell_junction_reads_count + $cell_spanning_frags_count + $FAR_pseudocount) / 
-                                              ($cell_counter_fusion_right_reads_count + $FAR_pseudocount)
-                    );
-            };
-            
-            
             $delim_writer->write_row(\%cellrow);
             
             
@@ -165,5 +123,4 @@ sub capture_cell_read_info {
     
     return($read_count, $read_string);
 }
-
 
