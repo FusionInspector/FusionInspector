@@ -23,6 +23,17 @@ workflow fusion_inspector_workflow {
     String? zones = "us-central1-a us-central1-b us-central1-c us-central1-f us-east1-b us-east1-c us-east1-d us-west1-a us-west1-b us-west1-c"
     String sample_id
   }
+
+   call star_fusion_tasks.star_fusion_config as star_fusion_config {
+      input:
+        genome = genome,
+        acronym_file = acronym_file,
+        cpus = num_cpu,
+        memory = memory,
+        docker = config_docker,
+        preemptible = preemptible
+    }
+
   call fusion_inspector {
     input:
       fusion_predictions = fusion_predictions,
@@ -41,15 +52,7 @@ workflow fusion_inspector_workflow {
       additional_flags = additional_flags,
       use_ssd = use_ssd
   }
-  call star_fusion_tasks.star_fusion_config as star_fusion_config {
-    input:
-      genome = genome,
-      acronym_file = acronym_file,
-      cpus = num_cpu,
-      memory = memory,
-      docker = config_docker,
-      preemptible = preemptible
-  }
+
 
   output {
     File fusion_inspector_inspect_web = fusion_inspector.fusion_inspector_inspect_web
@@ -71,7 +74,6 @@ task fusion_inspector {
     Float extra_disk_space
     Float fastq_disk_space_multiplier
     Float genome_disk_space_multiplier
-    String? fusion_inspector
     String? additional_flags
     Boolean use_ssd
   }
