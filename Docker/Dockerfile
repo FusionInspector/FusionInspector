@@ -144,3 +144,5 @@ RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git
 
 
 RUN pip install -U igv-reports
+
+RUN apt-get install -y pbzip2
