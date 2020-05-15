@@ -124,9 +124,15 @@ sub parse_gtf_file {
         unless ($type eq 'exon') { next; }
         
         my $info = $x[8];
-        $info =~ /gene_name \"([^\"]+)\"/ or die "Error, cannot parse gene_name from $info";
-        my $gene_id = $1;
-
+        my $gene_id = "";
+        
+        if ($info =~ /gene_name \"([^\"]+)\"/) {
+            $gene_id = $1;
+        }
+        elsif ($info =~ /FI_gene_label \"([^\"]+)\"/) {
+            $gene_id = $1;
+        }
+        
         my ($lend, $rend) = ($x[3], $x[4]);
         push (@{$scaff_to_gene_to_coords{$scaffold_id}->{$gene_id}}, [$lend, $rend]);
         
