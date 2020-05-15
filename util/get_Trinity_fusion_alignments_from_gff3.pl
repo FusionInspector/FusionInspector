@@ -131,6 +131,11 @@ sub parse_gtf_file {
         }
         elsif ($info =~ /FI_gene_label \"([^\"]+)\"/) {
             $gene_id = $1;
+            my @x = split(/\^/, $gene_id);
+            $gene_id = $x[0];
+        }
+        else {
+            die "Error, not able to extract gene_name or FI_gene_label value from $info";
         }
         
         my ($lend, $rend) = ($x[3], $x[4]);
