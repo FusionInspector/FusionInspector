@@ -135,16 +135,15 @@ main: {
         my $mismatch_count = 0;
         my $line = $sam_entry->get_original_line();
 
-        if (0) {  # turning off - allow for multimapping reads
-            ## ensure the match is unique
-            $line =~ /NH:i:(\d+)/ or die "Error, cannot extract hit count (NH:i:) from sam entry: $line";
-            my $num_hits = $1;
-            if ($num_hits != 1) {
-                $elimination_counter{"num_hits > 1"}++;
-                if ($DEBUG) { print STDERR "-skipping, num hits ($num_hits) indicates not unique\n"; }
-                next;
-            }
+        ## ensure the match is unique
+        $line =~ /NH:i:(\d+)/ or die "Error, cannot extract hit count (NH:i:) from sam entry: $line";
+        my $num_hits = $1;
+        if ($num_hits != 1) {
+            $elimination_counter{"num_hits > 1"}++;
+            if ($DEBUG) { print STDERR "-skipping, num hits ($num_hits) indicates not unique\n"; }
+            next;
         }
+        
         
         if ($line =~ /NM:i:(\d+)/i) {
             $mismatch_count = $1;
