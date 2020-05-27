@@ -616,7 +616,7 @@ sub capture_spanning_frags {
                 && $pair_coords[0]->{qual} > 0 && $pair_coords[1]->{qual} > 0
                 
                 # ensure single hit
-                && $pair_coords[0]->{NH} <= 2 && $pair_coords[1]->{NH} <= 2 # allow for at most one other proper pairing (ie. in ref genome w/ larger gap length)
+                && $pair_coords[0]->{NH} == 1 && $pair_coords[1]->{NH} == 1 # yes, must be uniquely supporting the fusion here!
                 ) 
             {
                 $is_fusion_spanning_fragment_flag = 1;
