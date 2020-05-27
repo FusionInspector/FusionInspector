@@ -113,7 +113,11 @@ class FusionInspector:
         
         optional.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=96,
                              help='minimum percent identity for a fusion-supporting read alignment')
-        
+
+        optional.add_argument("--max_mate_dist", dest="max_mate_dist", type=int, default=100000, required=False,
+                              help="max distance between mates, also max intron length for STAR alignments")
+
+
         optional.add_argument("--only_fusion_reads", action='store_true', default=False,
                              help="include only read alignments in output that support fusion" )
         
@@ -372,6 +376,7 @@ class FusionInspector:
         if args_parsed.fusion_contigs_only:
             cmdstr = str(os.path.sep.join([UTILDIR, "run_FI_STAR.pl"]) +
                      " --genome " + workdir_mergedContig_fasta_filename +
+                     " --max_mate_dist {}".format(args_parsed.max_mate_dist) +
                      " -G " + workdir_mergedContig_gtf_filename + " --CPU " + str(args_parsed.CPU) +  
                      " --out_prefix " + args_parsed.out_prefix + ".star" +
                      " --out_dir " + workdir )
@@ -384,6 +389,7 @@ class FusionInspector:
             cmdstr = str( os.path.sep.join([UTILDIR, "run_FI_STAR.pl"]) +
                           " --genome " + args_parsed.genome_fasta_filename +
                           " --patch " + workdir_mergedContig_fasta_filename +
+                          " --max_mate_dist {}".format(args_parsed.max_mate_dist) +
                           " -G " + workdir_mergedContig_gtf_filename + " --CPU " + str(args_parsed.CPU) +  
                           " --out_prefix " + args_parsed.out_prefix + ".star" +
                           " --out_dir " + workdir )   

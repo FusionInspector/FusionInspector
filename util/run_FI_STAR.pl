@@ -13,8 +13,8 @@ use Carp;
 use Getopt::Long qw(:config no_ignore_case bundling pass_through);
 
 
-my $max_mate_dist = 2e6;
-my $max_intron_length = 2e6;
+my $max_mate_dist = 1e5;
+my $max_intron_length = 1e5;
 
 
 my $usage = <<__EOUSAGE__;
