@@ -222,7 +222,10 @@ main: {
         ## find the reads that matter:
         my $scaffold;
         my $prev_scaffold = "";
+ 
+        my %read_alignment_counter = &count_read_alignments_among_fusion_contigs($bam_file);
         
+       
         my $counter = 0;
         my $sam_reader = new SAM_reader($bam_file);
         while (my $sam_entry = $sam_reader->get_next()) {
@@ -362,7 +365,9 @@ main: {
                                                                                           span_rend => $span_rend, 
                                                                                           strand => $strand,
                                                                                           qual => $qual_val,
+                                                                                          full_read_name => $full_read_name,
                                                                                           NH => $hit_count,
+                                                                                          fusion_scaff_hit_count => $read_alignment_counter{$full_read_name},
                                                                                           read_group => $read_group,
                 };
                 
@@ -616,7 +621,8 @@ sub capture_spanning_frags {
                 && $pair_coords[0]->{qual} > 0 && $pair_coords[1]->{qual} > 0
                 
                 # ensure single hit
-                && $pair_coords[0]->{NH} == 1 && $pair_coords[1]->{NH} == 1 # yes, must be uniquely supporting the fusion here!
+                && $pair_coords[0]->{NH} == $pair_coords[0]->{fusion_scaff_hit_count} 
+                && $pair_coords[1]->{NH} == $pair_coords[1]->{fusion_scaff_hit_count} # yes, must be uniquely supporting the fusion here!
                 ) 
             {
                 $is_fusion_spanning_fragment_flag = 1;
@@ -788,5 +794,27 @@ sub capture_spanning_frags {
 }
     
 
+####
+sub count_read_alignments_among_fusion_contigs {
+    my ($bam_file) = @_;
+
+    my %alignment_counter;
+
+    my $sam_reader = new SAM_reader($bam_file);
+    while (my $sam_entry = $sam_reader->get_next()) {
+        
+        # ensure on fusion contig.
+        my $contig = $sam_entry->get_scaffold_name();
+        unless ($contig =~ /\-\-/) {
+            next;
+        }
+        
+        my $full_read_name = $sam_entry->reconstruct_full_read_name();
+        
+        $alignment_counter{$full_read_name} += 1;
+    }
+
+    return(%alignment_counter);
+}
     
         

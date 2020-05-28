@@ -100,6 +100,10 @@ main: {
     my %sam_index_capture;
 
     my %elimination_counter;
+
+    
+    my %read_alignment_counter = &count_read_alignments_among_fusion_contigs($bam_file);
+    
     
     my $counter = 0;
     ## find the reads that matter:
@@ -120,6 +124,8 @@ main: {
             if ($DEBUG) { print STDERR "-skipping duplicate mapping\n"; }
             next;
         }
+
+        my $full_read_name = $sam_entry->reconstruct_full_read_name();
                 
         my $qual_val = $sam_entry->get_mapping_quality();
         unless ($qual_val > 0) { 
@@ -138,8 +144,8 @@ main: {
         ## ensure the match is unique
         $line =~ /NH:i:(\d+)/ or die "Error, cannot extract hit count (NH:i:) from sam entry: $line";
         my $num_hits = $1;
-        if ($num_hits != 1) {
-            $elimination_counter{"num_hits > 1"}++;
+        if ($num_hits != $read_alignment_counter{$full_read_name}) {
+            $elimination_counter{"num_hits: $num_hits != num_counted_on_fusion_contigs $read_alignment_counter{$full_read_name} "}++;
             if ($DEBUG) { print STDERR "-skipping, num hits ($num_hits) indicates not unique\n"; }
             next;
         }
@@ -758,6 +764,27 @@ sub partition_gene_structs {
 }
 
                                 
-    
+####
+sub count_read_alignments_among_fusion_contigs {
+    my ($bam_file) = @_;
+
+    my %alignment_counter;
+
+    my $sam_reader = new SAM_reader($bam_file);
+    while (my $sam_entry = $sam_reader->get_next()) {
+        
+        # ensure on fusion contig.
+        my $contig = $sam_entry->get_scaffold_name();
+        unless ($contig =~ /\-\-/) {
+            next;
+        }
+        
+        my $full_read_name = $sam_entry->reconstruct_full_read_name();
+        
+        $alignment_counter{$full_read_name} += 1;
+    }
+
+    return(%alignment_counter);
+}
 
     
