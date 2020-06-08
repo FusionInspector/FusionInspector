@@ -934,7 +934,9 @@ sub convert_from_FI_contig_to_genome_coordinates {
             }
         }
         unless (defined $matching_exon_struct) {
-            confess "Error, couldn't find overlapping exon struct for read coords: " . Dumper($read_FI_coordset) . " and exons " . Dumper($exon_structs_aref);
+            # part of the read didn't  match
+            next;
+            
         }
 
         ##   genome_lend            genome_rend
@@ -973,6 +975,10 @@ sub convert_from_FI_contig_to_genome_coordinates {
         push (@genome_coordsets, [$new_read_genome_lend, $new_read_genome_rend]);
     }
 
+    unless (@genome_coordsets) {
+        confess "Error, couldn't find overlapping exon struct for read coords: " . Dumper($read_FI_alignment_coordsets_aref) . " and exons " . Dumper($exon_structs_aref);
+    }
+    
     return(@genome_coordsets);
     
 }
