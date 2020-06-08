@@ -849,7 +849,9 @@ class FusionInspector:
         cmdstr = str(os.sep.join([UTILDIR, "get_fusion_JUNCTION_reads_from_fusion_contig_bam.pl"]) +
                      " --gtf_file " + mergedContig_gtf_filename +
                      " --MIN_ALIGN_PER_ID " + str(args_parsed.min_per_id) +
-                     " --bam " + bam_file + " > " + fusion_junction_reads_sam_file)
+                     " --bam " + bam_file +
+                     " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir) +
+                     " > " + fusion_junction_reads_sam_file)
 
         pipeliner.add_commands([Command(cmdstr, "get_fusion_JUNCTION_reads_from_bam.ok")]) 
 
@@ -875,9 +877,10 @@ class FusionInspector:
                      " --gtf_file " + mergedContig_gtf_filename +
                      " --MIN_ALIGN_PER_ID " + str(args_parsed.min_per_id) +
                      " --bam " + bam_file +
-                     " --junction_info " + fusion_junction_info_file + 
+                     " --junction_info " + fusion_junction_info_file +
+                     " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir) + 
                      " > " + fusion_spanning_reads_sam_file)
-
+        
         pipeliner.add_commands([Command(cmdstr, "get_fusion_SPANNING_reads_from_bam.ok")]) 
 
         if args_parsed.write_intermediate_results:
