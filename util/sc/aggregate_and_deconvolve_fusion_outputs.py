@@ -43,8 +43,8 @@ def main():
         for batch in fh:
             batch = batch.rstrip()
             
-            output_dir = batch.replace(".sample_sheet", ".star-fusion.outdir")
-            FI_output_file = os.path.join(output_dir, "star-fusion.fusion_predictions.tsv")
+            output_dir = batch.replace(".sample_sheet", ".FI.outdir")
+            FI_output_file = os.path.join(output_dir, "finspector.FusionInspector.fusions.tsv")
 
             counter += 1
             logger.info("-processing [{}] {}".format(counter, FI_output_file))

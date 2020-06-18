@@ -729,19 +729,6 @@ class FusionInspector:
         cmdstr = str("cp {} {}".format(fusions_file, final_fusions_file))
         pipeliner.add_commands([Command(cmdstr, "cp_final{}.ok".format(trinity_ok_token))])
 
-        ## deconvolve single cell data
-        if args_parsed.samples_file:
-            deconvolved_fusions_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".FusionInspector.fusions.samples_deconvolved.tsv"])  
-            cmdstr = str(UTILDIR + "/sc/FI_partition_final_by_sc.pl " + final_fusions_file + " > {}".format(deconvolved_fusions_file))
-            pipeliner.add_commands([Command(cmdstr, "deconvolved.ok")]);
-
-            # make abridged version
-            abridged_deconvolved_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".FusionInspector.fusions.samples_deconvolved.abridged.tsv"])  
-            cmdstr = str(UTILDIR + "/column_exclusions.pl " + deconvolved_fusions_file +
-                         " JunctionReads,SpanningFrags " +
-                         " > {}".format(abridged_deconvolved_file) )
-            pipeliner.add_commands([Command(cmdstr, "deconvolved.abridged.ok")])
-            
         
         ## back to regular non-deconvolved fusions file
         ## make an abridged version that lacks the list of supporting reads.
