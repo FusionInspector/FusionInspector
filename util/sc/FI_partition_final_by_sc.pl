@@ -8,10 +8,9 @@ use lib ("$FindBin::Bin/../../PerlLib");
 use DelimParser;
 use Data::Dumper;
 
-my $usage = "\n\tusage: $0 finspector.FusionInspector.fusions.tsv \n\n";
+my $usage = "\n\tusage: $0 FusionInspector.fusion_predictions.tsv\n\n";
 
 my $file = $ARGV[0] or die $usage;
-
 
 main: {
 
@@ -24,9 +23,10 @@ main: {
 
     @out_col_headers = ($out_col_headers[0], 'Cell', @out_col_headers[1..$#out_col_headers]);
 
-    @out_col_headers = grep { $_ !~ /est_|CounterFusion|FAR/ } @out_col_headers;
+    @out_col_headers = grep { $_ !~ /est_[JS]|FFPM|CounterFusion|FAR/ } @out_col_headers; # stick w/ raw counts for single cell reporting.
     
-    my $delim_writer = new DelimParser::Writer(*STDOUT, "\t", \@out_col_headers);
+
+    my %cell_to_fusion_results;
 
     while(my $row = $delim_parser->get_row()) {
 
@@ -34,19 +34,20 @@ main: {
         
         my $JunctionReads = $delim_parser->get_row_val($row, 'JunctionReads');
         my $SpanningFrags = $delim_parser->get_row_val($row, 'SpanningFrags');
+                
         
         my %cell_to_JunctionReads = &partition_by_cell($JunctionReads);
         my %cell_to_SpanningFrags = &partition_by_cell($SpanningFrags);
         
         foreach my $cell (&unique(keys %cell_to_JunctionReads,
-                                  keys %cell_to_SpanningFrags) ) {
+                                  keys %cell_to_SpanningFrags,
+                          )) {
             
             my ($cell_junction_reads_count, 
                 $cell_junction_reads_string) = &capture_cell_read_info($cell, \%cell_to_JunctionReads);
             
             my ($cell_spanning_frags_count, 
                 $cell_spanning_frags_string) = &capture_cell_read_info($cell, \%cell_to_SpanningFrags);
-            
             
             # generate single cell result:
             $cellrow{Cell} = $cell;
@@ -57,14 +58,36 @@ main: {
             $cellrow{SpanningFragCount} = $cell_spanning_frags_count;
             $cellrow{SpanningFrags} = $cell_spanning_frags_string;
 
-            $delim_writer->write_row(\%cellrow);
             
+            push (@{$cell_to_fusion_results{$cell}}, {%cellrow} );
             
         }
-    
         
     }
 
+
+    my $delim_writer = new DelimParser::Writer(*STDOUT, "\t", \@out_col_headers);
+    foreach my $cell_fusions_aref (values %cell_to_fusion_results) {
+        
+        my @fusion_rows = @$cell_fusions_aref;
+
+        @fusion_rows = sort {$b->{JunctionReadCount} <=> $a->{JunctionReadCount}} @fusion_rows;
+
+        my %seen;
+        foreach my $fusion_row (@fusion_rows) {
+            my $fusion_name = $fusion_row->{'#FusionName'} or die "Error, no #FusionName for " . Dumper($fusion_row);
+            if ($fusion_row->{JunctionReadCount} > 0) {
+                $seen{$fusion_name} = 1;
+            }
+            elsif ($seen{$fusion_name}) {
+                # not reporting cell-found fusions w/ span-only reads if the fusion is already reported with breakpoint reads.
+                next;
+            }
+            
+            $delim_writer->write_row($fusion_row);
+        }
+    }
+    
     exit(0);
 }
 
@@ -84,10 +107,9 @@ sub partition_by_cell {
     my @reads = split(/,/, $reads_string);
 
     foreach my $read (@reads) {
-        if ($read =~ /^\&([^\@]+)\@/) {
-            my $cell = $1;
-            $cell_to_reads{$cell}->{$read} = 1;
-        }
+        my ($cell, $rest) = split(/\@/, $read);
+        $cell =~ s/^\&//;
+        $cell_to_reads{$cell}->{$read} = 1;
     }
     
     return(%cell_to_reads);
@@ -123,4 +145,5 @@ sub capture_cell_read_info {
     
     return($read_count, $read_string);
 }
+
 

@@ -83,9 +83,9 @@ main: {
     while (my $row = $tab_reader->get_row()) {
         
         # using estimated counts now
-        my $J = $row->{est_J}; #$row->{JunctionReadCount};
-        my $S = $row->{est_S}; #$row->{SpanningFragCount};
-                
+        my $J = defined($row->{est_J}) ? ($row->{est_J}) : $row->{JunctionReadCount};
+        my $S = defined($row->{est_S}) ? $row->{est_S} : $row->{SpanningFragCount};
+        
         unless (defined($J)) {
             die "Error, JunctionReadCount not defined for entry: " . Dumper($row);
         }
