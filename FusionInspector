@@ -641,7 +641,7 @@ class FusionInspector:
 
                 pipeliner.add_commands([Command(cmdstr, "prep_igv_juncspan_fmt.ok")]) 
 
-
+                ########## Pfam Matches
                 ## add pfam matches in genome coordinates:
 
                 pfam_igv_gff3_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.Pfam.gff3"])
@@ -655,6 +655,20 @@ class FusionInspector:
                 cmdstr = str(UTILDIR + "/transcript_gff3_to_bed.pl {} > {}".format(pfam_igv_gff3_filename, pfam_igv_bed_filename) )
                 pipeliner.add_commands([Command(cmdstr, "prep_igv_pfam_bed.ok")])
                 
+
+                ######## Seq Similar Regions 
+                ## add seq-similar region info
+                seqsimilar_igv_gff3_filename = os.path.join(args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.seqsimilar.gff3")
+                cmdstr = str(UTILDIR + "/get_seq_similar_region_FI_coordinates.pl --finspector_gtf {} ".format(mergedContig_gtf_filename) +
+                             " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir) +
+                             " > {} ".format(seqsimilar_igv_gff3_filename) )
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_seqsim_gff3.ok")])
+                
+                ## must convert to bed for viewing
+                seqsimilar_igv_bed_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.seqsimilar.bed"])
+                cmdstr = str(UTILDIR + "/transcript_gff3_to_bed.pl {} > {}".format(seqsimilar_igv_gff3_filename, seqsimilar_igv_bed_filename) )
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_seqsim_bed.ok")])
+
                 
 
         ####################
