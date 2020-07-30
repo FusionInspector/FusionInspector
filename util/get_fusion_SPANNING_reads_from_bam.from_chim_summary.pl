@@ -10,6 +10,9 @@ use SAM_reader;
 use SAM_entry;
 use DelimParser;
 use SeqUtil;
+use TiedHash;
+use JSON::XS;
+use Overlap_piler;
 use Data::Dumper;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 
@@ -17,6 +20,8 @@ use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 my $gtf_file;
 my $bam_file;
 my $junction_info_file;
+my $genome_lib_dir;
+
 
 my $MAX_END_CLIP = 10;
 
@@ -34,6 +39,7 @@ my $usage = <<__EOUSAGE__;
 #  --gtf_file <string>         genePairContig.gtf
 #  --bam <string>              read_alignments.bam
 #  --junction_info <string>    bam.fusion_junction_info
+#  --genome_lib_dir <string>   genome_lib_dir
 #
 # Optional:
 #
@@ -41,7 +47,7 @@ my $usage = <<__EOUSAGE__;
 #  --MAX_END_CLIP <int>         default: $MAX_END_CLIP
 #  --MIN_SEQ_ENTROPY <float>    default: $MIN_SEQ_ENTROPY
 #
-#  --DEBUG|d
+#  --debug|d
 #
 ##############################################################
 
@@ -60,19 +66,20 @@ my $DEBUG = 0;
             'gtf_file=s' => \$gtf_file,
             'bam=s' => \$bam_file,
             'junction_info=s' => \$junction_info_file,
-            
+            'genome_lib_dir=s' => \$genome_lib_dir,
+
             'MIN_ALIGN_PER_ID=i' => \$MIN_ALIGN_PER_ID,
             'MAX_END_CLIP=i' => \$MAX_END_CLIP,
             'MIN_SEQ_ENTROPY=f' => \$MIN_SEQ_ENTROPY,
 
-            'DEBUG|d' => \$DEBUG,
+            'debug|d' => \$DEBUG,
     );
 
 if ($help_flag) {
     die $usage;
 }
 
-unless ($gtf_file && $bam_file && $junction_info_file) {
+unless ($gtf_file && $bam_file && $junction_info_file && $genome_lib_dir) {
     die $usage;
 }
 
@@ -90,6 +97,20 @@ my %fusion_breakpoint_info;
 my %fusion_to_spanning_reads;
 my %fusion_to_contrary_support;
 my %spanning_read_want;
+
+
+
+my $BLAST_ALIGNS_IDX;
+my $blast_aligns_idx_file = "$genome_lib_dir/trans.blast.align_coords.align_coords.dbm";
+if (-s $blast_aligns_idx_file) {
+    $BLAST_ALIGNS_IDX = new TiedHash( { use => $blast_aligns_idx_file } );
+}
+else {
+    die "Error, cannot locate blast idx file: $blast_aligns_idx_file";
+}
+
+my $JSON_DECODER = JSON::XS->new();
+
 
 
 main: {
@@ -149,16 +170,18 @@ main: {
             
             my ($geneA, $coordA, $orig_coordA, 
                 $geneB, $coordB, $orig_coordB, 
-                $splice_info, $fusion_read_count, $fusion_read_list) = ($row->{LeftGene},
-                                                                        $row->{LeftLocalBreakpoint},
-                                                                        $row->{LeftBreakpoint},
-                                                                        $row->{RightGene},
-                                                                        $row->{RightLocalBreakpoint},
-                                                                        $row->{RightBreakpoint},
-                                                                        $row->{SpliceType},
-                                                                        $row->{JunctionReadCount},
-                                                                        $row->{LargeAnchorSupport},
-                                                                        $row->{JunctionReads});
+                $splice_info, $fusion_read_count, 
+                $large_anchor_support,
+                $fusion_read_list) = ($row->{LeftGene},
+                                      $row->{LeftLocalBreakpoint},
+                                      $row->{LeftBreakpoint},
+                                      $row->{RightGene},
+                                      $row->{RightLocalBreakpoint},
+                                      $row->{RightBreakpoint},
+                                      $row->{SpliceType},
+                                      $row->{JunctionReadCount},
+                                      $row->{LargeAnchorSupport},
+                                      $row->{JunctionReads});
             
             foreach my $fusion_read (split(/,/, $fusion_read_list)) {
                 $fusion_read =~ s/\/[12]$//; #want core read name. 
@@ -222,6 +245,11 @@ main: {
         ## find the reads that matter:
         my $scaffold;
         my $prev_scaffold = "";
+ 
+        my %read_alignment_counter = &count_read_alignments_among_fusion_contigs($bam_file);
+        
+
+        my %filtered_read_reason_counter;
         
         my $counter = 0;
         my $sam_reader = new SAM_reader($bam_file);
@@ -239,9 +267,11 @@ main: {
             
             if ($scaffold ne $prev_scaffold) {
                 if ($DEBUG) {
-                        print STDERR "scaffold read pair to read bounds: " . Dumper(\%scaffold_read_pair_to_read_bounds);
+                    print STDERR "scaffold read pair to read bounds: " . Dumper(\%scaffold_read_pair_to_read_bounds);
                 }
+                
                 if (%scaffold_read_pair_to_read_bounds) {
+                    
                     &capture_spanning_frags($prev_scaffold, 
                                             \%scaffold_read_pair_to_read_bounds,
                                             \%core_counter,
@@ -296,8 +326,7 @@ main: {
                 }
                 next;
             }
-            
-            
+                        
             my $scaffold_pos = $sam_entry->get_scaffold_position();
 
             my $mate_scaffold_name = $sam_entry->get_mate_scaffold_name();            
@@ -305,27 +334,6 @@ main: {
             
             unless ($mate_scaffold_name eq $scaffold || $mate_scaffold_name eq "=") { next; }
 
-            # check if alignments begin in their respective fusion gene areas:
-            my ($scaff_gene_left_rend, $scaff_gene_right_lend) = @{$scaffold_to_gene_breaks{$scaffold}};
-            
-            my ($span_lend, $span_rend) = sort {$a<=>$b} $sam_entry->get_genome_span();
-            
-            # be sure that each read on its own is entirely encapsulated within a single gene region (not crossing the bounds)
-            unless ($span_rend <= $scaff_gene_left_rend || $span_lend >= $scaff_gene_right_lend) { 
-                
-                if ($DEBUG) {
-                    print STDERR "-skipping $read_name, not spanning both genes.\n";
-                }
-                
-                next; 
-            }
-            
-
-            
-            
-            my $strand = $sam_entry->get_query_strand();
-            
-            my $token = join("$;", $read_name, $scaffold);
 
             my $core_read_name = $sam_entry->get_core_read_name();            
 
@@ -336,23 +344,64 @@ main: {
                 }
                 next; 
             } 
+
+
+            # check if alignments begin in their respective fusion gene areas:
+            my ($scaff_gene_left_rend, $scaff_gene_right_lend) = @{$scaffold_to_gene_breaks{$scaffold}};
+            
+            my ($span_lend, $span_rend) = sort {$a<=>$b} $sam_entry->get_genome_span();
+            
+            # be sure that each read on its own is entirely encapsulated within a single gene region (not crossing the bounds)
+            unless ($span_rend <= $scaff_gene_left_rend || $span_lend >= $scaff_gene_right_lend) { 
+                
+                if ($DEBUG) {
+                    print STDERR "-skipping $read_name with span [$span_lend-$span_rend], not restricted to one side of fusion inter-region [$scaff_gene_left_rend-$scaff_gene_right_lend]\n";
+                }
+                
+                next; 
+            }
+            
+            my $alignment_side = ($span_rend <= $scaff_gene_left_rend) ? "LEFT" : "RIGHT";
+            
+            my $strand = $sam_entry->get_query_strand();
+            
+            my $token = join("$;", $read_name, $scaffold);
+
             
             my $read_seq = $sam_entry->get_sequence();
             my $entropy = &SeqUtil::compute_entropy($read_seq);
             unless ($entropy >= $MIN_SEQ_ENTROPY) { 
                 if ($DEBUG) {
-                    print STDERR "-skipping $read_name, entropy $entropy < $MIN_SEQ_ENTROPY required.\n";
+                    print STDERR "-skipping $read_name, entropy $entropy < $MIN_SEQ_ENTROPY required.\n" if $DEBUG;
+                    $filtered_read_reason_counter{"low entroy"} += 1;
                 }
                 next; 
             }
             
-        
+            
             my ($genome_coords_aref, $read_coords_aref) = $sam_entry->get_alignment_coords();
-            unless (&overlaps_exon($genome_coords_aref, $exon_bounds{$scaffold}) ) { 
+            my @align_segment_overlap_pairs = &get_overlapping_exons($genome_coords_aref, $exon_bounds{$scaffold});
+            if (@align_segment_overlap_pairs) {
+                
+                ## check if in seq-similar regions between gene pairs.
+                ##
+                
+                if (&exceedingly_overlaps_homologous_segment($scaffold, $alignment_side, $genome_coords_aref, \@align_segment_overlap_pairs, $orig_coord_info{$scaffold})) {
+                    print STDERR "-skipping $read_name, aligns to seq-similar contig region between gene pairs\n" if $DEBUG;
+                    $filtered_read_reason_counter{"seq similar region alignment"} += 1;
+                    next;
+                }
+                
+            }
+            else {
+                
                 #print STDERR "No exon overlap: " . Dumper($genome_coords_aref) . Dumper($exon_bounds{$scaffold});
+                $filtered_read_reason_counter{"lacks exon overlap"} += 1;
                 next; 
             } # only examine exon-overlapping entries
             
+            
+
             my $full_read_name = $sam_entry->reconstruct_full_read_name();
             if ($full_read_name =~ /^(\S+)\/([12])$/) {
                 my ($core, $pair_end) = ($1, $2);
@@ -362,7 +411,9 @@ main: {
                                                                                           span_rend => $span_rend, 
                                                                                           strand => $strand,
                                                                                           qual => $qual_val,
+                                                                                          full_read_name => $full_read_name,
                                                                                           NH => $hit_count,
+                                                                                          fusion_scaff_hit_count => $read_alignment_counter{$full_read_name},
                                                                                           read_group => $read_group,
                 };
                 
@@ -374,9 +425,10 @@ main: {
             &capture_spanning_frags($scaffold, \%scaffold_read_pair_to_read_bounds, \%core_counter, $tab_writer);
         }
         
-        
-
         close $ofh; # donw writing fusion report.
+
+        print STDERR "-filtered reads reasons: " . Dumper(\%filtered_read_reason_counter);
+        
     }
     
 
@@ -413,20 +465,25 @@ main: {
     exit(0);
 }
 
+
 ####
-sub overlaps_exon {
+sub get_overlapping_exons {
     my ($genome_coords_aref, $exon_bounds_href) = @_;
+
+    my @overlapping_segment_pairs;
 
     foreach my $coordset (@$genome_coords_aref) {
         my ($lend, $rend) = @$coordset;
         foreach my $exon_coordset (keys %$exon_bounds_href) {
             my ($e_lend, $e_rend) = split(/-/, $exon_coordset);
             if ($e_lend < $rend && $e_rend > $lend) {
-                return(1);
+                my $exon_coordset_aref = [$e_lend, $e_rend];
+                push (@overlapping_segment_pairs, [$coordset, $exon_coordset_aref]);
             }
         }
     }
-    return(0); # no dice
+    
+    return(@overlapping_segment_pairs);
 }
 
 
@@ -613,10 +670,11 @@ sub capture_spanning_frags {
             if ($left_read_rend <= $gene_bound_left && $right_read_lend >= $gene_bound_right
                 
                 # ensure ok quality
-                && $pair_coords[0]->{qual} > 0 && $pair_coords[1]->{qual} > 0
+                # && $pair_coords[0]->{qual} > 0 && $pair_coords[1]->{qual} > 0
                 
                 # ensure single hit
-                && $pair_coords[0]->{NH} == 1 && $pair_coords[1]->{NH} == 1 # yes, must be uniquely supporting the fusion here!
+                && $pair_coords[0]->{NH} == $pair_coords[0]->{fusion_scaff_hit_count} 
+                && $pair_coords[1]->{NH} == $pair_coords[1]->{fusion_scaff_hit_count} # yes, must be uniquely supporting the fusion here!
                 ) 
             {
                 $is_fusion_spanning_fragment_flag = 1;
@@ -655,7 +713,7 @@ sub capture_spanning_frags {
                     
                     print STDERR "$fragment\tr1: $left_read_lend-$left_read_rend   r2: $right_read_lend-$right_read_rend  brk: $fusion_breakpoint\n" if $DEBUG;
                     
-                    if($is_fusion_spanning_fragment_flag) {
+                    if ($is_fusion_spanning_fragment_flag) {
                         
                         if ($left_read_rend <= $break_lend + $FUZZ && $break_rend - $FUZZ < $right_read_lend) {
                             
@@ -788,5 +846,167 @@ sub capture_spanning_frags {
 }
     
 
+####
+sub count_read_alignments_among_fusion_contigs {
+    my ($bam_file) = @_;
+
+    my %alignment_counter;
+
+    my $sam_reader = new SAM_reader($bam_file);
+    while (my $sam_entry = $sam_reader->get_next()) {
+        
+        # ensure on fusion contig.
+        my $contig = $sam_entry->get_scaffold_name();
+        unless ($contig =~ /\-\-/) {
+            next;
+        }
+        
+        my $full_read_name = $sam_entry->reconstruct_full_read_name();
+        
+        $alignment_counter{$full_read_name} += 1;
+    }
+
+    return(%alignment_counter);
+}
     
         
+####
+sub exceedingly_overlaps_homologous_segment {
+    my ($scaffold, $alignment_side, $read_genome_coords_aref, $align_segment_overlap_pairs_aref, $original_genome_coord_mapping_href) = @_;
+    
+    my $blast_pair_info = $BLAST_ALIGNS_IDX->get_value($scaffold);
+    unless (defined $blast_pair_info) {
+        return(0);
+    }
+    
+    my $blast_align_info_struct = $JSON_DECODER->decode($blast_pair_info);
+    
+    my $seq_similar_genome_coords_aref = ($alignment_side eq "LEFT") ? $blast_align_info_struct->{'coords_A'} : $blast_align_info_struct->{'coords_B'};
+    
+    if ($DEBUG) {
+        print STDERR "exceedingly_overlaps_homologous_segment: inputs:\n"
+            . " scaffold: $scaffold\n"
+            . " read_genome_coords_aref: " . Dumper($read_genome_coords_aref) . "\n"
+            . " align_segment_overlap_pairs_aref: " . Dumper($align_segment_overlap_pairs_aref) . "\n"
+            . " original_genome_coord_mapping_href: " . Dumper($original_genome_coord_mapping_href) . "\n";
+    }
+    
+        
+    my $read_segment_length = 0;
+    foreach my $coordset (@$read_genome_coords_aref) {
+        my ($lend, $rend) = sort {$a<=>$b} @$coordset;
+        $read_segment_length += $rend - $lend + 1;
+    }
+    
+
+    ## get read alignment coords in ref genome coord system
+    
+    my @read_genome_coords;
+    
+    foreach my $align_segment_overlap_pair (@$align_segment_overlap_pairs_aref) {
+        
+        my ($read_coordset, $exon_coordset) = @$align_segment_overlap_pair;
+                
+        ## remap the read coordinates to the genome reference:
+        my ($new_read_genome_lend, $new_read_genome_rend) = sort {$a<=>$b} &convert_from_FI_contig_to_genome_coordinates($read_coordset,
+                                                                                                                         $exon_coordset,
+                                                                                                                         $original_genome_coord_mapping_href);
+        
+        push (@read_genome_coords, [$new_read_genome_lend, $new_read_genome_rend]);
+        
+    }
+    
+    ## check over overlapping regions w/ seq-similar segments
+
+    my @overlapping_regions;
+    foreach my $seq_similar_region (@$seq_similar_genome_coords_aref) {
+        
+        my ($seq_similar_genome_lend, $seq_similar_genome_rend) = sort {$a<=>$b} @$seq_similar_region;
+        
+        foreach my $read_genome_coordset (@read_genome_coords) {
+            my ($read_lend, $read_rend) = @$read_genome_coordset;
+            
+            if ($seq_similar_genome_lend < $read_rend && $seq_similar_genome_rend > $read_lend) {
+                my @coords = sort {$a<=>$b} ($read_lend, $read_rend, $seq_similar_genome_lend, $seq_similar_genome_rend);
+                my ($overlap_lend, $overlap_rend) = ($coords[1], $coords[2]);
+                push (@overlapping_regions, [$overlap_lend, $overlap_rend]);
+            }
+        }
+        
+    }
+    
+    print STDERR "-seqsimilar overlapping regions of read alignments: " . Dumper(\@overlapping_regions) if $DEBUG;
+
+    if (@overlapping_regions) {
+        
+        my @collapsed_coords = &Overlap_piler::simple_coordsets_collapser(@overlapping_regions);
+        
+        print STDERR "-collapsed as: " . Dumper(\@collapsed_coords) if $DEBUG;
+        
+        my $seq_similar_region_len = 0;
+        foreach my $collapsed_coordset (@collapsed_coords) {
+            my ($lend, $rend) = @$collapsed_coordset;
+            $seq_similar_region_len += $rend - $lend + 1;
+        }
+        
+        if ($seq_similar_region_len / $read_segment_length > 0.5) {
+            # majority of read segment is in seq similar region
+            return(1);
+        }
+    }
+    
+    return(0);
+        
+
+}
+
+
+
+####
+sub convert_from_FI_contig_to_genome_coordinates {
+    my ($read_coords_aref, $exon_coords_aref, $original_genome_coord_mapping_href) = @_;
+            
+    my ($read_FI_lend, $read_FI_rend) = sort {$a<=>$b} @$read_coords_aref;
+    my ($exon_lend, $exon_rend) = @$exon_coords_aref;
+    
+    
+    ##   genome_lend            genome_rend
+    ##      |----------------------|  
+    ##           |----------|
+    ##       read_lend     read_rend
+    
+    ##     |-----|          |------|
+    ##     genome_lend_delta   genome_rend_delta
+    
+    my $genome_lend_delta = $read_FI_lend - $exon_lend;
+    my $genome_rend_delta = $exon_rend - $read_FI_rend;
+
+
+    my $new_read_genome_lend;
+    my $new_read_genome_rend;
+    
+    my $exon_end5 = (split(/:/, $original_genome_coord_mapping_href->{$exon_lend}))[1];
+    my $exon_end3 = (split(/:/, $original_genome_coord_mapping_href->{$exon_rend}))[1];
+    
+    my $orig_orient = ($exon_end5 < $exon_end3) ? '+' : '-';
+    
+    ##   genome_end5   -->      genome_end3
+    ##      |----------------------|  
+    if ($orig_orient eq '+') {
+            
+        $new_read_genome_lend = $exon_end5 + $genome_lend_delta;
+        $new_read_genome_rend = $exon_end3 - $genome_rend_delta;
+    }
+    
+    
+    ##   genome_end3  <--     genome_end5   ## revcomp orientation
+    ##      |----------------------|  
+    
+    else {
+        $new_read_genome_lend = $exon_end5 - $genome_lend_delta;
+        $new_read_genome_rend = $exon_end3 + $genome_rend_delta;
+    }
+    
+    return($new_read_genome_lend, $new_read_genome_rend);
+    
+}

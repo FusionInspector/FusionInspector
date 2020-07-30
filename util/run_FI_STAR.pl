@@ -14,7 +14,6 @@ use Getopt::Long qw(:config no_ignore_case bundling pass_through);
 
 
 my $max_mate_dist = 1e5;
-my $max_intron_length = 1e5;
 
 
 my $usage = <<__EOUSAGE__;
@@ -41,8 +40,7 @@ my $usage = <<__EOUSAGE__;
 #  --only_fusion_reads         restrict alignments only to the fusion-supporting reads
 #  --capture_genome_alignments reports alignments to the reference genome in addition to the fusion contigs. (for debugging)
 #  --chim_search               include Chimeric.junction outputs
-#  --max_mate_dist <int>       maximum distance between mates allowed (default: $max_mate_dist)
-#  --max_intron_length <int>   maximum length allowed for introns (default: $max_intron_length)
+#  --max_mate_dist <int>       maximum distance between mates (and individual introns) allowed (default: $max_mate_dist)
 #  --no_splice_score_boost     do not augment alignment score for spliced alignments 
 #
 #################################################################################################
@@ -92,8 +90,7 @@ my $no_splice_score_boost = 0;
              'chim_search' => \$chim_search,
 
              'max_mate_dist=i' => \$max_mate_dist,
-             'max_intron_length=i' => \$max_intron_length,
-             
+
              'no_splice_score_boost' => \$no_splice_score_boost,
     );
 
@@ -238,7 +235,7 @@ main: {
         . " --limitBAMsortRAM $estimated_ram "  #20000000000";
         . " --alignInsertionFlush Right  "
         . " --alignMatesGapMax $max_mate_dist "
-        . " --alignIntronMax $max_intron_length ";
+        . " --alignIntronMax $max_mate_dist ";
         
     if (length($reads) > 1000) {
         my $star_params_file = "star_params.$$.txt";

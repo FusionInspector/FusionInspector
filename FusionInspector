@@ -162,8 +162,10 @@ class FusionInspector:
 
         optional.add_argument("--no_shrink_introns", action='store_true', default=False, help="do not shrink introns")
         optional.add_argument("--shrink_intron_max_length", default=1000, type=int, help="maximum length of introns when shrunk")
-
-        optional.add_argument("--max_sensitivity", action='store_true', default=False, help=" max sensitivity settings (specificity unchecked) equivalent to --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --max_promiscuity 1000000 --min_pct_dom_promiscuity 1 --min_per_id 1 --no_remove_dups ")
+        
+        optional.add_argument("--skip_EM", dest="SKIP_EM_FLAG", action='store_true', default=False, help="skip expectation maximization step that fractionally assigns spanning frags across multiple breakpoints")
+        
+        optional.add_argument("--max_sensitivity", action='store_true', default=False, help=" max sensitivity settings (specificity unchecked) equivalent to --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --max_promiscuity 1000000 --min_pct_dom_promiscuity 1 --min_per_id 1 --no_remove_dups --skip_EM")
         
 
         
@@ -177,7 +179,7 @@ class FusionInspector:
             sys.exit(1)
 
         if args_parsed.max_sensitivity:
-            logger.info("--max_sensitivity settings in effect:  --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --max_promiscuity 1000000 --min_pct_dom_promiscuity 1 --min_per_id 1 --no_remove_dups")
+            logger.info("--max_sensitivity settings in effect:  --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --max_promiscuity 1000000 --min_pct_dom_promiscuity 1 --min_per_id 1 --no_remove_dups --skip_EM")
             args_parsed.min_sum_frags = 1
             args_parsed.min_spanning_frags_only = 1
             args_parsed.min_novel_junction_support = 1
@@ -186,7 +188,7 @@ class FusionInspector:
             args_parsed.min_pct_dom_promiscuity = 1
             args_parsed.min_per_id = 1
             args_parsed.no_remove_dups = True
-
+            args_parsed.SKIP_EM_FLAG = True
         
         if args_parsed.include_Trinity:
             # 2017-12-20
@@ -472,22 +474,28 @@ class FusionInspector:
         
 
 
-        ## adjust counts using EM
-        init_EM_adjusted_counts_fusions_file = fusion_summary_file + ".EMadj"
-        cmdstr = str(UTILDIR + "/fusion_EM_runner.pl {} > {}".format(fusion_summary_file, init_EM_adjusted_counts_fusions_file))
-        pipeliner.add_commands([Command(cmdstr, "init_EM_adj_counts.ok")])
+        file_to_filter = fusion_summary_file
 
-        
+        if not args_parsed.SKIP_EM_FLAG:
+            ## adjust counts using EM
+            init_EM_adjusted_counts_fusions_file = fusion_summary_file + ".EMadj"
+            cmdstr = str(UTILDIR + "/fusion_EM_runner.pl {} > {}".format(fusion_summary_file, init_EM_adjusted_counts_fusions_file))
+            pipeliner.add_commands([Command(cmdstr, "init_EM_adj_counts.ok")])
+
+            file_to_filter =  init_EM_adjusted_counts_fusions_file 
+
 
         ## need to filter based on remaining fusion support.
-        fusion_summary_min_score_thresh_file = init_EM_adjusted_counts_fusions_file + ".min_frag_thresh"
+        fusion_summary_min_score_thresh_file = file_to_filter + ".min_frag_thresh"
+
+
 
         cmdstr = str(os.sep.join([UTILDIR, "filter_fusions_by_frag_thresholds.pl"]) +
                      " --min_junction_reads " + str(args_parsed.min_junction_reads) +
                      " --min_sum_frags " + str(args_parsed.min_sum_frags) +
                      " --min_novel_junction_support " + str(args_parsed.min_novel_junction_support) +
                      " --min_spanning_frags_only " + str(args_parsed.min_spanning_frags_only) +
-                    " --fusion_preds " + init_EM_adjusted_counts_fusions_file +
+                     " --fusion_preds " + file_to_filter +
                      " --require_LDAS " + str(args_parsed.require_LDAS) +
                      " > " + fusion_summary_min_score_thresh_file)
         
@@ -633,7 +641,7 @@ class FusionInspector:
 
                 pipeliner.add_commands([Command(cmdstr, "prep_igv_juncspan_fmt.ok")]) 
 
-
+                ########## Pfam Matches
                 ## add pfam matches in genome coordinates:
 
                 pfam_igv_gff3_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.Pfam.gff3"])
@@ -647,6 +655,20 @@ class FusionInspector:
                 cmdstr = str(UTILDIR + "/transcript_gff3_to_bed.pl {} > {}".format(pfam_igv_gff3_filename, pfam_igv_bed_filename) )
                 pipeliner.add_commands([Command(cmdstr, "prep_igv_pfam_bed.ok")])
                 
+
+                ######## Seq Similar Regions 
+                ## add seq-similar region info
+                seqsimilar_igv_gff3_filename = os.path.join(args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.seqsimilar.gff3")
+                cmdstr = str(UTILDIR + "/get_seq_similar_region_FI_coordinates.pl --finspector_gtf {} ".format(mergedContig_gtf_filename) +
+                             " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir) +
+                             " > {} ".format(seqsimilar_igv_gff3_filename) )
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_seqsim_gff3.ok")])
+                
+                ## must convert to bed for viewing
+                seqsimilar_igv_bed_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.seqsimilar.bed"])
+                cmdstr = str(UTILDIR + "/transcript_gff3_to_bed.pl {} > {}".format(seqsimilar_igv_gff3_filename, seqsimilar_igv_bed_filename) )
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_seqsim_bed.ok")])
+
                 
 
         ####################
@@ -691,43 +713,36 @@ class FusionInspector:
 
         annot_pass_fusions_file = "{}.annot_filter.pass".format(post_blast_promisc_filter_fusions_file)
 
-        ## adjust counts using EM
-        EM_adjusted_counts_fusions_file = annot_pass_fusions_file + ".EMadj"
-        cmdstr = str(UTILDIR + "/fusion_EM_runner.pl {} > {}".format(annot_pass_fusions_file, EM_adjusted_counts_fusions_file))
-        pipeliner.add_commands([Command(cmdstr, "EM_adj_counts.ok")])
+
+        fusions_file = annot_pass_fusions_file
+
+        if not args_parsed.SKIP_EM_FLAG:
+            ## adjust counts using EM
+            EM_adjusted_counts_fusions_file = annot_pass_fusions_file + ".EMadj"
+            cmdstr = str(UTILDIR + "/fusion_EM_runner.pl {} > {}".format(fusions_file, EM_adjusted_counts_fusions_file))
+            pipeliner.add_commands([Command(cmdstr, "EM_adj_counts.ok")])
+
+            fusions_file =  EM_adjusted_counts_fusions_file
 
         
         ## add FFPM calculations
         if args_parsed.left_fq_filename and not args_parsed.no_FFPM: # note, doesn't yet work with samples file, instead needs left.fq
             cmdstr = str( os.path.sep.join([UTILDIR, "incorporate_FFPM_into_final_report.pl"]) +
                           " " + args_parsed.left_fq_filename +
-                          " " + EM_adjusted_counts_fusions_file +
-                          " > " + EM_adjusted_counts_fusions_file + ".FFPM" )
+                          " " + fusions_file +
+                          " > " + fusions_file + ".FFPM" )
             
             pipeliner.add_commands([Command(cmdstr, "add_FFPM{}.ok".format(trinity_ok_token))])
 
+            fusions_file = fusions_file + ".FFPM"
             
-            EM_adjusted_counts_fusions_file = EM_adjusted_counts_fusions_file + ".FFPM"
         
 
                 
         final_fusions_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".FusionInspector.fusions.tsv"])
-        cmdstr = str("cp {} {}".format(EM_adjusted_counts_fusions_file, final_fusions_file))
+        cmdstr = str("cp {} {}".format(fusions_file, final_fusions_file))
         pipeliner.add_commands([Command(cmdstr, "cp_final{}.ok".format(trinity_ok_token))])
 
-        ## deconvolve single cell data
-        if args_parsed.samples_file:
-            deconvolved_fusions_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".FusionInspector.fusions.samples_deconvolved.tsv"])  
-            cmdstr = str(UTILDIR + "/sc/FI_partition_final_by_sc.pl " + final_fusions_file + " > {}".format(deconvolved_fusions_file))
-            pipeliner.add_commands([Command(cmdstr, "deconvolved.ok")]);
-
-            # make abridged version
-            abridged_deconvolved_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".FusionInspector.fusions.samples_deconvolved.abridged.tsv"])  
-            cmdstr = str(UTILDIR + "/column_exclusions.pl " + deconvolved_fusions_file +
-                         " JunctionReads,SpanningFrags " +
-                         " > {}".format(abridged_deconvolved_file) )
-            pipeliner.add_commands([Command(cmdstr, "deconvolved.abridged.ok")])
-            
         
         ## back to regular non-deconvolved fusions file
         ## make an abridged version that lacks the list of supporting reads.
@@ -849,7 +864,9 @@ class FusionInspector:
         cmdstr = str(os.sep.join([UTILDIR, "get_fusion_JUNCTION_reads_from_fusion_contig_bam.pl"]) +
                      " --gtf_file " + mergedContig_gtf_filename +
                      " --MIN_ALIGN_PER_ID " + str(args_parsed.min_per_id) +
-                     " --bam " + bam_file + " > " + fusion_junction_reads_sam_file)
+                     " --bam " + bam_file +
+                     " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir) +
+                     " > " + fusion_junction_reads_sam_file)
 
         pipeliner.add_commands([Command(cmdstr, "get_fusion_JUNCTION_reads_from_bam.ok")]) 
 
@@ -875,9 +892,10 @@ class FusionInspector:
                      " --gtf_file " + mergedContig_gtf_filename +
                      " --MIN_ALIGN_PER_ID " + str(args_parsed.min_per_id) +
                      " --bam " + bam_file +
-                     " --junction_info " + fusion_junction_info_file + 
+                     " --junction_info " + fusion_junction_info_file +
+                     " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir) + 
                      " > " + fusion_spanning_reads_sam_file)
-
+        
         pipeliner.add_commands([Command(cmdstr, "get_fusion_SPANNING_reads_from_bam.ok")]) 
 
         if args_parsed.write_intermediate_results:

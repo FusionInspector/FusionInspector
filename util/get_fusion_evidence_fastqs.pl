@@ -33,7 +33,9 @@ my $usage = <<__EOUSAGE__;
 #
 # * optional:
 #
-#  --by_isoform <string>        define fusions according to breakpoint instead of more generically by gene pair
+#  --by_fusion <string>         dirname; write per fusion ev files.
+#
+#  --by_isoform <string>        dirname;  define fusions according to breakpoint instead of more generically by gene pair
 #                               Provide the name of the directory to store the fusion files.  The fq read files will be
 #                               named according to the fusion^isoform_brkpt name.
 #
@@ -53,7 +55,7 @@ my $right_fq;
 my $output_prefix;
 my $samples_file;
 my $BY_ISOFORM;
-
+my $BY_FUSION;
 
 &GetOptions( 'help|h' => \$help_flag,
              
@@ -66,6 +68,8 @@ my $BY_ISOFORM;
              
              'output_prefix=s' => \$output_prefix,
              
+             'by_fusion=s' => \$BY_FUSION,
+
              'by_isoform=s' => \$BY_ISOFORM,
              
              
@@ -91,10 +95,23 @@ if ($BY_ISOFORM) {
     }
 }
 
+if ($BY_FUSION) {
+    if (-d $BY_FUSION) {
+        die "Error, directory $BY_FUSION already exists.  Choose a new name or remove the current directory before rerunning.";
+    }
+    my $ret = system("mkdir -p $BY_FUSION");
+    if ($ret) {
+        die "Error, couldn't create directory $BY_FUSION ";
+    }
+}    
+
+
 main: {
 
     ## get the core fragment names:
     my %core_frag_name_to_fusion_name;
+    
+    my %core_frag_to_simple_fusion;
 
     open (my $fh, $fusion_results_file) or die "Error, cannot open file $fusion_results_file";
     my $tab_reader = new DelimParser::Reader($fh, "\t");
@@ -102,6 +119,8 @@ main: {
     while (my $row = $tab_reader->get_row()) {
         my $fusion_name = $row->{'#FusionName'} or die "Error, cannot get fusion name from " . Dumper($row);
         
+        my $fusion_name_simple = $fusion_name;
+
         if ($BY_ISOFORM) {
             my $left_brkpt = $tab_reader->get_row_val($row, "LeftBreakpoint");
             my $right_brkpt = $tab_reader->get_row_val($row, "RightBreakpoint");
@@ -122,6 +141,9 @@ main: {
                 $junction_read = $1;
                 $pair_end = $2;
             }
+
+            $core_frag_to_simple_fusion{$junction_read} = $fusion_name_simple;
+
             my $updated_frag_name = "$fusion_name|J";
             if ($pair_end) {
                 $updated_frag_name .= $pair_end;
@@ -140,6 +162,8 @@ main: {
             $spanning_frag =~ s/^\&[^\@]+\@//; # remove any sample encoding here.
             my $updated_frag_name = "$fusion_name|S|$spanning_frag";
             
+            $core_frag_to_simple_fusion{$spanning_frag} = $fusion_name_simple;
+            
             push(@{$core_frag_name_to_fusion_name{$spanning_frag}}, $updated_frag_name);
         }
     }
@@ -152,10 +176,10 @@ main: {
     }
 
         
-    &write_fastq_files($left_fq, $output_prefix, "_1", \%core_frag_name_to_fusion_name, $sample_names);
+    &write_fastq_files($left_fq, $output_prefix, "_1", \%core_frag_name_to_fusion_name, $sample_names, \%core_frag_to_simple_fusion);
     
     if ($right_fq) {
-        &write_fastq_files($right_fq, $output_prefix, "_2", \%core_frag_name_to_fusion_name, $sample_names);
+        &write_fastq_files($right_fq, $output_prefix, "_2", \%core_frag_name_to_fusion_name, $sample_names, \%core_frag_to_simple_fusion);
     }
     
     print STDERR "\nDone.\n\n";
@@ -167,7 +191,7 @@ main: {
 
 ####
 sub write_fastq_files {
-    my ($input_fastq_files, $output_prefix, $output_fastq_file_suffix, $core_frag_name_to_fusion_name_href, $sample_names) = @_;
+    my ($input_fastq_files, $output_prefix, $output_fastq_file_suffix, $core_frag_name_to_fusion_name_href, $sample_names, $core_frag_to_simple_fusion_href) = @_;
 
 
     my $output_fastq_file = "$output_prefix.fusion_evidence_reads${output_fastq_file_suffix}.fq";
@@ -189,14 +213,24 @@ sub write_fastq_files {
             my $core_read_name = $fq_record->get_core_read_name();
             #print STDERR "[$core_read_name]\n";
             
+            my $record_text = $fq_record->get_fastq_record();
+            chomp $record_text;
+
+            if ($BY_FUSION) {
+                if (my $simple_fusion_name = $core_frag_to_simple_fusion_href->{$core_read_name}) {
+                    open(my $fusion_reads_ofh, ">>$BY_FUSION/${simple_fusion_name}${output_fastq_file_suffix}.fq") or die "Error, cannot append to file $BY_FUSION/${simple_fusion_name}${output_fastq_file_suffix}.fq";
+                    print $fusion_reads_ofh $record_text . "\n";
+                    close $fusion_reads_ofh;
+                }
+            }
+            
             my $fusion_instances_with_read_aref = $core_frag_name_to_fusion_name_href->{$core_read_name};
             
             if (ref $fusion_instances_with_read_aref) {
                 
                 my @fusion_instances = @$fusion_instances_with_read_aref;
                 
-                my $record_text = $fq_record->get_fastq_record();
-                chomp $record_text;
+                
                 my @lines = split(/\n/, $record_text);
                     
                 my $reported_in_full_file = 0;
@@ -218,9 +252,10 @@ sub write_fastq_files {
                     }
                     
                     if ($BY_ISOFORM) {
-                        my ($fusion_instance_filename, $rest) = split(/\|[JS]\|/, $fusion_instance);
+                        my ($fusion_instance_filename, $rest) = split(/\|[JS][12]?\|/, $fusion_instance);
                         
-                        $fusion_instance_filename =~ s/\W/_/g; 
+                        $fusion_instance_filename =~ s/\W+/_/g; 
+                        $fusion_instance_filename =~ s/_$//;
                         
                         open(my $isoform_ofh, ">>$BY_ISOFORM/${fusion_instance_filename}${output_fastq_file_suffix}.fq") or die "Error, cannot append to file $BY_ISOFORM/${fusion_instance}${output_fastq_file_suffix}.fq";
                         print $isoform_ofh join("\n", ($_1, $_2, $_3, $_4)) . "\n";
