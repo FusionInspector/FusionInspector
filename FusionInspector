@@ -33,7 +33,7 @@ logger.addHandler(ch)
 
 
 #VERSION = "__BLEEDING_EDGE__"
-VERSION = "2.3.0"
+VERSION = "2.3.1"
 
 
 BASEDIR = os.path.dirname(__file__)

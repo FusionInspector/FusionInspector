@@ -1,3 +1,8 @@
+## FusionInspector v2.3.1 (Aug 10, 2020)
+-minor bugfixes
+-sync max intron len and max mate distance parameters w/ star-fusion
+-improved support for single cell rna-seq processing
+
 ## FusionInspector v2.3.0 (Apr 7, 2020)
 -compatibility updates for exploring IGH superlocus fusions (ie. w/ CRLF2)
 -Pfam domains are shown in the interactive IGV-based FusionInspector html report view.
