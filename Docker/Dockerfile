@@ -129,12 +129,19 @@ RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" 
 
 
 
+
+
+RUN pip install -U igv-reports
+
+RUN apt-get install -y pbzip2
+
+
 ##################
 ## FusionInspector  v2.4.0-dev
 
 RUN apt-get install -y git
 
-ENV FI_HASH=55329616fe416fa130e8814987592b87133fa9d7
+ENV FI_HASH=223b857cae5f5b2002290c0e276c3fcd5c171fbf
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
@@ -142,7 +149,3 @@ RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git
     git submodule init && git submodule update && \
     mv * $BIN
 
-
-RUN pip install -U igv-reports
-
-RUN apt-get install -y pbzip2
