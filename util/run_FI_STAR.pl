@@ -259,7 +259,7 @@ main: {
     if ($chim_search) {
         $cmd .= " --chimJunctionOverhangMin 12 "
             .  " --chimSegmentMin 12 "
-            .  " --chimSegmentReadGapMax parameter 3 "
+            .  " --chimSegmentReadGapMax 3 "
     }
     
     if ($patch) {
