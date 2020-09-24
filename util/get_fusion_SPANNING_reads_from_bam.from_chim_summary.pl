@@ -88,15 +88,19 @@ my %exon_bounds;
 my %orig_coord_info;
 my %scaffold_to_gene_structs;
 my %scaffold_to_gene_breaks;
+
+
+
+
 my %spanning_only_info;
 
 my %junction_reads_ignore;
 my %fusion_junctions;
 my %fusion_breakpoint_info;
 
-my %fusion_to_spanning_reads;
-my %fusion_to_contrary_support;
-my %spanning_read_want;
+
+
+
 
 
 
@@ -216,12 +220,13 @@ main: {
     ####################################################
     ## for each paired read, get the bounds of that read
     
-       
+    my %spanning_read_want;       
     {
 
         #########################################################################
         ##  Generate the spanning fragment and contrary read support info summary
         
+
 
         ## output the spanning read info
         my $spanning_read_info_file = "$bam_file.fusion_spanning_info";
@@ -246,6 +251,8 @@ main: {
         my $scaffold;
         my $prev_scaffold = "";
  
+        print STDERR " - counting read alignments among fusion contigs.\n";
+        
         my %read_alignment_counter = &count_read_alignments_among_fusion_contigs($bam_file);
         
 
@@ -275,7 +282,8 @@ main: {
                     &capture_spanning_frags($prev_scaffold, 
                                             \%scaffold_read_pair_to_read_bounds,
                                             \%core_counter,
-                                            $tab_writer);
+                                            $tab_writer, 
+                                            \%spanning_read_want);
                     
                 }
                 %scaffold_read_pair_to_read_bounds = (); # reinit
@@ -319,7 +327,7 @@ main: {
                         
             ## check end clipping of alignment
             my $cigar = $sam_entry->get_cigar_alignment();
-            if ($scaffold !~ /IGH/ && # //FIXME:  IGH here is a hack... should have more prinicpled ways of dealing with except cases.
+            if ($scaffold !~ /IGH/ && # //FIXME:  IGH here is a hack... should have more principled ways of dealing with except cases.
                 &alignment_has_excessive_soft_clipping($cigar)) {
                 if ($DEBUG) {
                     print STDERR "-skipping $read_name, excessive softclipping: $cigar.\n";
@@ -419,10 +427,10 @@ main: {
                 
                 
             }
-        }
+        } # end of sam reading
         
         if (%scaffold_read_pair_to_read_bounds) {
-            &capture_spanning_frags($scaffold, \%scaffold_read_pair_to_read_bounds, \%core_counter, $tab_writer);
+            &capture_spanning_frags($scaffold, \%scaffold_read_pair_to_read_bounds, \%core_counter, $tab_writer, \%spanning_read_want);
         }
         
         close $ofh; # donw writing fusion report.
@@ -615,7 +623,7 @@ sub partition_gene_structs {
 
 ####
 sub capture_spanning_frags {
-    my ($scaffold, $scaffold_read_pair_to_read_bounds_href, $core_counter_href, $tab_writer) = @_;
+    my ($scaffold, $scaffold_read_pair_to_read_bounds_href, $core_counter_href, $tab_writer, $spanning_read_want_href) = @_;
     
     print STDERR "-fusion SPANNING read extraction for scaff: $scaffold\n";
     
@@ -632,6 +640,9 @@ sub capture_spanning_frags {
     }
     
     
+    my %fusion_to_spanning_reads;
+    my %fusion_to_contrary_support;
+
     foreach my $fragment (keys %{$scaffold_read_pair_to_read_bounds{$scaffold}}) {
         
         if ($core_counter{"$scaffold|$fragment"} != 2) { next; } # ignore those fragments that have multiply-mapping reads to this contig.
@@ -678,7 +689,7 @@ sub capture_spanning_frags {
                 ) 
             {
                 $is_fusion_spanning_fragment_flag = 1;
-                $spanning_read_want{"$scaffold|$fragment"}++; # capture for SAM-retreival next.
+                $spanning_read_want_href->{"$scaffold|$fragment"}++; # capture for SAM-retreival next.
                 #print STDERR "-want $scaffold|$fragment in sam\n";
             }
             else {
@@ -778,12 +789,13 @@ sub capture_spanning_frags {
     } # end of foreach fragment
     
     
+    print STDERR Dumper(\%fusion_to_spanning_reads);
     
     ## output fusion records for that scaffold:
     foreach my $fusion_n_breakpoint (sort keys %fusion_to_spanning_reads) {
             my ($fusion_name, $breakpoint) = split(/\|/, $fusion_n_breakpoint);
             my ($geneA, $geneB) = split(/--/, $fusion_name);
-
+            
             my $fusion_info = $fusion_breakpoint_info{$fusion_n_breakpoint};
             
             unless ($fusion_info) {
