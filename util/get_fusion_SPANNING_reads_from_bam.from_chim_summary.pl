@@ -258,20 +258,29 @@ main: {
 
         my %filtered_read_reason_counter;
         
+        # audit reads that get failed.
+        my $failed_read_file = "$bam_file.failed_reads_during_span_analysis";
+        open (my $ofh_failed_reads, ">$failed_read_file") or die "Error, cannot write to $failed_read_file";
+        
+    
         my $counter = 0;
         my $sam_reader = new SAM_reader($bam_file);
         while (my $sam_entry = $sam_reader->get_next()) {
             $counter++;
             print STDERR "\r[$counter]   " if $counter % 1000 == 0;
-            
-            if ($sam_entry->is_duplicate()) {
-                next;
-            }
-            
+
             $scaffold = $sam_entry->get_scaffold_name();
             
             unless (exists $scaffold_to_gene_breaks{$scaffold}) { next; } # StarFI includes the whole genome, not just the fusion scaffs
             
+            my $read_name = $sam_entry->get_read_name();
+
+            if ($sam_entry->is_duplicate()) {
+                print $ofh_failed_reads "$scaffold\t$read_name\tduplicate\n";
+                next;
+            }
+            
+                        
             if ($scaffold ne $prev_scaffold) {
                 if ($DEBUG) {
                     print STDERR "scaffold read pair to read bounds: " . Dumper(\%scaffold_read_pair_to_read_bounds);
@@ -293,7 +302,7 @@ main: {
             
             my $qual_val = $sam_entry->get_mapping_quality();
             
-            my $read_name = $sam_entry->get_read_name();
+
 
             ## examine number of mismatches in read alignment
             my $line = $sam_entry->get_original_line();
@@ -312,6 +321,7 @@ main: {
                 if ($DEBUG) {
                     print STDERR "-skipping $read_name, no alignment length.\n";
                 }
+                print $ofh_failed_reads "$scaffold\t$read_name\tno_align_length\n";  
                 next;
             }
             my $per_id = ($alignment_length - $mismatch_count) / $alignment_length * 100;
@@ -319,6 +329,7 @@ main: {
                 if ($DEBUG) {
                     print STDERR "-skipping $read_name, per_id $per_id < $MIN_ALIGN_PER_ID required.\n";
                 }
+                print $ofh_failed_reads "$scaffold\t$read_name\tlow_per_id\t$per_id\n";  
                 next;
             }
 
@@ -332,6 +343,7 @@ main: {
                 if ($DEBUG) {
                     print STDERR "-skipping $read_name, excessive softclipping: $cigar.\n";
                 }
+                print $ofh_failed_reads "$scaffold\t$read_name\texcessive_softclipping\t$cigar\n";  
                 next;
             }
                         
@@ -340,7 +352,10 @@ main: {
             my $mate_scaffold_name = $sam_entry->get_mate_scaffold_name();            
             my $mate_scaffold_pos = $sam_entry->get_mate_scaffold_position();
             
-            unless ($mate_scaffold_name eq $scaffold || $mate_scaffold_name eq "=") { next; }
+            unless ($mate_scaffold_name eq $scaffold || $mate_scaffold_name eq "=") { 
+                print $ofh_failed_reads "$scaffold\t$read_name\tdiscordant_pair\n";  
+                next; 
+            }
 
 
             my $core_read_name = $sam_entry->get_core_read_name();            
@@ -350,6 +365,7 @@ main: {
                 if ($DEBUG) {
                     print STDERR "-skipping $read_name, prev identified as a breakpoint (junction) read.\n";
                 }
+                print $ofh_failed_reads "$scaffold\t$read_name\tknown_junction_read\n";  
                 next; 
             } 
 
@@ -365,7 +381,7 @@ main: {
                 if ($DEBUG) {
                     print STDERR "-skipping $read_name with span [$span_lend-$span_rend], not restricted to one side of fusion inter-region [$scaff_gene_left_rend-$scaff_gene_right_lend]\n";
                 }
-                
+                print $ofh_failed_reads "$scaffold\t$read_name\toverlaps_breakpoint\n";  
                 next; 
             }
             
@@ -383,6 +399,7 @@ main: {
                     print STDERR "-skipping $read_name, entropy $entropy < $MIN_SEQ_ENTROPY required.\n" if $DEBUG;
                     $filtered_read_reason_counter{"low entroy"} += 1;
                 }
+                print $ofh_failed_reads "$scaffold\t$read_name\tlow_entropy\t$entropy\n";  
                 next; 
             }
             
@@ -397,6 +414,7 @@ main: {
                 if (&exceedingly_overlaps_homologous_segment($scaffold, $alignment_side, $genome_coords_aref, \@align_segment_overlap_pairs, $orig_coord_info{$scaffold})) {
                     print STDERR "-skipping $read_name, aligns to seq-similar contig region between gene pairs\n" if $DEBUG;
                     $filtered_read_reason_counter{"seq similar region alignment"} += 1;
+                    print $ofh_failed_reads "$scaffold\t$read_name\tseq_similar_region_alignment\n";  
                     next;
                 }
                 
@@ -405,11 +423,10 @@ main: {
                 
                 #print STDERR "No exon overlap: " . Dumper($genome_coords_aref) . Dumper($exon_bounds{$scaffold});
                 $filtered_read_reason_counter{"lacks exon overlap"} += 1;
+                print $ofh_failed_reads "$scaffold\t$read_name\tlacks_exon_overlap\n";  
                 next; 
             } # only examine exon-overlapping entries
             
-            
-
             my $full_read_name = $sam_entry->reconstruct_full_read_name();
             if ($full_read_name =~ /^(\S+)\/([12])$/) {
                 my ($core, $pair_end) = ($1, $2);
@@ -433,13 +450,14 @@ main: {
             &capture_spanning_frags($scaffold, \%scaffold_read_pair_to_read_bounds, \%core_counter, $tab_writer, \%spanning_read_want);
         }
         
-        close $ofh; # donw writing fusion report.
-
+        close $ofh; # done writing fusion report.
+        close $ofh_failed_reads;
+        
         print STDERR "-filtered reads reasons: " . Dumper(\%filtered_read_reason_counter);
         
     }
     
-
+    
     #################################################
     # output the spanning reads we want in SAM format
     
@@ -789,8 +807,7 @@ sub capture_spanning_frags {
     } # end of foreach fragment
     
     
-    print STDERR Dumper(\%fusion_to_spanning_reads);
-    
+        
     ## output fusion records for that scaffold:
     foreach my $fusion_n_breakpoint (sort keys %fusion_to_spanning_reads) {
             my ($fusion_name, $breakpoint) = split(/\|/, $fusion_n_breakpoint);
