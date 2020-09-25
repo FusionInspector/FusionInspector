@@ -9,7 +9,7 @@ use Process_cmd;
 use __GLOBALS__;
 
 
-my $fusion_files_list = "fusion_targets.A.txt,fusion_targets.B.txt,fusion_targets.C.txt";
+my $fusion_files_list = "fusion_targets.A.txt,fusion_targets.B.txt,fusion_targets.C.txt.gz";
 
 my $INSTALL_DIR = "$FindBin::Bin/../";
 

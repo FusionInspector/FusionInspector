@@ -86,8 +86,14 @@ main: {
       
       my @fusion_files = split(/,/, $fusions_file);
       foreach my $file (@fusion_files) {
-          
-          open (my $fh, $file) or die "Error, cannot open file $file";
+
+          my $fh;
+          if ($file =~ /\.gz$/) {
+              open($fh, "gunzip -c $file | ") or die "Error, cannot gunzip file $file";
+          }
+          else {              
+              open ($fh, $file) or die "Error, cannot open file $file";
+          }
           while (<$fh>) {
               if (/^\#/) { next; }
               unless (/\w/) { next; }
