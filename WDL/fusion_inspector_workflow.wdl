@@ -1,39 +1,58 @@
 version 1.0
-import "https://api.firecloud.org/ga4gh/v1/tools/CTAT:star_fusion_tasks/versions/2/plain-WDL/descriptor" as star_fusion_tasks
 
-#import "./star_fusion_tasks.wdl" as star_fusion_tasks
 
 workflow fusion_inspector_workflow {
+
   input {
-    String? docker = "trinityctat/starfusion:1.8.1b"
+    String? docker = "trinityctat/fusioninspector:latest"
     Int? num_cpu
-    String config_docker = "continuumio/miniconda3:4.6.14"
     String? memory
     Boolean? use_ssd = true
     String genome
     Float? genome_disk_space_multiplier = 2.5
-    String? acronym_file = "gs://regev-lab/resources/ctat/star_fusion/index.json"
     Float? fastq_disk_space_multiplier = 3.25
     File fusion_predictions
-    File left_fq
+    
     String? additional_flags
     Int? preemptible = 2
     File? right_fq
     Float? extra_disk_space = 10
     String? zones = "us-central1-a us-central1-b us-central1-c us-central1-f us-east1-b us-east1-c us-east1-d us-west1-a us-west1-b us-west1-c"
     String sample_id
+
+
+    File? rnaseq_aligned_bam
+    File? fastq_pair_tar_gz
+    File? left_fq
+    File? right_fq
+        
   }
 
-   call star_fusion_tasks.star_fusion_config as star_fusion_config {
-      input:
-        genome = genome,
-        acronym_file = acronym_file,
-        cpus = num_cpu,
-        memory = memory,
-        docker = config_docker,
-        preemptible = preemptible
+  
+   if (defined(rnaseq_aligned_bam)) {
+      
+      call CTAT_BAM_TO_FASTQ {
+            input:
+              input_bam=rnaseq_aligned_bam,
+              sample_name=sample_name,
+              Docker=Docker
+        }
     }
 
+    if (defined(fastq_pair_tar_gz)) {
+
+      call CTAT_UNTAR_FASTQS {
+        input:
+          fastq_pair_tar_gz=fastq_pair_tar_gz,
+          Docker=Docker
+      }
+    }
+
+    
+    File? left_fq_use = select_first([left_fq, CTAT_UNTAR_FASTQS.left_fq, CTAT_BAM_TO_FASTQ.left_fq])
+    File? right_fq_use = select_first([right_fq, CTAT_UNTAR_FASTQS.right_fq, CTAT_BAM_TO_FASTQ.right_fq])
+
+  
   call fusion_inspector {
     input:
       fusion_predictions = fusion_predictions,
@@ -59,6 +78,10 @@ workflow fusion_inspector_workflow {
     File fusion_inspector_inspect_fusions_abridged = fusion_inspector.fusion_inspector_inspect_fusions_abridged
   }
 }
+
+
+
+
 task fusion_inspector {
   input {
     File fusion_predictions
@@ -115,3 +138,88 @@ task fusion_inspector {
 
 }
 
+task CTAT_BAM_TO_FASTQ {
+
+    input {
+      File input_bam
+      String sample_name
+      String Docker
+    }
+    
+    command {
+
+    set -e
+
+    # initial potential cleanup of read names in the bam file
+    /usr/local/bin/sam_readname_cleaner.py ${input_bam} ${input_bam}.cleaned.bam
+
+
+    # revert aligned bam
+    java -Xmx1000m -jar /usr/local/src/picard.jar \
+        RevertSam \
+        INPUT=${input_bam}.cleaned.bam \
+        OUTPUT_BY_READGROUP=false \
+        VALIDATION_STRINGENCY=SILENT \
+        SORT_ORDER=queryname \
+        OUTPUT=${sample_name}.reverted.bam 
+
+
+    # bam to fastq
+    java -jar /usr/local/src/picard.jar \
+        SamToFastq I=${sample_name}.reverted.bam \
+        F=${sample_name}_1.fastq F2=${sample_name}_2.fastq \
+        INTERLEAVE=false NON_PF=true \
+        CLIPPING_ATTRIBUTE=XT CLIPPING_ACTION=2
+
+   }
+    
+    output {
+      File left_fq="${sample_name}_1.fastq"
+      File right_fq="${sample_name}_2.fastq"
+    }
+    
+    runtime {
+            docker: Docker
+            disks: "local-disk 500 SSD"
+            memory: "20G"
+            cpu: "16"
+            preemptible: 0
+            maxRetries: 3
+    }
+    
+  }
+
+
+  
+task CTAT_UNTAR_FASTQS {
+
+  input {
+    File fastq_pair_tar_gz
+    String Docker
+  }
+
+  command {
+
+     set -e
+    
+     # untar the fq pair
+     tar xvf ${fastq_pair_tar_gz}
+  }
+
+  output {
+    File left_fq = select_first(glob("*_1.fastq"))
+    File right_fq = select_first(glob("*_2.fastq"))
+  }
+
+  runtime {
+            docker: Docker
+            disks: "local-disk 500 SSD"
+            memory: "10G"
+            cpu: "4"
+            preemptible: 0
+            maxRetries: 3
+    }
+  }
+
+
+  

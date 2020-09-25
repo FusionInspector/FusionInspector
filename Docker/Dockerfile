@@ -137,11 +137,11 @@ RUN apt-get install -y pbzip2
 
 
 ##################
-## FusionInspector  v2.4.0-dev
+## FusionInspector  v2.4.0-devb
 
 RUN apt-get install -y git
 
-ENV FI_HASH=223b857cae5f5b2002290c0e276c3fcd5c171fbf
+ENV FI_HASH=d037877fbcba618008d8e1ff0bc44e6f4251d093
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
