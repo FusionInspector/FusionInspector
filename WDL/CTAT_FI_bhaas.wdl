@@ -116,7 +116,7 @@ task fusion_inspector {
 
         pbzip2 -dc ~{genome} | tar x -C genome_dir --strip-components 1
 
-       /usr/local/src/STAR-Fusion/FusionInspector/FusionInspector \
+        FusionInspector \
         --fusions ~{fusion_predictions} \
         --genome_lib_dir `pwd`/genome_dir/ctat_genome_lib_build_dir \
         -O ~{sample_id} \
