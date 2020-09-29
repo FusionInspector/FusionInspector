@@ -1,0 +1,10 @@
+{
+    "fusion_inspector_workflow.docker" : "trinityctat/fusioninspector:2.4.0-devb",
+    "fusion_inspector_workflow.genome" : "GRCh38_gencode_v22_CTAT_lib_Apr032020.tar.bz2",
+    "fusion_inspector_workflow.fusion_predictions" : "fusion_targets.A.txt",
+    "fusion_inspector_workflow.left_fq" : "test.reads_1.fastq.gz",
+    "fusion_inspector_workflow.right_fq" : "test.reads_2.fastq.gz",
+    "fusion_inspector_workflow.sample_name" : "ladeda"
+}
+
+
