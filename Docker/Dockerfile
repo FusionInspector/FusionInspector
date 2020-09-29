@@ -149,3 +149,10 @@ RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git
     git submodule init && git submodule update && \
     mv * $BIN
 
+
+## Picard tools
+
+WORKDIR $SRC
+RUN wget https://github.com/broadinstitute/picard/releases/download/2.20.3/picard.jar
+ENV PICARD_HOME $SRC
+
