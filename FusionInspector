@@ -2,18 +2,21 @@
 # encoding: utf-8
 
 
-#from __future__ import (absolute_import, division,
+# from __future__ import (absolute_import, division,
 #                        print_function, unicode_literals)
 
 
 import os, re, sys
 import argparse
 import subprocess
+import gzip
 
 if sys.version_info[0] < 3:
     raise Exception("This script requires Python 3")
 
-sys.path.insert(0, os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "PyLib"]))
+sys.path.insert(
+    0, os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "PyLib"])
+)
 from Pipeliner import Pipeliner, Command
 
 
@@ -22,24 +25,27 @@ __example__ = "FusionInspector --left_fq ../BT474--ACACA--STAC2.left.fq --right_
 
 
 import logging
+
 FORMAT = "%(asctime)-15s %(levelname)s %(module)s.%(name)s.%(funcName)s at %(lineno)d :\n\t%(message)s\n"
 global logger
 logger = logging.getLogger()
-logging.basicConfig(filename='FusionInspector.log', format=FORMAT, filemode='w', level=logging.DEBUG)
+logging.basicConfig(
+    filename="FusionInspector.log", format=FORMAT, filemode="w", level=logging.DEBUG
+)
 # add a new Handler to print all INFO and above messages to stdout
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
 
-#VERSION = "__BLEEDING_EDGE__"
+# VERSION = "__BLEEDING_EDGE__"
 VERSION = "2.3.1"
 
 
 BASEDIR = os.path.dirname(__file__)
 UTILDIR = os.sep.join([BASEDIR, "util"])
 
-TRINITY_HOME = None #init below if --include_Trinity
+TRINITY_HOME = None  # init below if --include_Trinity
 
 
 """
@@ -57,129 +63,331 @@ ______         _            _____                          _
 
 
 class FusionInspector:
-
     def run(self):
-        
+
         arg_parser = argparse.ArgumentParser(
-            
-            description = "Extracts a pair of genes from the genome, creates a mini-contig, aligns reads to the mini-contig, and extracts the fusion reads as a separate tier for vsiualization.",
-            formatter_class=argparse.RawTextHelpFormatter
-            )
-        
+            description="Extracts a pair of genes from the genome, creates a mini-contig, aligns reads to the mini-contig, and extracts the fusion reads as a separate tier for vsiualization.",
+            formatter_class=argparse.RawTextHelpFormatter,
+        )
+
         arg_parser._action_groups.pop()
-        required = arg_parser.add_argument_group('required arguments')
-        optional = arg_parser.add_argument_group('optional arguments')
-        
-        required.add_argument("--fusions", dest="chim_summary_files", type=str, default="", required=True,
-                             help="fusions summary files (list, comma-delimited and no spaces)")
-    
-        required.add_argument("--left_fq", dest="left_fq_filename", type=str, required=False, default=None,
-                             help="left (or single) fastq file")
-        
-        required.add_argument("--right_fq", dest="right_fq_filename", type=str, required=False, default="", #intentionally not None
-                             help="right fastq file (optional)")
-        
-        optional.add_argument("--genome_lib_dir", dest="genome_lib_dir", type=str, default=os.environ.get('CTAT_GENOME_LIB'),
-                             help="genome lib directory - see http://FusionFilter.github.io for details.  Uses env var CTAT_GENOME_LIB as default")
-        
-        optional.add_argument("--samples_file", dest="samples_file", type=str, required=False, default=None,
-                             help="samples file for smartSeq2 single cell rna-seq (format: sample(tab)/path/left.fq(tab)/path/right.fq")
-        
-        optional.add_argument("-O", "--output_dir", dest="str_out_dir", type=str, required=False, default="FI", help="output directory")
-        
-        optional.add_argument("--out_prefix", dest="out_prefix", type=str, default='finspector', help="output filename prefix")
+        required = arg_parser.add_argument_group("required arguments")
+        optional = arg_parser.add_argument_group("optional arguments")
 
-        optional.add_argument("--min_junction_reads", dest="min_junction_reads", type=int, required=False, default=0,
-                             help="minimum number of junction-spanning reads required")
-        
-        optional.add_argument("--min_sum_frags", dest="min_sum_frags", type=int, required=False, default=1,
-                             help="minimum fusion support = ( # junction_reads + # spanning_frags )")
+        required.add_argument(
+            "--fusions",
+            dest="chim_summary_files",
+            type=str,
+            default="",
+            required=True,
+            help="fusions summary files (list, comma-delimited and no spaces)",
+        )
 
-        optional.add_argument("--min_novel_junction_support", dest="min_novel_junction_support", type=int, required=False, default=3,
-                             help="minimum number of junction reads required if breakpoint lacks involvement of only reference junctions")
+        required.add_argument(
+            "--left_fq",
+            dest="left_fq_filename",
+            type=str,
+            required=False,
+            default=None,
+            help="left (or single) fastq file",
+        )
 
-        optional.add_argument("--min_spanning_frags_only", dest="min_spanning_frags_only", type=int, required=False, default=5,
-                             help="minimum number of spanning frags if no junction reads are found")
-        
-        optional.add_argument("--require_LDAS", type=int, required=False, default=1,
-                             help = "require long double anchor support for split reads when no spanning frags are found")
-        
-        optional.add_argument("--max_promiscuity", dest='max_promiscuity', type=int, required=False, default=10,
-                             help="maximum number of partners allowed for a given fusion")
-        
-        optional.add_argument("--min_pct_dom_promiscuity", dest="min_pct_dom_promiscuity", type=int, required=False, default=50,
-                             help="for promiscuous fusions, those with less than this support of the dominant scoring pair " +
-                             "are filtered prior to applying the max_promiscuity filter. ")
-        
-        optional.add_argument("--min_per_id", dest="min_per_id", type=int, required=False, default=96,
-                             help='minimum percent identity for a fusion-supporting read alignment')
+        required.add_argument(
+            "--right_fq",
+            dest="right_fq_filename",
+            type=str,
+            required=False,
+            default="",  # intentionally not None
+            help="right fastq file (optional)",
+        )
 
-        optional.add_argument("--max_mate_dist", dest="max_mate_dist", type=int, default=100000, required=False,
-                              help="max distance between mates, also max intron length for STAR alignments")
+        optional.add_argument(
+            "--genome_lib_dir",
+            dest="genome_lib_dir",
+            type=str,
+            default=os.environ.get("CTAT_GENOME_LIB"),
+            help="genome lib directory - see http://FusionFilter.github.io for details.  Uses env var CTAT_GENOME_LIB as default",
+        )
 
+        optional.add_argument(
+            "--samples_file",
+            dest="samples_file",
+            type=str,
+            required=False,
+            default=None,
+            help="samples file for smartSeq2 single cell rna-seq (format: sample(tab)/path/left.fq(tab)/path/right.fq",
+        )
 
-        optional.add_argument("--only_fusion_reads", action='store_true', default=False,
-                             help="include only read alignments in output that support fusion" )
-        
-        optional.add_argument("--capture_genome_alignments", default=False, action='store_true',
-                             help='reports ref genome alignments too (for debugging only)')
-                        
-        optional.add_argument("--include_Trinity", dest="include_Trinity", required=False, action = "store_true", default=False,
-                             help="include fusion-guided Trinity assembly")
+        optional.add_argument(
+            "-O",
+            "--output_dir",
+            dest="str_out_dir",
+            type=str,
+            required=False,
+            default="FI",
+            help="output directory",
+        )
 
-        optional.add_argument("--vis", dest="vis", required=False, action="store_true", default=False,
-                             help="generate bam, bed, etc., and generate igv-reports html visualization")
-        
-        optional.add_argument("--write_intermediate_results", dest="write_intermediate_results", required=False, action="store_true",
-                             default=False, help="generate bam, bed, etc., for intermediate aligner outputs")
+        optional.add_argument(
+            "--out_prefix",
+            dest="out_prefix",
+            type=str,
+            default="finspector",
+            help="output filename prefix",
+        )
 
-        optional.add_argument("--cleanup", dest="cleanup", required=False, action="store_true", default=False,
-                             help="cleanup the fusion inspector workspace, remove intermediate output files")
+        optional.add_argument(
+            "--min_junction_reads",
+            dest="min_junction_reads",
+            type=int,
+            required=False,
+            default=0,
+            help="minimum number of junction-spanning reads required",
+        )
 
-        optional.add_argument("--CPU", dest="CPU", required=False, type=int, default=4,
-                             help="number of threads for multithreaded processes")
-        
-        optional.add_argument("--annotate", dest="annotate", required=False, action='store_true', default=False,
-                             help="annotate fusions based on known cancer fusions and those found in normal tissues")
+        optional.add_argument(
+            "--min_sum_frags",
+            dest="min_sum_frags",
+            type=int,
+            required=False,
+            default=1,
+            help="minimum fusion support = ( # junction_reads + # spanning_frags )",
+        )
 
-        optional.add_argument("--examine_coding_effect", dest='examine_coding_effect', required=False, action='store_true', default=False,
-                             help='explore impact of fusions on coding sequences')
-        
+        optional.add_argument(
+            "--min_novel_junction_support",
+            dest="min_novel_junction_support",
+            type=int,
+            required=False,
+            default=3,
+            help="minimum number of junction reads required if breakpoint lacks involvement of only reference junctions",
+        )
 
-        optional.add_argument("--aligner_path", default=None, type=str, help="path to the aligner tool (default: uses PATH setting)")
-        
-        optional.add_argument("--fusion_contigs_only", action='store_true', default=False, help="align reads only to the fusion contigs") 
+        optional.add_argument(
+            "--min_spanning_frags_only",
+            dest="min_spanning_frags_only",
+            type=int,
+            required=False,
+            default=5,
+            help="minimum number of spanning frags if no junction reads are found",
+        )
 
-        optional.add_argument("--extract_fusion_reads_file", default=None, type=str, help="file prefix to write fusion evidence reads in fastq format")
-        optional.add_argument("--no_remove_dups", action='store_true', default=False, help="do not exclude duplicate reads")
-        optional.add_argument("--FAR_pseudocount", type=float, default=1, help="pseudocount to be used in fusion allelic ratio (FAR) computation")
+        optional.add_argument(
+            "--require_LDAS",
+            type=int,
+            required=False,
+            default=1,
+            help="require long double anchor support for split reads when no spanning frags are found",
+        )
 
-        optional.add_argument("--version", action='store_true', default=False, help="provide version info: {}".format(VERSION) )
-        
-        optional.add_argument("--no_FFPM", action='store_true', default=False, help="do not compute FFPM value - ie. using inspect instead of validate mode, in which case FFPM would not be meaningful given the full sample of reads is not evaluated")
-        
-        optional.add_argument("--no_splice_score_boost", action='store_true', default=False, help="do not augment alignment score for spliced alignments")
+        optional.add_argument(
+            "--max_promiscuity",
+            dest="max_promiscuity",
+            type=int,
+            required=False,
+            default=10,
+            help="maximum number of partners allowed for a given fusion",
+        )
 
-        optional.add_argument("--no_shrink_introns", action='store_true', default=False, help="do not shrink introns")
-        optional.add_argument("--shrink_intron_max_length", default=1000, type=int, help="maximum length of introns when shrunk")
-        
-        optional.add_argument("--skip_EM", dest="SKIP_EM_FLAG", action='store_true', default=False, help="skip expectation maximization step that fractionally assigns spanning frags across multiple breakpoints")
-        
-        optional.add_argument("--max_sensitivity", action='store_true', default=False, help=" max sensitivity settings (specificity unchecked) equivalent to --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --max_promiscuity 1000000 --min_pct_dom_promiscuity 1 --min_per_id 1 --no_remove_dups --skip_EM")
-        
+        optional.add_argument(
+            "--min_pct_dom_promiscuity",
+            dest="min_pct_dom_promiscuity",
+            type=int,
+            required=False,
+            default=50,
+            help="for promiscuous fusions, those with less than this support of the dominant scoring pair "
+            + "are filtered prior to applying the max_promiscuity filter. ",
+        )
 
-        
+        optional.add_argument(
+            "--min_per_id",
+            dest="min_per_id",
+            type=int,
+            required=False,
+            default=96,
+            help="minimum percent identity for a fusion-supporting read alignment",
+        )
+
+        optional.add_argument(
+            "--max_mate_dist",
+            dest="max_mate_dist",
+            type=int,
+            default=100000,
+            required=False,
+            help="max distance between mates, also max intron length for STAR alignments",
+        )
+
+        optional.add_argument(
+            "--only_fusion_reads",
+            action="store_true",
+            default=False,
+            help="include only read alignments in output that support fusion",
+        )
+
+        optional.add_argument(
+            "--capture_genome_alignments",
+            default=False,
+            action="store_true",
+            help="reports ref genome alignments too (for debugging only)",
+        )
+
+        optional.add_argument(
+            "--include_Trinity",
+            dest="include_Trinity",
+            required=False,
+            action="store_true",
+            default=False,
+            help="include fusion-guided Trinity assembly",
+        )
+
+        optional.add_argument(
+            "--vis",
+            dest="vis",
+            required=False,
+            action="store_true",
+            default=False,
+            help="generate bam, bed, etc., and generate igv-reports html visualization",
+        )
+
+        optional.add_argument(
+            "--write_intermediate_results",
+            dest="write_intermediate_results",
+            required=False,
+            action="store_true",
+            default=False,
+            help="generate bam, bed, etc., for intermediate aligner outputs",
+        )
+
+        optional.add_argument(
+            "--cleanup",
+            dest="cleanup",
+            required=False,
+            action="store_true",
+            default=False,
+            help="cleanup the fusion inspector workspace, remove intermediate output files",
+        )
+
+        optional.add_argument(
+            "--CPU",
+            dest="CPU",
+            required=False,
+            type=int,
+            default=4,
+            help="number of threads for multithreaded processes",
+        )
+
+        optional.add_argument(
+            "--annotate",
+            dest="annotate",
+            required=False,
+            action="store_true",
+            default=False,
+            help="annotate fusions based on known cancer fusions and those found in normal tissues",
+        )
+
+        optional.add_argument(
+            "--examine_coding_effect",
+            dest="examine_coding_effect",
+            required=False,
+            action="store_true",
+            default=False,
+            help="explore impact of fusions on coding sequences",
+        )
+
+        optional.add_argument(
+            "--aligner_path",
+            default=None,
+            type=str,
+            help="path to the aligner tool (default: uses PATH setting)",
+        )
+
+        optional.add_argument(
+            "--fusion_contigs_only",
+            action="store_true",
+            default=False,
+            help="align reads only to the fusion contigs",
+        )
+
+        optional.add_argument(
+            "--extract_fusion_reads_file",
+            default=None,
+            type=str,
+            help="file prefix to write fusion evidence reads in fastq format",
+        )
+        optional.add_argument(
+            "--no_remove_dups",
+            action="store_true",
+            default=False,
+            help="do not exclude duplicate reads",
+        )
+        optional.add_argument(
+            "--FAR_pseudocount",
+            type=float,
+            default=1,
+            help="pseudocount to be used in fusion allelic ratio (FAR) computation",
+        )
+
+        optional.add_argument(
+            "--version",
+            action="store_true",
+            default=False,
+            help="provide version info: {}".format(VERSION),
+        )
+
+        optional.add_argument(
+            "--no_FFPM",
+            action="store_true",
+            default=False,
+            help="do not compute FFPM value - ie. using inspect instead of validate mode, in which case FFPM would not be meaningful given the full sample of reads is not evaluated",
+        )
+
+        optional.add_argument(
+            "--no_splice_score_boost",
+            action="store_true",
+            default=False,
+            help="do not augment alignment score for spliced alignments",
+        )
+
+        optional.add_argument(
+            "--no_shrink_introns",
+            action="store_true",
+            default=False,
+            help="do not shrink introns",
+        )
+        optional.add_argument(
+            "--shrink_intron_max_length",
+            default=1000,
+            type=int,
+            help="maximum length of introns when shrunk",
+        )
+
+        optional.add_argument(
+            "--skip_EM",
+            dest="SKIP_EM_FLAG",
+            action="store_true",
+            default=False,
+            help="skip expectation maximization step that fractionally assigns spanning frags across multiple breakpoints",
+        )
+
+        optional.add_argument(
+            "--max_sensitivity",
+            action="store_true",
+            default=False,
+            help=" max sensitivity settings (specificity unchecked) equivalent to --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --max_promiscuity 1000000 --min_pct_dom_promiscuity 1 --min_per_id 1 --no_remove_dups --skip_EM",
+        )
+
         # done setting up options menu
-        
-        args_parsed = arg_parser.parse_args()
 
+        args_parsed = arg_parser.parse_args()
 
         if not (args_parsed.left_fq_filename or args_parsed.samples_file):
             print("Error, must specify --left_fq or --samples_file", file=sys.stderr)
             sys.exit(1)
 
         if args_parsed.max_sensitivity:
-            logger.info("--max_sensitivity settings in effect:  --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --max_promiscuity 1000000 --min_pct_dom_promiscuity 1 --min_per_id 1 --no_remove_dups --skip_EM")
+            logger.info(
+                "--max_sensitivity settings in effect:  --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --max_promiscuity 1000000 --min_pct_dom_promiscuity 1 --min_per_id 1 --no_remove_dups --skip_EM"
+            )
             args_parsed.min_sum_frags = 1
             args_parsed.min_spanning_frags_only = 1
             args_parsed.min_novel_junction_support = 1
@@ -189,7 +397,7 @@ class FusionInspector:
             args_parsed.min_per_id = 1
             args_parsed.no_remove_dups = True
             args_parsed.SKIP_EM_FLAG = True
-        
+
         if args_parsed.include_Trinity:
             # 2017-12-20
             # Cicada Dennis added code which looks for the location of the Trinity program using the Unix "which" utility.
@@ -204,34 +412,40 @@ class FusionInspector:
             #    global TRINITY_HOME
             #    TRINITY_HOME = os.environ["TRINITY_HOME"]
             global TRINITY_HOME
-            TRINITY_HOME_error_msg = "Before running {0}, you must set the environment variable TRINITY_HOME\n".format(sys.argv[0]) + \
-                "\tto the base installation directory of Trinity,\n\tor that directory needs to be in the PATH " + \
-                "when --include_Trinity is enabled.\n\n"
-            if 'TRINITY_HOME' in os.environ:
-                TRINITY_HOME = os.environ['TRINITY_HOME']
+            TRINITY_HOME_error_msg = (
+                "Before running {0}, you must set the environment variable TRINITY_HOME\n".format(
+                    sys.argv[0]
+                )
+                + "\tto the base installation directory of Trinity,\n\tor that directory needs to be in the PATH "
+                + "when --include_Trinity is enabled.\n\n"
+            )
+            if "TRINITY_HOME" in os.environ:
+                TRINITY_HOME = os.environ["TRINITY_HOME"]
             else:
                 # if hasattr(os, 'symlink'): # symlink was implemented to always return false when it was not implemented in early python.
                 # Not using symlink. Using os.path.islink() and os.readlink().
                 try:
                     # I tried using "command -v Trinity" but for some reason, I was getting an OS permission error with that.
                     # distutils.spawn.find_executable() also might work, I but already implemented the below.
-                    pipe1 = subprocess.Popen(["which", "Trinity"], stdout=subprocess.PIPE)
+                    pipe1 = subprocess.Popen(
+                        ["which", "Trinity"], stdout=subprocess.PIPE
+                    )
                 except:
                     sys.stderr.write(TRINITY_HOME_error_msg)
                     # t, v, tb = sys.exc_info()
                     # raise t, v, tb
-                    # For some reason the above was giving a syntax error. 
+                    # For some reason the above was giving a syntax error.
                     # A simple raise should reraise the existing exception.
                     raise
                 else:
                     TrinityPath, err_info = pipe1.communicate()
                     # FIX - probably should be checking err_info for errors...
-                    #print "err_info is:"
-                    #print err_info
-            
+                    # print "err_info is:"
+                    # print err_info
+
                     # Determine TRINITY_HOME from the TrinityPath returned.
                     # If TrinityPath is a link, we need to dereference the link.
-                    TrinityPath = TrinityPath.rstrip() # Need to strip off a newline.
+                    TrinityPath = TrinityPath.rstrip()  # Need to strip off a newline.
                     if len(TrinityPath) > 0:
                         # print "Trinity that was found is: {:s}".format(repr(TrinityPath))
                         # The function os.path.realpath()should get rid of any links in the path.
@@ -240,219 +454,303 @@ class FusionInspector:
                         # msg = "The Absolute Trinity path that was found is: {:s}".format(TrinityPath)
                         # print msg
                         # Take off the last part of the path (which is the Trinity command)
-                        TRINITY_HOME = "/".join(TrinityPath.decode("utf-8").split("/")[0:-1])
-                        os.environ['TRINITY_HOME'] = TRINITY_HOME
-                        sys.stdout.write("TRINITY_HOME has been set to: {:s}.\n".format(TRINITY_HOME))
+                        TRINITY_HOME = "/".join(
+                            TrinityPath.decode("utf-8").split("/")[0:-1]
+                        )
+                        os.environ["TRINITY_HOME"] = TRINITY_HOME
+                        sys.stdout.write(
+                            "TRINITY_HOME has been set to: {:s}.\n".format(TRINITY_HOME)
+                        )
                     # else: # There was no value returned by the which command. So Trinity is not in the PATH.
                     #     Doing nothing leaves TRINITY_HOME as None.
             # end of else no TRINITY_HOME environment variable.
             # Maybe should double check that Trinity actually exist in the TRINITY_HOME directory.
-            
+
             # If TRINITY_HOME didn't get set, it will still be None.
             if TRINITY_HOME is None:
                 sys.stderr.write(TRINITY_HOME_error_msg)
                 sys.exit(2)
                 # Keeping same way of exiting, though in DISCASM, an error was raised in the same situation.
-                #raise RuntimeError("Error, must set TRINITY_HOME env var when --include_Trinity is enabled.")
-        
+                # raise RuntimeError("Error, must set TRINITY_HOME env var when --include_Trinity is enabled.")
+
         genome_lib_dir = args_parsed.genome_lib_dir
         if genome_lib_dir is None:
-            raise RuntimeError("Error, must specify --genome_lib_dir or set env var CTAT_GENOME_LIB")
-        
+            raise RuntimeError(
+                "Error, must specify --genome_lib_dir or set env var CTAT_GENOME_LIB"
+            )
+
         genome_lib_dir = os.path.abspath(genome_lib_dir)
-        
+
         args_parsed.gtf_filename = os.path.sep.join([genome_lib_dir, "ref_annot.gtf"])
-        args_parsed.genome_fasta_filename = os.path.sep.join([genome_lib_dir, "ref_genome.fa"])
-        args_parsed.cdna_fasta_filename = os.path.sep.join([genome_lib_dir, "ref_cdna.fasta"])
+        args_parsed.genome_fasta_filename = os.path.sep.join(
+            [genome_lib_dir, "ref_genome.fa"]
+        )
+        args_parsed.cdna_fasta_filename = os.path.sep.join(
+            [genome_lib_dir, "ref_cdna.fasta"]
+        )
 
         args_parsed.str_out_dir = os.path.abspath(args_parsed.str_out_dir)
-        
-        workdir = args_parsed.str_out_dir + "/fi_workdir";
+
+        workdir = args_parsed.str_out_dir + "/fi_workdir"
         workdir = os.path.abspath(workdir)
         if not os.path.exists(workdir):
             os.makedirs(workdir)
-        
+
         checkpoints_dir = args_parsed.str_out_dir + "/chckpts_dir"
         checkpoints_dir = os.path.abspath(checkpoints_dir)
         if not os.path.exists(checkpoints_dir):
             os.makedirs(checkpoints_dir)
-        
+
         chim_summary_files_list = args_parsed.chim_summary_files.split(",")
-        
+
         chim_summary_files_adj = []
         for chim_summary_file in chim_summary_files_list:
             if os.stat(chim_summary_file).st_size == 0:
-                print("Warning: No list of fusions in file: %s" % chim_summary_file, file=sys.stderr)
+                print(
+                    "Warning: No list of fusions in file: %s" % chim_summary_file,
+                    file=sys.stderr,
+                )
             else:
                 chim_summary_files_adj.append(chim_summary_file)
 
         chim_summary_files_list = chim_summary_files_adj
 
         if not chim_summary_files_list:
-            print("All fusion files: %s are empty. Exiting gracefully." % args_parsed.chim_summary_files, file=sys.stderr)
+            print(
+                "All fusion files: %s are empty. Exiting gracefully."
+                % args_parsed.chim_summary_files,
+                file=sys.stderr,
+            )
             sys.exit(0)
 
         if args_parsed.extract_fusion_reads_file:
-            args_parsed.extract_fusion_reads_file = os.path.abspath(args_parsed.extract_fusion_reads_file)
+            args_parsed.extract_fusion_reads_file = os.path.abspath(
+                args_parsed.extract_fusion_reads_file
+            )
 
         if args_parsed.left_fq_filename:
             args_parsed.left_fq_filename = os.path.abspath(args_parsed.left_fq_filename)
-            check_files_exist( [ args_parsed.left_fq_filename ])
-                                                   
+            check_files_exist([args_parsed.left_fq_filename])
+
         if args_parsed.right_fq_filename:
-            args_parsed.right_fq_filename = os.path.abspath(args_parsed.right_fq_filename)
-            check_files_exist( [ args_parsed.right_fq_filename ])
+            args_parsed.right_fq_filename = os.path.abspath(
+                args_parsed.right_fq_filename
+            )
+            check_files_exist([args_parsed.right_fq_filename])
 
         if args_parsed.samples_file:
             args_parsed.samples_file = os.path.abspath(args_parsed.samples_file)
-            check_files_exist( [ args_parsed.samples_file ] )
-        
-        
-        check_files_exist( [ args_parsed.gtf_filename,
-                             args_parsed.genome_fasta_filename] + 
-                           chim_summary_files_list )
-        
+            check_files_exist([args_parsed.samples_file])
+
+        check_files_exist(
+            [args_parsed.gtf_filename, args_parsed.genome_fasta_filename]
+            + chim_summary_files_list
+        )
+
         ## Construct pipeline
         pipeliner = Pipeliner(checkpoints_dir)
 
-
         ## Build the mini-contig containing just the two fusion genes, plus annotations in gtf format
 
-        chim_summary_files = args_parsed.chim_summary_files.split(',')
-        
-        cmdstr = str( os.sep.join([UTILDIR, "fusion_pair_to_mini_genome_join.pl"]) +
-                      " --fusions " + args_parsed.chim_summary_files +
-                      " --gtf " + args_parsed.gtf_filename +
-                      " --genome_fa " + args_parsed.genome_fasta_filename +
-                     " --out_prefix " + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix] ) )
+        chim_summary_files = args_parsed.chim_summary_files.split(",")
+
+        cmdstr = str(
+            os.sep.join([UTILDIR, "fusion_pair_to_mini_genome_join.pl"])
+            + " --fusions "
+            + args_parsed.chim_summary_files
+            + " --gtf "
+            + args_parsed.gtf_filename
+            + " --genome_fa "
+            + args_parsed.genome_fasta_filename
+            + " --out_prefix "
+            + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix])
+        )
 
         if not args_parsed.no_shrink_introns:
-            cmdstr += " --shrink_introns --max_intron_length {} ".format(args_parsed.shrink_intron_max_length)
-        
-        
-        mergedContig_fasta_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".fa"])
-        mergedContig_gtf_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".gtf"])
-        
-        pipeliner.add_commands([Command(cmdstr,"fusion_contigs.ok")])
-        
+            cmdstr += " --shrink_introns --max_intron_length {} ".format(
+                args_parsed.shrink_intron_max_length
+            )
+
+        mergedContig_fasta_filename = os.sep.join(
+            [args_parsed.str_out_dir, args_parsed.out_prefix + ".fa"]
+        )
+        mergedContig_gtf_filename = os.sep.join(
+            [args_parsed.str_out_dir, args_parsed.out_prefix + ".gtf"]
+        )
+
+        pipeliner.add_commands([Command(cmdstr, "fusion_contigs.ok")])
 
         # symlink them in the workdir
-        workdir_mergedContig_fasta_filename = os.sep.join([workdir, args_parsed.out_prefix + ".fa"])
-        cmdstr = str("cp " + mergedContig_fasta_filename + " " + workdir_mergedContig_fasta_filename)
+        workdir_mergedContig_fasta_filename = os.sep.join(
+            [workdir, args_parsed.out_prefix + ".fa"]
+        )
+        cmdstr = str(
+            "cp "
+            + mergedContig_fasta_filename
+            + " "
+            + workdir_mergedContig_fasta_filename
+        )
         pipeliner.add_commands([Command(cmdstr, "cp_contigs_file_workdir")])
-        
-                
-        workdir_mergedContig_gtf_filename = os.sep.join([workdir, args_parsed.out_prefix + ".gtf"])
-        cmdstr = str("cp " + mergedContig_gtf_filename + " " + workdir_mergedContig_gtf_filename)
+
+        workdir_mergedContig_gtf_filename = os.sep.join(
+            [workdir, args_parsed.out_prefix + ".gtf"]
+        )
+        cmdstr = str(
+            "cp " + mergedContig_gtf_filename + " " + workdir_mergedContig_gtf_filename
+        )
         pipeliner.add_commands([Command(cmdstr, "cp_gtf_file_workdir.ok")])
-                
+
         ## build a cytoband file
         cytoband_file = os.sep.join([args_parsed.str_out_dir, "cytoBand.txt"])
-        cmdstr = str( os.sep.join([UTILDIR, "fasta_and_gtf_to_cytoband.pl"]) +
-                      " " + mergedContig_fasta_filename + " " + mergedContig_gtf_filename +
-                      " > " + cytoband_file )
+        cmdstr = str(
+            os.sep.join([UTILDIR, "fasta_and_gtf_to_cytoband.pl"])
+            + " "
+            + mergedContig_fasta_filename
+            + " "
+            + mergedContig_gtf_filename
+            + " > "
+            + cytoband_file
+        )
 
         pipeliner.add_commands([Command(cmdstr, "cytoband.ok")])
 
         ## Convert the gtf to bed format for easier viewing
-        mergedContig_bed_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".bed"])
-        
-        cmdstr = str(UTILDIR + "/gtf_gene_to_bed.pl " + mergedContig_gtf_filename +
-                     " > " + mergedContig_bed_filename)
+        mergedContig_bed_filename = os.sep.join(
+            [args_parsed.str_out_dir, args_parsed.out_prefix + ".bed"]
+        )
+
+        cmdstr = str(
+            UTILDIR
+            + "/gtf_gene_to_bed.pl "
+            + mergedContig_gtf_filename
+            + " > "
+            + mergedContig_bed_filename
+        )
 
         pipeliner.add_commands([Command(cmdstr, "merged_contig_gtf_to_bed.ok")])
 
         self.sort_and_index_bed(mergedContig_bed_filename, pipeliner)
-        
 
         # index the fasta file
         cmdstr = str("samtools faidx " + mergedContig_fasta_filename)
         pipeliner.add_commands([Command(cmdstr, "merged_contig_fai.ok")])
-        
-        
+
         ##########
         # Run STAR
-        
+
         cmdstr = None
 
         if args_parsed.fusion_contigs_only:
-            cmdstr = str(os.path.sep.join([UTILDIR, "run_FI_STAR.pl"]) +
-                     " --genome " + workdir_mergedContig_fasta_filename +
-                     " --max_mate_dist {}".format(args_parsed.max_mate_dist) +
-                     " -G " + workdir_mergedContig_gtf_filename + " --CPU " + str(args_parsed.CPU) +  
-                     " --out_prefix " + args_parsed.out_prefix + ".star" +
-                     " --out_dir " + workdir )
+            cmdstr = str(
+                os.path.sep.join([UTILDIR, "run_FI_STAR.pl"])
+                + " --genome "
+                + workdir_mergedContig_fasta_filename
+                + " --max_mate_dist {}".format(args_parsed.max_mate_dist)
+                + " -G "
+                + workdir_mergedContig_gtf_filename
+                + " --CPU "
+                + str(args_parsed.CPU)
+                + " --out_prefix "
+                + args_parsed.out_prefix
+                + ".star"
+                + " --out_dir "
+                + workdir
+            )
         else:
 
             ###############
             ## patched fusion-genome for STAR
             ###############
 
-            cmdstr = str( os.path.sep.join([UTILDIR, "run_FI_STAR.pl"]) +
-                          " --genome " + args_parsed.genome_fasta_filename +
-                          " --patch " + workdir_mergedContig_fasta_filename +
-                          " --max_mate_dist {}".format(args_parsed.max_mate_dist) +
-                          " -G " + workdir_mergedContig_gtf_filename + " --CPU " + str(args_parsed.CPU) +  
-                          " --out_prefix " + args_parsed.out_prefix + ".star" +
-                          " --out_dir " + workdir )   
-
+            cmdstr = str(
+                os.path.sep.join([UTILDIR, "run_FI_STAR.pl"])
+                + " --genome "
+                + args_parsed.genome_fasta_filename
+                + " --patch "
+                + workdir_mergedContig_fasta_filename
+                + " --max_mate_dist {}".format(args_parsed.max_mate_dist)
+                + " -G "
+                + workdir_mergedContig_gtf_filename
+                + " --CPU "
+                + str(args_parsed.CPU)
+                + " --out_prefix "
+                + args_parsed.out_prefix
+                + ".star"
+                + " --out_dir "
+                + workdir
+            )
 
             if args_parsed.only_fusion_reads:
                 cmdstr += " --only_fusion_reads "
             elif args_parsed.capture_genome_alignments:
                 cmdstr += " --capture_genome_alignments "
 
-
         if args_parsed.samples_file:
             cmdstr += " --samples_file {} ".format(args_parsed.samples_file)
         else:
             # reads direct:
-            cmdstr += " --reads \"" +  args_parsed.left_fq_filename + " " + args_parsed.right_fq_filename + "\""
-        
+            cmdstr += (
+                ' --reads "'
+                + args_parsed.left_fq_filename
+                + " "
+                + args_parsed.right_fq_filename
+                + '"'
+            )
+
         if args_parsed.aligner_path:
             cmdstr += " --star_path " + args_parsed.aligner_path
 
         if args_parsed.no_splice_score_boost:
             cmdstr += " --no_splice_score_boost "
 
-
-        star_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.sortedByCoord.out.bam"])
-
+        star_bam_file = os.sep.join(
+            [workdir, args_parsed.out_prefix + ".star.sortedByCoord.out.bam"]
+        )
 
         pipeliner.add_commands([Command(cmdstr, "run_STAR.ok")])
-        
+
         if not args_parsed.no_remove_dups:
 
             # mark duplicate reads
-            star_dups_marked_bam_file = os.sep.join([workdir, args_parsed.out_prefix + ".star.cSorted.dupsMarked.bam"])
+            star_dups_marked_bam_file = os.sep.join(
+                [workdir, args_parsed.out_prefix + ".star.cSorted.dupsMarked.bam"]
+            )
 
-            cmdstr = str("java -jar {} I={} O={} M={} TMP_DIR={} VALIDATION_STRINGENCY=SILENT ".format(os.sep.join([BASEDIR, "plugins", "MarkDuplicates.jar"]),
-                                                                                star_bam_file,
-                                                                                star_dups_marked_bam_file,
-                                                                                star_dups_marked_bam_file + ".stats",
-                                                                                        workdir))
-
+            cmdstr = str(
+                "java -jar {} I={} O={} M={} TMP_DIR={} VALIDATION_STRINGENCY=SILENT ".format(
+                    os.sep.join([BASEDIR, "plugins", "MarkDuplicates.jar"]),
+                    star_bam_file,
+                    star_dups_marked_bam_file,
+                    star_dups_marked_bam_file + ".stats",
+                    workdir,
+                )
+            )
 
             pipeliner.add_commands([Command(cmdstr, "mark_dup_reads.ok")])
 
             star_bam_file = star_dups_marked_bam_file
 
+        self.get_fusion_and_spanning_reads(
+            args_parsed,
+            workdir_mergedContig_gtf_filename,
+            workdir_mergedContig_fasta_filename,
+            star_bam_file,
+            pipeliner,
+        )
 
-        self.get_fusion_and_spanning_reads(args_parsed, workdir_mergedContig_gtf_filename,
-                                           workdir_mergedContig_fasta_filename, star_bam_file, pipeliner)
-
-        bam_files_list = [star_bam_file] # used to have more than one... leaving it like this for now.
+        bam_files_list = [
+            star_bam_file
+        ]  # used to have more than one... leaving it like this for now.
 
         ###########################
         ## coalesce the fusion info
         ###########################
-            
+
         fusion_junction_info_files_list = []
         fusion_junction_sam_files_list = []
-        
+
         fusion_spanning_info_files_list = []
         fusion_spanning_sam_files_list = []
-
 
         for bam_file in bam_files_list:
             fusion_junction_info_files_list.append(bam_file + ".fusion_junction_info")
@@ -460,49 +758,62 @@ class FusionInspector:
 
             fusion_spanning_info_files_list.append(bam_file + ".fusion_spanning_info")
             fusion_spanning_sam_files_list.append(bam_file + ".fusion_span_reads.sam")
-            
 
-        fusion_summary_file = os.sep.join([workdir, args_parsed.out_prefix + ".fusion_preds.coalesced.summary"]) 
+        fusion_summary_file = os.sep.join(
+            [workdir, args_parsed.out_prefix + ".fusion_preds.coalesced.summary"]
+        )
 
-        cmdstr = str( os.sep.join([UTILDIR, "coalesce_junction_and_spanning_info.pl"]) + " " +
-                      ",".join(fusion_junction_info_files_list) + " " +
-                      ",".join(fusion_spanning_info_files_list) +
-                      " {} ".format(args_parsed.FAR_pseudocount) +
-                      " > " + fusion_summary_file )
-        
-        pipeliner.add_commands([Command(cmdstr, "coalesce_junc_n_span.ok")]) 
-        
+        cmdstr = str(
+            os.sep.join([UTILDIR, "coalesce_junction_and_spanning_info.pl"])
+            + " "
+            + ",".join(fusion_junction_info_files_list)
+            + " "
+            + ",".join(fusion_spanning_info_files_list)
+            + " {} ".format(args_parsed.FAR_pseudocount)
+            + " > "
+            + fusion_summary_file
+        )
 
+        pipeliner.add_commands([Command(cmdstr, "coalesce_junc_n_span.ok")])
 
         file_to_filter = fusion_summary_file
 
         if not args_parsed.SKIP_EM_FLAG:
             ## adjust counts using EM
             init_EM_adjusted_counts_fusions_file = fusion_summary_file + ".EMadj"
-            cmdstr = str(UTILDIR + "/fusion_EM_runner.pl {} > {}".format(fusion_summary_file, init_EM_adjusted_counts_fusions_file))
+            cmdstr = str(
+                UTILDIR
+                + "/fusion_EM_runner.pl {} > {}".format(
+                    fusion_summary_file, init_EM_adjusted_counts_fusions_file
+                )
+            )
             pipeliner.add_commands([Command(cmdstr, "init_EM_adj_counts.ok")])
 
-            file_to_filter =  init_EM_adjusted_counts_fusions_file 
-
+            file_to_filter = init_EM_adjusted_counts_fusions_file
 
         ## need to filter based on remaining fusion support.
         fusion_summary_min_score_thresh_file = file_to_filter + ".min_frag_thresh"
 
+        cmdstr = str(
+            os.sep.join([UTILDIR, "filter_fusions_by_frag_thresholds.pl"])
+            + " --min_junction_reads "
+            + str(args_parsed.min_junction_reads)
+            + " --min_sum_frags "
+            + str(args_parsed.min_sum_frags)
+            + " --min_novel_junction_support "
+            + str(args_parsed.min_novel_junction_support)
+            + " --min_spanning_frags_only "
+            + str(args_parsed.min_spanning_frags_only)
+            + " --fusion_preds "
+            + file_to_filter
+            + " --require_LDAS "
+            + str(args_parsed.require_LDAS)
+            + " > "
+            + fusion_summary_min_score_thresh_file
+        )
 
+        pipeliner.add_commands([Command(cmdstr, "filter_by_frag_threshs.ok")])
 
-        cmdstr = str(os.sep.join([UTILDIR, "filter_fusions_by_frag_thresholds.pl"]) +
-                     " --min_junction_reads " + str(args_parsed.min_junction_reads) +
-                     " --min_sum_frags " + str(args_parsed.min_sum_frags) +
-                     " --min_novel_junction_support " + str(args_parsed.min_novel_junction_support) +
-                     " --min_spanning_frags_only " + str(args_parsed.min_spanning_frags_only) +
-                     " --fusion_preds " + file_to_filter +
-                     " --require_LDAS " + str(args_parsed.require_LDAS) +
-                     " > " + fusion_summary_min_score_thresh_file)
-        
-
-        pipeliner.add_commands([Command(cmdstr, "filter_by_frag_threshs.ok")]) 
-        
-        
         if args_parsed.include_Trinity or args_parsed.vis:
 
             #################################################################
@@ -511,165 +822,278 @@ class FusionInspector:
 
             ## Junction reads
 
-            summary_junctions_reads_list_filename = fusion_summary_file + ".fusion_junction_read_accs"
-            cmdstr = str(os.sep.join([UTILDIR, "column_extractions.pl"]) +
-                         " " + fusion_summary_file +
-                         " LeftGene,RightGene,JunctionReads " +
-                         " > " + summary_junctions_reads_list_filename)
+            summary_junctions_reads_list_filename = (
+                fusion_summary_file + ".fusion_junction_read_accs"
+            )
+            cmdstr = str(
+                os.sep.join([UTILDIR, "column_extractions.pl"])
+                + " "
+                + fusion_summary_file
+                + " LeftGene,RightGene,JunctionReads "
+                + " > "
+                + summary_junctions_reads_list_filename
+            )
 
-            pipeliner.add_commands([Command(cmdstr, "prep_igv_extract_junc_reads.ok")]) 
-
+            pipeliner.add_commands([Command(cmdstr, "prep_igv_extract_junc_reads.ok")])
 
             ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
 
-            consolidated_junction_reads_bam =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".junction_reads.bam"])
-            cmdstr = str(UTILDIR + "/retrieve_fusion_junction_reads_by_accession.pl " + summary_junctions_reads_list_filename
-                         + " " + ",".join(fusion_junction_sam_files_list) +
-                         " | samtools view -@ " + str(args_parsed.CPU) + " -bT " + mergedContig_fasta_filename + " - " +
-                         " | samtools sort -@ " + str(args_parsed.CPU) + " - -o " + consolidated_junction_reads_bam)
-            cmdstr = "bash -c \"set -eof pipefail; {}\"".format(cmdstr)
-            
-            pipeliner.add_commands([Command(cmdstr, "prep_igv_junc_reads_bam.ok")]) 
+            consolidated_junction_reads_bam = os.sep.join(
+                [
+                    args_parsed.str_out_dir,
+                    args_parsed.out_prefix + ".junction_reads.bam",
+                ]
+            )
+            cmdstr = str(
+                UTILDIR
+                + "/retrieve_fusion_junction_reads_by_accession.pl "
+                + summary_junctions_reads_list_filename
+                + " "
+                + ",".join(fusion_junction_sam_files_list)
+                + " | samtools view -@ "
+                + str(args_parsed.CPU)
+                + " -bT "
+                + mergedContig_fasta_filename
+                + " - "
+                + " | samtools sort -@ "
+                + str(args_parsed.CPU)
+                + " - -o "
+                + consolidated_junction_reads_bam
+            )
+            cmdstr = 'bash -c "set -eof pipefail; {}"'.format(cmdstr)
+
+            pipeliner.add_commands([Command(cmdstr, "prep_igv_junc_reads_bam.ok")])
 
             cmdstr = "samtools index " + consolidated_junction_reads_bam
-            
-            pipeliner.add_commands([Command(cmdstr, "samtools_idx_junc_reads_bam.ok")]) 
+
+            pipeliner.add_commands([Command(cmdstr, "samtools_idx_junc_reads_bam.ok")])
 
             if args_parsed.vis:
                 self.bam_to_bed(consolidated_junction_reads_bam, pipeliner)
 
-
             ## Spanning reads
 
-            summary_spanning_reads_list_filename = fusion_summary_file + ".fusion_spanning_read_accs"
-            cmdstr = str(os.sep.join([UTILDIR, "column_extractions.pl"]) +
-                         " " + fusion_summary_file +
-                         " LeftGene,RightGene,SpanningFrags " +
-                         " > " + summary_spanning_reads_list_filename)
+            summary_spanning_reads_list_filename = (
+                fusion_summary_file + ".fusion_spanning_read_accs"
+            )
+            cmdstr = str(
+                os.sep.join([UTILDIR, "column_extractions.pl"])
+                + " "
+                + fusion_summary_file
+                + " LeftGene,RightGene,SpanningFrags "
+                + " > "
+                + summary_spanning_reads_list_filename
+            )
 
-            pipeliner.add_commands([Command(cmdstr, "span_reads_acc.ok")]) 
+            pipeliner.add_commands([Command(cmdstr, "span_reads_acc.ok")])
 
             ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
 
-            consolidated_spanning_reads_bam =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".spanning_reads.bam"])
-            cmdstr = str(UTILDIR + "/retrieve_fusion_spanning_reads_by_accession.pl " + summary_spanning_reads_list_filename
-                         + " " + ",".join(fusion_spanning_sam_files_list) +
-                         " | samtools view -@ " + str(args_parsed.CPU) + " -bT " + mergedContig_fasta_filename + " - " +
-                         " | samtools sort -@ " + str(args_parsed.CPU) + " - -o " + consolidated_spanning_reads_bam)
+            consolidated_spanning_reads_bam = os.sep.join(
+                [
+                    args_parsed.str_out_dir,
+                    args_parsed.out_prefix + ".spanning_reads.bam",
+                ]
+            )
+            cmdstr = str(
+                UTILDIR
+                + "/retrieve_fusion_spanning_reads_by_accession.pl "
+                + summary_spanning_reads_list_filename
+                + " "
+                + ",".join(fusion_spanning_sam_files_list)
+                + " | samtools view -@ "
+                + str(args_parsed.CPU)
+                + " -bT "
+                + mergedContig_fasta_filename
+                + " - "
+                + " | samtools sort -@ "
+                + str(args_parsed.CPU)
+                + " - -o "
+                + consolidated_spanning_reads_bam
+            )
             # + " || : ") # again, cant afford for this to fail due to lack of evidence reads.
 
-            pipeliner.add_commands([Command(cmdstr, "prep_spanning_reads.ok")])             
+            pipeliner.add_commands([Command(cmdstr, "prep_spanning_reads.ok")])
 
             cmdstr = "samtools index " + consolidated_spanning_reads_bam
-            pipeliner.add_commands([Command(cmdstr, "samtools_index_span_reads_bam.ok")]) 
+            pipeliner.add_commands(
+                [Command(cmdstr, "samtools_index_span_reads_bam.ok")]
+            )
 
             if args_parsed.vis:
                 self.bam_to_bed(consolidated_spanning_reads_bam, pipeliner)
 
-
             # consolidate all fusion-contig aligned reads into a single bam file
-            #consolidated_bam_file =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix  + ".consolidated"])
+            # consolidated_bam_file =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix  + ".consolidated"])
 
             consolidated_bam_file = bam_files_list[0]  # just STAR now.
-                
+
             ## only using STAR now.... just use the existing star bam file.
-            #cmdstr = str(UTILDIR + "/consolidate_bams_and_uniq_reads.pl " +
+            # cmdstr = str(UTILDIR + "/consolidate_bams_and_uniq_reads.pl " +
             #             workdir_mergedContig_fasta_filename + " " +
             #             ",".join(bam_files_list) + " " +
             #            consolidated_bam_file)
 
-            #consolidated_bam_file += ".cSorted.bam"
+            # consolidated_bam_file += ".cSorted.bam"
 
-            #pipeliner.add_commands([Command(cmdstr, "consolidate_bam_and_uniq_readss.ok")]) 
-            
+            # pipeliner.add_commands([Command(cmdstr, "consolidate_bam_and_uniq_readss.ok")])
 
-            outdir_consolidated_bam_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix  + ".consolidated.bam"])
-            
+            outdir_consolidated_bam_file = os.sep.join(
+                [args_parsed.str_out_dir, args_parsed.out_prefix + ".consolidated.bam"]
+            )
+
             cmdstr = "cp " + consolidated_bam_file + " " + outdir_consolidated_bam_file
-            pipeliner.add_commands([Command(cmdstr, "cp_consol_bam.ok")]) 
+            pipeliner.add_commands([Command(cmdstr, "cp_consol_bam.ok")])
 
             cmdstr = "samtools index {}".format(outdir_consolidated_bam_file)
             pipeliner.add_commands([Command(cmdstr, "index_consol_bam.ok")])
-            
-            
+
             if args_parsed.include_Trinity:
 
                 ############################
                 # run genome-guided Trinity
                 ############################
 
-
                 trinity_out_dir = os.sep.join([workdir, "trinity_GG"])
                 trinity_fasta_filename = trinity_out_dir + "/Trinity-GG.fasta"
 
-                cmdstr = str(TRINITY_HOME + "/Trinity --genome_guided_bam " + outdir_consolidated_bam_file +
-                             " --max_memory 20G --genome_guided_max_intron 1000000 --CPU " +  str(args_parsed.CPU) + " --min_contig_length 100 " +
-                             " --output " + trinity_out_dir)
+                cmdstr = str(
+                    TRINITY_HOME
+                    + "/Trinity --genome_guided_bam "
+                    + outdir_consolidated_bam_file
+                    + " --max_memory 20G --genome_guided_max_intron 1000000 --CPU "
+                    + str(args_parsed.CPU)
+                    + " --min_contig_length 100 "
+                    + " --output "
+                    + trinity_out_dir
+                )
 
-                pipeliner.add_commands([Command(cmdstr, "run_trinity.ok")]) 
+                pipeliner.add_commands([Command(cmdstr, "run_trinity.ok")])
 
                 ## Run TrinityGG, reconstruct fusion transcripts locally via de novo assembly
-                trinGG_fusion_gff3 = self.add_trinfusion_gmap_subpipe(args_parsed, workdir_mergedContig_fasta_filename,
-                                                                      workdir_mergedContig_gtf_filename, trinity_fasta_filename, pipeliner, workdir)
-                
-                # merge de novo assembly fusion results w/ read-based fusion results:
-                fusion_summary_w_trinity = fusion_summary_min_score_thresh_file + ".wTrinityGG"
-                cmdstr = str(UTILDIR + "/add_TrinityGG_to_fusion_summary.pl " + fusion_summary_min_score_thresh_file +
-                             " " + trinGG_fusion_gff3 +
-                             " > " + fusion_summary_w_trinity)
-                
-                pipeliner.add_commands([Command(cmdstr, "add_trinity_fusions_to_summary.ok")]) 
-                
-                fusion_summary_min_score_thresh_file = fusion_summary_w_trinity  ## NOTE, VARIABLE REPLACEMENT HERE INCL TRINITY RESULTS
+                trinGG_fusion_gff3 = self.add_trinfusion_gmap_subpipe(
+                    args_parsed,
+                    workdir_mergedContig_fasta_filename,
+                    workdir_mergedContig_gtf_filename,
+                    trinity_fasta_filename,
+                    pipeliner,
+                    workdir,
+                )
 
+                # merge de novo assembly fusion results w/ read-based fusion results:
+                fusion_summary_w_trinity = (
+                    fusion_summary_min_score_thresh_file + ".wTrinityGG"
+                )
+                cmdstr = str(
+                    UTILDIR
+                    + "/add_TrinityGG_to_fusion_summary.pl "
+                    + fusion_summary_min_score_thresh_file
+                    + " "
+                    + trinGG_fusion_gff3
+                    + " > "
+                    + fusion_summary_w_trinity
+                )
+
+                pipeliner.add_commands(
+                    [Command(cmdstr, "add_trinity_fusions_to_summary.ok")]
+                )
+
+                fusion_summary_min_score_thresh_file = fusion_summary_w_trinity  ## NOTE, VARIABLE REPLACEMENT HERE INCL TRINITY RESULTS
 
             if args_parsed.vis:
                 ## just make the coords file
 
-                cmdstr = str(UTILDIR + "/SAM_to_frag_coords.pl --sam " + outdir_consolidated_bam_file +
-                             " --max_insert_size 10000000 "); 
+                cmdstr = str(
+                    UTILDIR
+                    + "/SAM_to_frag_coords.pl --sam "
+                    + outdir_consolidated_bam_file
+                    + " --max_insert_size 10000000 "
+                )
 
-                pipeliner.add_commands([Command(cmdstr, "prep_igv_sam_frag_coordss.ok")]) 
+                pipeliner.add_commands(
+                    [Command(cmdstr, "prep_igv_sam_frag_coordss.ok")]
+                )
 
                 ## Prep IGV fusion junction view
 
                 frag_coords_file = outdir_consolidated_bam_file + ".frag_coords"
-                igv_junc_view_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.FusionJuncSpan"])
+                igv_junc_view_file = os.sep.join(
+                    [
+                        args_parsed.str_out_dir,
+                        args_parsed.out_prefix + ".igv.FusionJuncSpan",
+                    ]
+                )
 
-                cmdstr = str(UTILDIR + "/fusion_summary_to_igv_JuncSpan_fmt.pl " + fusion_summary_file + " " +
-                            frag_coords_file + " > " + igv_junc_view_file)
+                cmdstr = str(
+                    UTILDIR
+                    + "/fusion_summary_to_igv_JuncSpan_fmt.pl "
+                    + fusion_summary_file
+                    + " "
+                    + frag_coords_file
+                    + " > "
+                    + igv_junc_view_file
+                )
 
-                pipeliner.add_commands([Command(cmdstr, "prep_igv_juncspan_fmt.ok")]) 
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_juncspan_fmt.ok")])
 
                 ########## Pfam Matches
                 ## add pfam matches in genome coordinates:
 
-                pfam_igv_gff3_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.Pfam.gff3"])
-                cmdstr = str(UTILDIR + "/get_pfam_domain_info.pl --finspector_gtf {} ".format(mergedContig_gtf_filename) +
-                             " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir) +
-                             " > {} ".format(pfam_igv_gff3_filename) )
+                pfam_igv_gff3_filename = os.sep.join(
+                    [args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.Pfam.gff3"]
+                )
+                cmdstr = str(
+                    UTILDIR
+                    + "/get_pfam_domain_info.pl --finspector_gtf {} ".format(
+                        mergedContig_gtf_filename
+                    )
+                    + " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir)
+                    + " > {} ".format(pfam_igv_gff3_filename)
+                )
                 pipeliner.add_commands([Command(cmdstr, "prep_igv_pfam_gff3.ok")])
 
                 ## must convert to bed for viewing
-                pfam_igv_bed_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.Pfam.bed"])
-                cmdstr = str(UTILDIR + "/transcript_gff3_to_bed.pl {} > {}".format(pfam_igv_gff3_filename, pfam_igv_bed_filename) )
+                pfam_igv_bed_filename = os.sep.join(
+                    [args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.Pfam.bed"]
+                )
+                cmdstr = str(
+                    UTILDIR
+                    + "/transcript_gff3_to_bed.pl {} > {}".format(
+                        pfam_igv_gff3_filename, pfam_igv_bed_filename
+                    )
+                )
                 pipeliner.add_commands([Command(cmdstr, "prep_igv_pfam_bed.ok")])
-                
 
-                ######## Seq Similar Regions 
+                ######## Seq Similar Regions
                 ## add seq-similar region info
-                seqsimilar_igv_gff3_filename = os.path.join(args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.seqsimilar.gff3")
-                cmdstr = str(UTILDIR + "/get_seq_similar_region_FI_coordinates.pl --finspector_gtf {} ".format(mergedContig_gtf_filename) +
-                             " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir) +
-                             " > {} ".format(seqsimilar_igv_gff3_filename) )
+                seqsimilar_igv_gff3_filename = os.path.join(
+                    args_parsed.str_out_dir,
+                    args_parsed.out_prefix + ".igv.seqsimilar.gff3",
+                )
+                cmdstr = str(
+                    UTILDIR
+                    + "/get_seq_similar_region_FI_coordinates.pl --finspector_gtf {} ".format(
+                        mergedContig_gtf_filename
+                    )
+                    + " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir)
+                    + " > {} ".format(seqsimilar_igv_gff3_filename)
+                )
                 pipeliner.add_commands([Command(cmdstr, "prep_igv_seqsim_gff3.ok")])
-                
-                ## must convert to bed for viewing
-                seqsimilar_igv_bed_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.seqsimilar.bed"])
-                cmdstr = str(UTILDIR + "/transcript_gff3_to_bed.pl {} > {}".format(seqsimilar_igv_gff3_filename, seqsimilar_igv_bed_filename) )
-                pipeliner.add_commands([Command(cmdstr, "prep_igv_seqsim_bed.ok")])
 
-                
+                ## must convert to bed for viewing
+                seqsimilar_igv_bed_filename = os.sep.join(
+                    [
+                        args_parsed.str_out_dir,
+                        args_parsed.out_prefix + ".igv.seqsimilar.bed",
+                    ]
+                )
+                cmdstr = str(
+                    UTILDIR
+                    + "/transcript_gff3_to_bed.pl {} > {}".format(
+                        seqsimilar_igv_gff3_filename, seqsimilar_igv_bed_filename
+                    )
+                )
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_seqsim_bed.ok")])
 
         ####################
         ## Add splicing info
@@ -677,346 +1101,546 @@ class FusionInspector:
 
         trinity_ok_token = "wTrinity" if args_parsed.include_Trinity else ""
 
-        preds_including_splice_info_file = fusion_summary_min_score_thresh_file + ".wSpliceInfo"
+        preds_including_splice_info_file = (
+            fusion_summary_min_score_thresh_file + ".wSpliceInfo"
+        )
 
-        cmdstr = str(UTILDIR + "/append_breakpoint_junction_info_via_FI_contigs.pl " +
-                     fusion_summary_min_score_thresh_file + " " +
-                     mergedContig_fasta_filename +
-                     " > " + preds_including_splice_info_file)
+        cmdstr = str(
+            UTILDIR
+            + "/append_breakpoint_junction_info_via_FI_contigs.pl "
+            + fusion_summary_min_score_thresh_file
+            + " "
+            + mergedContig_fasta_filename
+            + " > "
+            + preds_including_splice_info_file
+        )
 
-        pipeliner.add_commands([Command(cmdstr, "add_splice_info{}.ok".format(trinity_ok_token))]) 
-
-                
+        pipeliner.add_commands(
+            [Command(cmdstr, "add_splice_info{}.ok".format(trinity_ok_token))]
+        )
 
         ################################################
         ## Score and filter the final fusion predictions
         ################################################
 
-        post_blast_promisc_filter_fusions_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".post_blast_and_promiscuity_filter"])
-        
-        cmdstr = str(UTILDIR + "/../FusionFilter/blast_and_promiscuity_filter.pl " +
-                     " --fusion_preds " + preds_including_splice_info_file +
-                     " --out_prefix " + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix]) +
-                     " --genome_lib_dir " + args_parsed.genome_lib_dir +
-                     " --max_promiscuity " + str(args_parsed.max_promiscuity) +
-                     " --min_pct_dom_promiscuity " + str(args_parsed.min_pct_dom_promiscuity) )
+        post_blast_promisc_filter_fusions_file = os.sep.join(
+            [
+                args_parsed.str_out_dir,
+                args_parsed.out_prefix + ".post_blast_and_promiscuity_filter",
+            ]
+        )
 
-        pipeliner.add_commands([Command(cmdstr, "blast_filter{}.ok".format(trinity_ok_token))]) 
+        cmdstr = str(
+            UTILDIR
+            + "/../FusionFilter/blast_and_promiscuity_filter.pl "
+            + " --fusion_preds "
+            + preds_including_splice_info_file
+            + " --out_prefix "
+            + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix])
+            + " --genome_lib_dir "
+            + args_parsed.genome_lib_dir
+            + " --max_promiscuity "
+            + str(args_parsed.max_promiscuity)
+            + " --min_pct_dom_promiscuity "
+            + str(args_parsed.min_pct_dom_promiscuity)
+        )
 
+        pipeliner.add_commands(
+            [Command(cmdstr, "blast_filter{}.ok".format(trinity_ok_token))]
+        )
 
         ## Filter based on annotation rules
-        cmdstr = str(UTILDIR + "/../FusionFilter/util/filter_by_annotation_rules.pl " +
-                     " --fusions {}".format(post_blast_promisc_filter_fusions_file) +
-                     " --genome_lib_dir {}".format(genome_lib_dir))
+        cmdstr = str(
+            UTILDIR
+            + "/../FusionFilter/util/filter_by_annotation_rules.pl "
+            + " --fusions {}".format(post_blast_promisc_filter_fusions_file)
+            + " --genome_lib_dir {}".format(genome_lib_dir)
+        )
 
-        pipeliner.add_commands([Command(cmdstr, "annot_filter{}.ok".format(trinity_ok_token))])
+        pipeliner.add_commands(
+            [Command(cmdstr, "annot_filter{}.ok".format(trinity_ok_token))]
+        )
 
-        annot_pass_fusions_file = "{}.annot_filter.pass".format(post_blast_promisc_filter_fusions_file)
-
+        annot_pass_fusions_file = "{}.annot_filter.pass".format(
+            post_blast_promisc_filter_fusions_file
+        )
 
         fusions_file = annot_pass_fusions_file
 
         if not args_parsed.SKIP_EM_FLAG:
             ## adjust counts using EM
             EM_adjusted_counts_fusions_file = annot_pass_fusions_file + ".EMadj"
-            cmdstr = str(UTILDIR + "/fusion_EM_runner.pl {} > {}".format(fusions_file, EM_adjusted_counts_fusions_file))
+            cmdstr = str(
+                UTILDIR
+                + "/fusion_EM_runner.pl {} > {}".format(
+                    fusions_file, EM_adjusted_counts_fusions_file
+                )
+            )
             pipeliner.add_commands([Command(cmdstr, "EM_adj_counts.ok")])
 
-            fusions_file =  EM_adjusted_counts_fusions_file
+            fusions_file = EM_adjusted_counts_fusions_file
 
-        
         ## add FFPM calculations
-        if args_parsed.left_fq_filename and not args_parsed.no_FFPM: # note, doesn't yet work with samples file, instead needs left.fq
-            cmdstr = str( os.path.sep.join([UTILDIR, "incorporate_FFPM_into_final_report.pl"]) +
-                          " " + args_parsed.left_fq_filename +
-                          " " + fusions_file +
-                          " > " + fusions_file + ".FFPM" )
-            
-            pipeliner.add_commands([Command(cmdstr, "add_FFPM{}.ok".format(trinity_ok_token))])
+        if (
+            args_parsed.left_fq_filename and not args_parsed.no_FFPM
+        ):  # note, doesn't yet work with samples file, instead needs left.fq
+            cmdstr = str(
+                os.path.sep.join([UTILDIR, "incorporate_FFPM_into_final_report.pl"])
+                + " "
+                + args_parsed.left_fq_filename
+                + " "
+                + fusions_file
+                + " > "
+                + fusions_file
+                + ".FFPM"
+            )
+
+            pipeliner.add_commands(
+                [Command(cmdstr, "add_FFPM{}.ok".format(trinity_ok_token))]
+            )
 
             fusions_file = fusions_file + ".FFPM"
-            
-        
 
-                
-        final_fusions_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".FusionInspector.fusions.tsv"])
+        final_fusions_file = os.sep.join(
+            [
+                args_parsed.str_out_dir,
+                args_parsed.out_prefix + ".FusionInspector.fusions.tsv",
+            ]
+        )
         cmdstr = str("cp {} {}".format(fusions_file, final_fusions_file))
-        pipeliner.add_commands([Command(cmdstr, "cp_final{}.ok".format(trinity_ok_token))])
+        pipeliner.add_commands(
+            [Command(cmdstr, "cp_final{}.ok".format(trinity_ok_token))]
+        )
 
-        
         ## back to regular non-deconvolved fusions file
         ## make an abridged version that lacks the list of supporting reads.
 
-        abridged_final_fusions_file = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".FusionInspector.fusions.abridged.tsv"])
-        cmdstr = str(UTILDIR + "/column_exclusions.pl " + final_fusions_file +
-                     " JunctionReads,SpanningFrags,CounterFusionLeftReads,CounterFusionRightReads " +
-                     " > " + abridged_final_fusions_file );
-        pipeliner.add_commands([Command(cmdstr, "final.abridged{}.ok".format(trinity_ok_token))]) 
-        
-        
+        abridged_final_fusions_file = os.sep.join(
+            [
+                args_parsed.str_out_dir,
+                args_parsed.out_prefix + ".FusionInspector.fusions.abridged.tsv",
+            ]
+        )
+        cmdstr = str(
+            UTILDIR
+            + "/column_exclusions.pl "
+            + final_fusions_file
+            + " JunctionReads,SpanningFrags,CounterFusionLeftReads,CounterFusionRightReads "
+            + " > "
+            + abridged_final_fusions_file
+        )
+        pipeliner.add_commands(
+            [Command(cmdstr, "final.abridged{}.ok".format(trinity_ok_token))]
+        )
+
         unabridged_final_fusions_file = final_fusions_file
-        final_fusions_file = abridged_final_fusions_file ## use the abridged version from here on
+        final_fusions_file = (
+            abridged_final_fusions_file  ## use the abridged version from here on
+        )
 
-            
-
-        
         if args_parsed.vis:
-            ## generate the fusion-inspector-web galaxy js 
+            ## generate the fusion-inspector-web galaxy js
 
-            json_file = os.path.sep.join( [ args_parsed.str_out_dir, args_parsed.out_prefix + ".fusion_inspector_web.json" ] )
+            json_file = os.path.sep.join(
+                [
+                    args_parsed.str_out_dir,
+                    args_parsed.out_prefix + ".fusion_inspector_web.json",
+                ]
+            )
 
-            cmdstr = str( os.path.sep.join( [ UTILDIR, "create_fusion_inspector_igvjs.py" ] ) +
-                          " --fusion_inspector_directory " + args_parsed.str_out_dir +
-                          " --json_outfile {}".format(json_file) +   
-                          " --file_prefix " + args_parsed.out_prefix )
-            
+            cmdstr = str(
+                os.path.sep.join([UTILDIR, "create_fusion_inspector_igvjs.py"])
+                + " --fusion_inspector_directory "
+                + args_parsed.str_out_dir
+                + " --json_outfile {}".format(json_file)
+                + " --file_prefix "
+                + args_parsed.out_prefix
+            )
+
             if args_parsed.include_Trinity:
                 cmdstr = cmdstr + " --include_Trinity"
 
-
-            pipeliner.add_commands([Command(cmdstr, "create_fi_igvjs{}.ok".format(trinity_ok_token))])
-
+            pipeliner.add_commands(
+                [Command(cmdstr, "create_fi_igvjs{}.ok".format(trinity_ok_token))]
+            )
 
             ## make igv-report fusion report
-            html_template = os.path.sep.join([BASEDIR, "util", "fusion_report_html_template", "igvjs_fusion.html"])
-            cmdstr = str(os.path.sep.join([BASEDIR, "fusion-reports", "create_fusion_report.py"]) +
-                         " --html_template {}".format(html_template) +
-                         " --fusions_json {}".format(json_file) +
-                         " --input_file_prefix {}".format(args_parsed.out_prefix) +
-                         " --html_output {}".format(os.path.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".fusion_inspector_web.html"]) ) )
+            html_template = os.path.sep.join(
+                [BASEDIR, "util", "fusion_report_html_template", "igvjs_fusion.html"]
+            )
+            cmdstr = str(
+                os.path.sep.join([BASEDIR, "fusion-reports", "create_fusion_report.py"])
+                + " --html_template {}".format(html_template)
+                + " --fusions_json {}".format(json_file)
+                + " --input_file_prefix {}".format(args_parsed.out_prefix)
+                + " --html_output {}".format(
+                    os.path.sep.join(
+                        [
+                            args_parsed.str_out_dir,
+                            args_parsed.out_prefix + ".fusion_inspector_web.html",
+                        ]
+                    )
+                )
+            )
 
-            pipeliner.add_commands([Command(cmdstr, "fusion_reports_html{}.ok".format(trinity_ok_token))])
-
-            
-        
+            pipeliner.add_commands(
+                [Command(cmdstr, "fusion_reports_html{}.ok".format(trinity_ok_token))]
+            )
 
         ## annotate
-        
-        if (args_parsed.annotate):
+
+        if args_parsed.annotate:
 
             annotated_fusions_file = final_fusions_file + ".annotated"
-            
-            cmdstr = str(os.path.sep.join( [BASEDIR, "FusionAnnotator", "FusionAnnotator"] ) +
-                         " --annotate {} ".format(final_fusions_file) +
-                         " --genome_lib_dir {}".format(genome_lib_dir) +
-                         " > {} ".format(annotated_fusions_file) )
 
-            pipeliner.add_commands([Command(cmdstr, "fusion_annotator{}.ok".format(trinity_ok_token))]) 
+            cmdstr = str(
+                os.path.sep.join([BASEDIR, "FusionAnnotator", "FusionAnnotator"])
+                + " --annotate {} ".format(final_fusions_file)
+                + " --genome_lib_dir {}".format(genome_lib_dir)
+                + " > {} ".format(annotated_fusions_file)
+            )
+
+            pipeliner.add_commands(
+                [Command(cmdstr, "fusion_annotator{}.ok".format(trinity_ok_token))]
+            )
 
             final_fusions_file = annotated_fusions_file
 
+        if args_parsed.examine_coding_effect:
 
-        if (args_parsed.examine_coding_effect):
-            
             coding_effect_file = final_fusions_file + ".coding_effect"
-            
-            cmdstr = str(os.path.sep.join( [BASEDIR, "FusionAnnotator", "util", "fusion_to_coding_region_effect.pl"] ) +
-                         " --fusions {} ".format(final_fusions_file) +
-                         " --genome_lib_dir {}".format(genome_lib_dir) +
-                         " > {} ".format(coding_effect_file) )
 
-            pipeliner.add_commands([Command(cmdstr, "fusion_coding_region_effect{}.ok".format(trinity_ok_token))]) 
+            cmdstr = str(
+                os.path.sep.join(
+                    [
+                        BASEDIR,
+                        "FusionAnnotator",
+                        "util",
+                        "fusion_to_coding_region_effect.pl",
+                    ]
+                )
+                + " --fusions {} ".format(final_fusions_file)
+                + " --genome_lib_dir {}".format(genome_lib_dir)
+                + " > {} ".format(coding_effect_file)
+            )
+
+            pipeliner.add_commands(
+                [
+                    Command(
+                        cmdstr,
+                        "fusion_coding_region_effect{}.ok".format(trinity_ok_token),
+                    )
+                ]
+            )
 
             final_fusions_file = coding_effect_file
-
 
         if args_parsed.extract_fusion_reads_file:
 
             fusion_reads_file = args_parsed.extract_fusion_reads_file
-            
-            cmdstr = str(os.path.sep.join( [BASEDIR, "util", "get_fusion_evidence_fastqs.pl"]) +
-                         " --fusions " + unabridged_final_fusions_file)
+
+            cmdstr = str(
+                os.path.sep.join([BASEDIR, "util", "get_fusion_evidence_fastqs.pl"])
+                + " --fusions "
+                + unabridged_final_fusions_file
+            )
 
             if args_parsed.samples_file:
                 cmdstr += " --samples_file {} ".format(args_parsed.samples_file)
             elif args_parsed.left_fq_filename:
                 cmdstr += " --left_fq {} ".format(args_parsed.left_fq_filename)
-            
+
                 if args_parsed.right_fq_filename:
                     cmdstr += " --right_fq {} ".format(args_parsed.right_fq_filename)
 
-            cmdstr += " --output_prefix {} ".format(args_parsed.extract_fusion_reads_file)
-            
-            
-            pipeliner.add_commands([Command(cmdstr, "get_fusion_evidence_fqs{}.ok".format(trinity_ok_token))]) 
-        
-        
+            cmdstr += " --output_prefix {} ".format(
+                args_parsed.extract_fusion_reads_file
+            )
+
+            pipeliner.add_commands(
+                [
+                    Command(
+                        cmdstr, "get_fusion_evidence_fqs{}.ok".format(trinity_ok_token)
+                    )
+                ]
+            )
+
         ## cleanup
         if args_parsed.cleanup:
 
-            workdir_cleaned_file = os.path.sep.join([args_parsed.str_out_dir, "workdir.cleaned"])
+            workdir_cleaned_file = os.path.sep.join(
+                [args_parsed.str_out_dir, "workdir.cleaned"]
+            )
             cmdstr = "/bin/rm -rf " + workdir
-            
-            pipeliner.add_commands([Command(cmdstr, "final_cleanup{}.ok".format(trinity_ok_token))]) 
 
-                    
+            pipeliner.add_commands(
+                [Command(cmdstr, "final_cleanup{}.ok".format(trinity_ok_token))]
+            )
 
         ## Run it
         pipeliner.run()
-    
-    
-    def get_fusion_and_spanning_reads (self, args_parsed, mergedContig_gtf_filename, mergedContig_fasta_filename, bam_file, pipeliner):
-        
+
+    def get_fusion_and_spanning_reads(
+        self,
+        args_parsed,
+        mergedContig_gtf_filename,
+        mergedContig_fasta_filename,
+        bam_file,
+        pipeliner,
+    ):
+
         ## extract the fusion JUNCTION reads
         fusion_junction_reads_sam_file = bam_file + ".fusion_junc_reads.sam"
         fusion_junction_info_file = bam_file + ".fusion_junction_info"
-        
-        cmdstr = str(os.sep.join([UTILDIR, "get_fusion_JUNCTION_reads_from_fusion_contig_bam.pl"]) +
-                     " --gtf_file " + mergedContig_gtf_filename +
-                     " --MIN_ALIGN_PER_ID " + str(args_parsed.min_per_id) +
-                     " --bam " + bam_file +
-                     " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir) +
-                     " > " + fusion_junction_reads_sam_file)
 
-        pipeliner.add_commands([Command(cmdstr, "get_fusion_JUNCTION_reads_from_bam.ok")]) 
+        cmdstr = str(
+            os.sep.join(
+                [UTILDIR, "get_fusion_JUNCTION_reads_from_fusion_contig_bam.pl"]
+            )
+            + " --gtf_file "
+            + mergedContig_gtf_filename
+            + " --MIN_ALIGN_PER_ID "
+            + str(args_parsed.min_per_id)
+            + " --bam "
+            + bam_file
+            + " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir)
+            + " > "
+            + fusion_junction_reads_sam_file
+        )
+
+        pipeliner.add_commands(
+            [Command(cmdstr, "get_fusion_JUNCTION_reads_from_bam.ok")]
+        )
 
         if args_parsed.write_intermediate_results:
-            self.sort_sam_to_bam(fusion_junction_reads_sam_file, mergedContig_fasta_filename, pipeliner)
+            self.sort_sam_to_bam(
+                fusion_junction_reads_sam_file, mergedContig_fasta_filename, pipeliner
+            )
 
             ## convert the fusion JUNCTION reads sam file to bed format
             fusion_junction_reads_bed_file = bam_file + ".fusion_junc_reads.bed"
-            cmdstr = str(UTILDIR + "/SAM_to_bed.pl " + fusion_junction_reads_sam_file +
-                         " > " + fusion_junction_reads_bed_file)
+            cmdstr = str(
+                UTILDIR
+                + "/SAM_to_bed.pl "
+                + fusion_junction_reads_sam_file
+                + " > "
+                + fusion_junction_reads_bed_file
+            )
 
-            pipeliner.add_commands([Command(cmdstr, "fusion_junc_reads_to_bed_intermediates.ok")])
-            
+            pipeliner.add_commands(
+                [Command(cmdstr, "fusion_junc_reads_to_bed_intermediates.ok")]
+            )
+
             self.sort_and_index_bed(fusion_junction_reads_bed_file, pipeliner)
-            
 
-        
         ## extract the fusion SPANNING reads
         fusion_spanning_reads_sam_file = bam_file + ".fusion_span_reads.sam"
         fusion_spanning_reads_info_file = bam_file + ".fusion_spanning_info"
 
-        cmdstr = str(os.sep.join([UTILDIR, "get_fusion_SPANNING_reads_from_bam.from_chim_summary.pl"]) + 
-                     " --gtf_file " + mergedContig_gtf_filename +
-                     " --MIN_ALIGN_PER_ID " + str(args_parsed.min_per_id) +
-                     " --bam " + bam_file +
-                     " --junction_info " + fusion_junction_info_file +
-                     " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir) + 
-                     " > " + fusion_spanning_reads_sam_file)
-        
-        pipeliner.add_commands([Command(cmdstr, "get_fusion_SPANNING_reads_from_bam.ok")]) 
+        cmdstr = str(
+            os.sep.join(
+                [UTILDIR, "get_fusion_SPANNING_reads_from_bam.from_chim_summary.pl"]
+            )
+            + " --gtf_file "
+            + mergedContig_gtf_filename
+            + " --MIN_ALIGN_PER_ID "
+            + str(args_parsed.min_per_id)
+            + " --bam "
+            + bam_file
+            + " --junction_info "
+            + fusion_junction_info_file
+            + " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir)
+            + " > "
+            + fusion_spanning_reads_sam_file
+        )
+
+        pipeliner.add_commands(
+            [Command(cmdstr, "get_fusion_SPANNING_reads_from_bam.ok")]
+        )
 
         if args_parsed.write_intermediate_results:
-            self.sort_sam_to_bam(fusion_spanning_reads_sam_file, mergedContig_fasta_filename, pipeliner)
+            self.sort_sam_to_bam(
+                fusion_spanning_reads_sam_file, mergedContig_fasta_filename, pipeliner
+            )
 
             ## convert the fusion JUNCTION reads sam file to bed format
             fusion_spanning_reads_bed_file = bam_file + ".fusion_span_reads.bed"
-            cmdstr = str(UTILDIR + "/SAM_pair_to_bed.pl " + fusion_spanning_reads_sam_file +
-                         " > " + fusion_spanning_reads_bed_file)
+            cmdstr = str(
+                UTILDIR
+                + "/SAM_pair_to_bed.pl "
+                + fusion_spanning_reads_sam_file
+                + " > "
+                + fusion_spanning_reads_bed_file
+            )
 
-            pipeliner.add_commands([Command(cmdstr, "spanning_reads_bed_intermediate.ok")]) 
+            pipeliner.add_commands(
+                [Command(cmdstr, "spanning_reads_bed_intermediate.ok")]
+            )
 
             self.sort_and_index_bed(fusion_spanning_reads_bed_file, pipeliner)
-
 
     def sort_and_index_bed(self, bed_file, pipeliner, checkpoint_token_prefix=None):
 
         if checkpoint_token_prefix is None:
             checkpoint_token_prefix = os.path.basename(bed_file)
-        
+
         # sort by contig name followed by coordinate
         sorted_bed_file = bed_file + ".sorted.bed"
 
         cmdstr = str("sort -k1,1 -k2,2n " + bed_file + " > " + sorted_bed_file)
-        
-        
-        pipeliner.add_commands([Command(cmdstr, checkpoint_token_prefix + ".bedsort.ok")]) 
 
-        
+        pipeliner.add_commands(
+            [Command(cmdstr, checkpoint_token_prefix + ".bedsort.ok")]
+        )
+
         # index using tabix (preferred for IGV-web)
         cmdstr = str("bgzip -f " + sorted_bed_file)
         pipeliner.add_commands([Command(cmdstr, checkpoint_token_prefix + ".bgzip.ok")])
-        
+
         cmdstr = str("tabix -p bed " + sorted_bed_file + ".gz")
         pipeliner.add_commands([Command(cmdstr, checkpoint_token_prefix + ".tabix.ok")])
 
         return
 
+    def sort_sam_to_bam(
+        self,
+        sam_file,
+        mergedContig_fasta_filename,
+        pipeliner,
+        checkpoint_token_prefix=None,
+    ):
 
-
-
-
-    def sort_sam_to_bam(self, sam_file, mergedContig_fasta_filename, pipeliner, checkpoint_token_prefix=None):
-
-        
         if checkpoint_token_prefix is None:
-            checkpoint_token_prefix = os.path.basename(sam_file) 
+            checkpoint_token_prefix = os.path.basename(sam_file)
 
+        cmdstr = str(
+            "set -o pipefail & samtools view -bT "
+            + mergedContig_fasta_filename
+            + " "
+            + sam_file
+            + " | samtools sort - -o "
+            + sam_file
+            + ".bam"
+        )
 
-        cmdstr = str("set -o pipefail & samtools view -bT " + mergedContig_fasta_filename + " " + sam_file +
-                     " | samtools sort - -o " + sam_file + ".bam")
-        
-        pipeliner.add_commands([Command(cmdstr, checkpoint_token_prefix + ".samToBam.ok")])
-        
-        
+        pipeliner.add_commands(
+            [Command(cmdstr, checkpoint_token_prefix + ".samToBam.ok")]
+        )
+
         # index it
         cmdstr = str("samtools index " + sam_file + ".bam")
-        pipeliner.add_commands([Command(cmdstr, checkpoint_token_prefix + ".samtools_idx.ok")])
-        
+        pipeliner.add_commands(
+            [Command(cmdstr, checkpoint_token_prefix + ".samtools_idx.ok")]
+        )
 
         return
 
-
-
     def bam_to_bed(self, bam_file, pipeliner, checkpoint_token_prefix=None):
-        
+
         if checkpoint_token_prefix is None:
-            checkpoint_token_prefix = os.path.basename(bam_file) 
+            checkpoint_token_prefix = os.path.basename(bam_file)
 
-
-        
         ## convert the reads bam file to bed format
-        cmdstr = str(UTILDIR + "/SAM_pair_to_bed.pl " + bam_file +
-                     " > " + bam_file + ".bed")
+        cmdstr = str(
+            UTILDIR + "/SAM_pair_to_bed.pl " + bam_file + " > " + bam_file + ".bed"
+        )
 
-        pipeliner.add_commands([Command(cmdstr, checkpoint_token_prefix + ".bam_to_bed.ok")])
+        pipeliner.add_commands(
+            [Command(cmdstr, checkpoint_token_prefix + ".bam_to_bed.ok")]
+        )
 
-        
         self.sort_and_index_bed(bam_file + ".bed", pipeliner, checkpoint_token_prefix)
 
         return
 
+    def add_trinfusion_gmap_subpipe(
+        self,
+        args_parsed,
+        mergedContig_fasta_filename,
+        mergedContig_gtf_filename,
+        trinity_fasta_filename,
+        pipeliner,
+        workdir,
+    ):
 
-    
-    def add_trinfusion_gmap_subpipe(self, args_parsed, mergedContig_fasta_filename, mergedContig_gtf_filename,
-                                    trinity_fasta_filename, pipeliner, workdir):
+        gmap_gff3_output_filename = os.sep.join(
+            [workdir, args_parsed.out_prefix + ".gmap_trinity_GG.gff3"]
+        )
 
-        gmap_gff3_output_filename = os.sep.join([workdir, args_parsed.out_prefix + ".gmap_trinity_GG.gff3"])
-
-        cmdstr = str(TRINITY_HOME + "/util/misc/process_GMAP_alignments_gff3_chimeras_ok.pl " +
-                     "--genome " + mergedContig_fasta_filename + " --transcripts " + trinity_fasta_filename +
-                     " --no_chimera > " + gmap_gff3_output_filename)
+        cmdstr = str(
+            TRINITY_HOME
+            + "/util/misc/process_GMAP_alignments_gff3_chimeras_ok.pl "
+            + "--genome "
+            + mergedContig_fasta_filename
+            + " --transcripts "
+            + trinity_fasta_filename
+            + " --no_chimera > "
+            + gmap_gff3_output_filename
+        )
 
         pipeliner.add_commands([Command(cmdstr, "trinity_gmap_alignment.ok")])
 
         ## extract the Trinity fusion transcripts
-        trinity_fusion_trans_filename = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".gmap_trinity_GG.fusions.gff3"])
-        cmdstr = str(os.sep.join([UTILDIR, "get_Trinity_fusion_alignments_from_gff3.pl"]) + " " + mergedContig_gtf_filename +
-                     " " + gmap_gff3_output_filename + " > " + trinity_fusion_trans_filename)
+        trinity_fusion_trans_filename = os.sep.join(
+            [
+                args_parsed.str_out_dir,
+                args_parsed.out_prefix + ".gmap_trinity_GG.fusions.gff3",
+            ]
+        )
+        cmdstr = str(
+            os.sep.join([UTILDIR, "get_Trinity_fusion_alignments_from_gff3.pl"])
+            + " "
+            + mergedContig_gtf_filename
+            + " "
+            + gmap_gff3_output_filename
+            + " > "
+            + trinity_fusion_trans_filename
+        )
 
-        pipeliner.add_commands([Command(cmdstr, "trinity_fusion_trans_extraction_gff3.ok")])
-
+        pipeliner.add_commands(
+            [Command(cmdstr, "trinity_fusion_trans_extraction_gff3.ok")]
+        )
 
         ## extract the Trinity Fusion transcripts
-        trinityGG_fusion_fasta = os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix + ".gmap_trinity_GG.fusions.fasta"])
-        cmdstr = str(os.sep.join([UTILDIR, "get_Trinity_fusion_fasta_seqs.pl"]) + " " + trinity_fasta_filename + " " + trinity_fusion_trans_filename +
-                     " > " + trinityGG_fusion_fasta)
-        pipeliner.add_commands([Command(cmdstr, "trinity_fusion_trans_extraction_fasta.ok")])
-                    
+        trinityGG_fusion_fasta = os.sep.join(
+            [
+                args_parsed.str_out_dir,
+                args_parsed.out_prefix + ".gmap_trinity_GG.fusions.fasta",
+            ]
+        )
+        cmdstr = str(
+            os.sep.join([UTILDIR, "get_Trinity_fusion_fasta_seqs.pl"])
+            + " "
+            + trinity_fasta_filename
+            + " "
+            + trinity_fusion_trans_filename
+            + " > "
+            + trinityGG_fusion_fasta
+        )
+        pipeliner.add_commands(
+            [Command(cmdstr, "trinity_fusion_trans_extraction_fasta.ok")]
+        )
+
         # convert fusion trans to bed
         trinity_fusion_trans_bed_filename = trinity_fusion_trans_filename + ".bed"
         min_per_id = 95
-        cmdstr = str(UTILDIR + "/transcript_gff3_to_bed.pl " + trinity_fusion_trans_filename +
-                     " " + str(min_per_id) + " > " + trinity_fusion_trans_bed_filename)
+        cmdstr = str(
+            UTILDIR
+            + "/transcript_gff3_to_bed.pl "
+            + trinity_fusion_trans_filename
+            + " "
+            + str(min_per_id)
+            + " > "
+            + trinity_fusion_trans_bed_filename
+        )
 
         pipeliner.add_commands([Command(cmdstr, "trinity_fusion_trans_gff3_to_bed.ok")])
-        
-        self.sort_and_index_bed(trinity_fusion_trans_bed_filename, pipeliner, "trinity_fusion")
-        
-        return (trinity_fusion_trans_filename) # trinGG fusion gff3 file w/ breakpoints encoded
 
+        self.sort_and_index_bed(
+            trinity_fusion_trans_bed_filename, pipeliner, "trinity_fusion"
+        )
+
+        return trinity_fusion_trans_filename  # trinGG fusion gff3 file w/ breakpoints encoded
 
 
 def check_files_exist(files_lst):
@@ -1031,39 +1655,45 @@ def check_files_exist(files_lst):
         raise RuntimeError("Error, missing files as indicated")
 
 
-def contains_fusions (fusion_files):
+def contains_fusions(fusion_files):
 
     # just need to find one file that contains at least one fusion.
 
     for fusion_file in fusion_files.split(","):
 
-        with open(fusion_file) as f:
-            for line in f:
-                if line[0] != '#' and re.search("--", line):
-                    return True
+        fh = None
+        if re.search("\\.gz$", fusion_file):
+            fh = gzip.open(fusion_file, "rt")
+        else:
+            fh = open(fusion_file, "rt")
+
+        for line in fh:
+            if line[0] != "#" and re.search("--", line):
+                fh.close()
+                return True
+
+        fh.close()
+
+    return False  # no fusions listed
 
 
-    return False # no fusions listed
-
-
-    
 if __name__ == "__main__":
 
     # quickly check and see if there are fusions to explore... if not, then exit gracefully
     for i, item in enumerate(sys.argv):
         if item == "--fusions":
-            fusion_file = sys.argv[i+1]
+            fusion_file = sys.argv[i + 1]
             if not contains_fusions(fusion_file):
-                print("No fusions listed in input file: {}, exiting gracefully.".format(fusion_file), file=sys.stderr)
+                print(
+                    "No fusions listed in input file: {}, exiting gracefully.".format(
+                        fusion_file
+                    ),
+                    file=sys.stderr,
+                )
                 sys.exit(0)
         if item == "--version":
             sys.stderr.write("\tFusionInspector version: {}\n\n".format(VERSION))
             sys.exit(0)
-    
-
 
     # Needed to run, calls the script
     FusionInspector().run()
-    
-
-
