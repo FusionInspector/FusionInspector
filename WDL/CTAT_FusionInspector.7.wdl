@@ -16,6 +16,7 @@ workflow fusion_inspector_workflow {
     
     String? additional_flags
     Int? preemptible = 2
+    Int? maxRetries = 2
     File? right_fq
     Float? extra_disk_space = 10
     String? zones = "us-central1-a us-central1-b us-central1-c us-central1-f us-east1-b us-east1-c us-east1-d us-west1-a us-west1-b us-west1-c"
@@ -36,7 +37,9 @@ workflow fusion_inspector_workflow {
             input:
               input_bam=select_first([rnaseq_aligned_bam]),
               sample_name=sample_name,
-              Docker=select_first([docker])
+              Docker=select_first([docker]),
+              maxRetries=select_first([maxRetries]),
+              preemptible=select_first([preemptible])
         }
     }
 
@@ -45,7 +48,10 @@ workflow fusion_inspector_workflow {
       call CTAT_UNTAR_FASTQS {
         input:
           fastq_pair_tar_gz=select_first([fastq_pair_tar_gz]),
-          Docker=select_first([docker])
+          Docker=select_first([docker]),
+          maxRetries=select_first([maxRetries]),
+          preemptible=select_first([preemptible])
+          
       }
     }
 
@@ -70,7 +76,8 @@ workflow fusion_inspector_workflow {
       fastq_disk_space_multiplier = select_first([fastq_disk_space_multiplier]),
       genome_disk_space_multiplier = select_first([genome_disk_space_multiplier]),
       additional_flags = additional_flags,
-      use_ssd = select_first([use_ssd])
+      use_ssd = select_first([use_ssd]),
+      maxRetries = select_first([maxRetries])
   }
 
 
@@ -92,6 +99,7 @@ task fusion_inspector {
     File right_fq
     String zones
     Int preemptible
+    Int maxRetries
     String docker
     Int cpu
     String memory
@@ -118,7 +126,7 @@ task fusion_inspector {
 
         FusionInspector \
         --fusions ~{fusion_predictions} \
-        --genome_lib_dir `pwd`/genome_dir \
+        --genome_lib_dir `pwd`/ctat_genome_lib_build_dir \
         -O ~{sample_id} \
         --CPU ~{cpu} \
         --left_fq ~{left_fq} \
@@ -135,6 +143,7 @@ task fusion_inspector {
     cpu: "${cpu}"
     zones: zones
     memory: "${memory}"
+    maxRetries: "${maxRetries}"
   }
 
 }
@@ -145,6 +154,8 @@ task CTAT_BAM_TO_FASTQ {
       File? input_bam
       String sample_name
       String Docker
+      Int preemptible
+      Int maxRetries
     }
     
     command {
@@ -184,8 +195,8 @@ task CTAT_BAM_TO_FASTQ {
             disks: "local-disk 500 SSD"
             memory: "20G"
             cpu: "16"
-            preemptible: 0
-            maxRetries: 3
+            preemptible: "${preemptible}"
+            maxRetries: "${maxRetries}"
     }
     
 }
@@ -197,6 +208,8 @@ task CTAT_UNTAR_FASTQS {
   input {
     File fastq_pair_tar_gz
     String Docker
+    Int preemptible
+    Int maxRetries
   }
 
   command {
@@ -217,8 +230,8 @@ task CTAT_UNTAR_FASTQS {
             disks: "local-disk 500 SSD"
             memory: "10G"
             cpu: "4"
-            preemptible: 0
-            maxRetries: 3
+            preemptible: "${preemptible}"
+            maxRetries: "${maxRetries}"
     }
   }
 
