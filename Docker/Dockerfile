@@ -135,13 +135,19 @@ RUN pip install -U igv-reports
 
 RUN apt-get install -y pbzip2
 
+## Picard tools
+
+WORKDIR $SRC
+RUN wget https://github.com/broadinstitute/picard/releases/download/2.20.3/picard.jar
+ENV PICARD_HOME $SRC
+
 
 ##################
-## FusionInspector  v2.4.0-devb
+## FusionInspector  v2.4.0-devc
 
 RUN apt-get install -y git
 
-ENV FI_HASH=d037877fbcba618008d8e1ff0bc44e6f4251d093
+ENV FI_HASH=7ee605992cf029b7f3ebc3e364f537ae77af6f2c
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
@@ -149,10 +155,4 @@ RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git
     git submodule init && git submodule update && \
     mv * $BIN
 
-
-## Picard tools
-
-WORKDIR $SRC
-RUN wget https://github.com/broadinstitute/picard/releases/download/2.20.3/picard.jar
-ENV PICARD_HOME $SRC
 
