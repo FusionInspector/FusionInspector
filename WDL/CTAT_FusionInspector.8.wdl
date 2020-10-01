@@ -126,7 +126,7 @@ task fusion_inspector {
 
         FusionInspector \
         --fusions ~{fusion_predictions} \
-        --genome_lib_dir `pwd`/ctat_genome_lib_build_dir \
+        --genome_lib_dir `pwd`/genome_dir \
         -O ~{sample_id} \
         --CPU ~{cpu} \
         --left_fq ~{left_fq} \
