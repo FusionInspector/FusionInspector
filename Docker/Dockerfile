@@ -145,7 +145,7 @@ ENV PICARD_HOME $SRC
 ##################
 ## FusionInspector  v2.4.0-devc
 
-RUN apt-get install -y git
+RUN apt-get update && apt-get install -y git && apt-get clean
 
 ENV FI_HASH=7ee605992cf029b7f3ebc3e364f537ae77af6f2c
 
