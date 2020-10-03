@@ -35,6 +35,15 @@ if (! file.exists(plots_dir)) {
 fusion_preds = read.table(fusion_preds_tsv, header=T, row.names=NULL, sep="\t", stringsAsFactors=F, com='')
 colnames(fusion_preds) = str_replace(colnames(fusion_preds), "^X\\.", "")
 
+
+if ('fusion_name' %in% colnames(fusion_preds) ) {
+    fusion_preds = fusion_preds %>% rename(FusionName = fusion_name)
+}
+
+if ('sample_name' %in% colnames(fusion_preds) ) {
+    fusion_preds = fusion_preds %>% rename(sample = sample_name)
+}
+
 ## add splice type info for consenus vs. non-consensus dinucleotides
 
 fusion_preds = fusion_preds %>% mutate(SpliceDinuc=ifelse(LeftBreakDinuc %in% c("GT", "GC") & RightBreakDinuc == "AG", "Consensus", "Non"))

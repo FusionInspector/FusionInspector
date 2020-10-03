@@ -80,7 +80,9 @@ main: {
         
         
         while (my $row = $delim_reader->get_row()) {
-            my $fusion_name = $delim_reader->get_row_val($row, "#FusionName");
+            my $fusion_name = (exists $row->{"#FusionName"}) ? $delim_reader->get_row_val($row, "#FusionName")
+                : (exists $row->{fusion_name}) ? $delim_reader->get_row_val($row, "fusion_name") 
+                : confess "Error, cannot find #FusionName or fusion_name in [@column_headers] column headers";
             
             push(@{$fusion_name_to_rows{$fusion_name}}, $row);
         }
