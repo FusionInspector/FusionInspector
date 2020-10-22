@@ -38,8 +38,8 @@ ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
 
-# VERSION = "__BLEEDING_EDGE__"
-VERSION = "2.3.1"
+VERSION = "__BLEEDING_EDGE__"
+#VERSION = "2.3.1"
 
 
 BASEDIR = os.path.dirname(__file__)
@@ -529,14 +529,18 @@ class FusionInspector:
             )
 
         if args_parsed.left_fq_filename:
-            args_parsed.left_fq_filename = os.path.abspath(args_parsed.left_fq_filename)
-            check_files_exist([args_parsed.left_fq_filename])
+            fq_filenames = args_parsed.left_fq_filename.split(",")
+            for i, fq_filename in enumerate(fq_filenames):
+                fq_filenames[i] = os.path.abspath(fq_filename)
+                check_files_exist([fq_filename])
+            args_parsed.left_fq_filename = ",".join(fq_filenames)
 
         if args_parsed.right_fq_filename:
-            args_parsed.right_fq_filename = os.path.abspath(
-                args_parsed.right_fq_filename
-            )
-            check_files_exist([args_parsed.right_fq_filename])
+            fq_filenames = args_parsed.right_fq_filename.split(",")
+            for i, fq_filename in enumerate(fq_filenames):
+                fq_filenames[i] = os.path.abspath(fq_filename)
+                check_files_exist([fq_filename])
+            args_parsed.right_fq_filename = ",".join(fq_filenames)
 
         if args_parsed.samples_file:
             args_parsed.samples_file = os.path.abspath(args_parsed.samples_file)

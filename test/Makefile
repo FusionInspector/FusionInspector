@@ -8,7 +8,7 @@ test:
 	./runMe.pl --output_dir FusionInspector-outdir --left_fq ${left_fq} --right_fq ${right_fq} --vis
 
 
-all: test fusion_contigs_only incl_Trinity annotate coding_effect single_reads single_reads_fc_only samples_file_PE no_shrink_introns
+all: test fusion_contigs_only incl_Trinity annotate coding_effect single_reads single_reads_fc_only samples_file_PE no_shrink_introns multiple_read_sets
 
 
 no_shrink_introns:
@@ -22,7 +22,7 @@ fusion_contigs_only_skip_EM:
 
 
 multiple_read_sets:
-	./runMe.pl --output_dir FusionInspector-outdir --left_fq test.readsA_1.fastq.gz,test.readsB_1.fastq.gz --right_fq test.readsA_2.fastq.gz,test.readsB_2.fastq.gz
+	./runMe.pl --output_dir FusionInspector-multreadsets-outdir --left_fq test.readsA_1.fastq.gz,test.readsB_1.fastq.gz --right_fq test.readsA_2.fastq.gz,test.readsB_2.fastq.gz
 
 
 incl_Trinity:

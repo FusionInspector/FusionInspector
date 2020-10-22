@@ -49,6 +49,17 @@ main: {
 sub get_num_total_frags {
     my ($fq_file) = @_;
 
+    if ($fq_file =~ /,/) {
+        my @fq_files = split(",", $fq_file);
+        my $num_fq_records = 0;
+        foreach my $fq_file (@fq_files) {
+            my $count = &get_num_total_frags($fq_file);
+            $num_fq_records += $count;
+        }
+        return($num_fq_records);
+    }
+    
+
     my $num_lines;
     if ($fq_file =~ /\.gz/) {
         $num_lines = `gunzip -c $fq_file | wc -l`;
