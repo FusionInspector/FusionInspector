@@ -21,6 +21,10 @@ fusion_contigs_only_skip_EM:
 	./runMe.pl --output_dir FusionInspector-fusionContigOnly-skip_EM --fusion_contigs_only --left_fq ${left_fq} --right_fq ${right_fq} --extract_fusion_reads_file FusionInspector-fusionContigOnly-skip_EM/fusion_reads --skip_EM
 
 
+multiple_read_sets:
+	./runMe.pl --output_dir FusionInspector-outdir --left_fq test.readsA_1.fastq.gz,test.readsB_1.fastq.gz --right_fq test.readsA_2.fastq.gz,test.readsB_2.fastq.gz
+
+
 incl_Trinity:
 	./runMe.pl --output_dir FusionInspector-fusionContigOnly-incl_Trinity --fusion_contigs_only --include_Trinity --left_fq ${left_fq} --right_fq ${right_fq} --vis --write_intermediate_results
 
