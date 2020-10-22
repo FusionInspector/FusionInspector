@@ -143,11 +143,11 @@ ENV PICARD_HOME $SRC
 
 
 ##################
-## FusionInspector  v2.4.0-devc
+## FusionInspector  v2.3.2
 
 RUN apt-get update && apt-get install -y git && apt-get clean
 
-ENV FI_HASH=7ee605992cf029b7f3ebc3e364f537ae77af6f2c
+ENV FI_HASH=db65d798ebc0e2ca84af6188d41bd6b547c114a5
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \

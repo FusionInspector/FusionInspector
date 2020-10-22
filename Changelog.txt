@@ -1,3 +1,7 @@
+## FusionInspector v2.3.2 (Oct 22, 2020)
+- enabled use of multiple fastqs, set as comma-delimited list w/ input parameter
+
+
 ## FusionInspector v2.3.1 (Aug 10, 2020)
 -minor bugfixes
 -sync max intron len and max mate distance parameters w/ star-fusion
