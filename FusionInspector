@@ -720,18 +720,26 @@ class FusionInspector:
                 [workdir, args_parsed.out_prefix + ".star.cSorted.dupsMarked.bam"]
             )
 
-            cmdstr = str(
-                "java -jar {} I={} O={} M={} TMP_DIR={} VALIDATION_STRINGENCY=SILENT ".format(
-                    os.sep.join([BASEDIR, "plugins", "MarkDuplicates.jar"]),
-                    star_bam_file,
-                    star_dups_marked_bam_file,
-                    star_dups_marked_bam_file + ".stats",
-                    workdir,
-                )
-            )
+            #cmdstr = str(
+            #    "java -jar {} I={} O={} M={} TMP_DIR={} VALIDATION_STRINGENCY=SILENT ".format(
+            #        os.sep.join([BASEDIR, "plugins", "MarkDuplicates.jar"]),
+            #        star_bam_file,
+            #        star_dups_marked_bam_file,
+            #        star_dups_marked_bam_file + ".stats",
+            #        workdir,
+            #    )
+            #)
+
+            cmdstr = " ".join([os.sep.join([UTILDIR, "bam_mark_duplicates.py"]),
+                               " -i {} ".format(star_bam_file),
+                               " -o {} ".format(star_dups_marked_bam_file),
+                               " --remove_duplicates "])
+            
 
             pipeliner.add_commands([Command(cmdstr, "mark_dup_reads.ok")])
-
+            
+            pipeliner.add_commands([Command("samtools index {}".format(star_dups_marked_bam_file), "mark_dups_reads.index.ok")])
+            
             star_bam_file = star_dups_marked_bam_file
 
         self.get_fusion_and_spanning_reads(
