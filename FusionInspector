@@ -733,7 +733,7 @@ class FusionInspector:
             cmdstr = " ".join([os.sep.join([UTILDIR, "bam_mark_duplicates.py"]),
                                " -i {} ".format(star_bam_file),
                                " -o {} ".format(star_dups_marked_bam_file),
-                               " --remove_duplicates "])
+                               " --remove_dups "])
             
 
             pipeliner.add_commands([Command(cmdstr, "mark_dup_reads.ok")])
