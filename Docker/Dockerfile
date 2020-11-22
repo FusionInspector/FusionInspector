@@ -155,4 +155,6 @@ RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git
     git submodule init && git submodule update && \
     mv * $BIN
 
+COPY sam_readname_cleaner.py $BIN/
+
 
