@@ -220,6 +220,8 @@ main: {
     ####################################################
     ## for each paired read, get the bounds of that read
     
+    
+    
     my %spanning_read_want;       
     {
 
@@ -253,7 +255,7 @@ main: {
  
         print STDERR " - counting read alignments among fusion contigs.\n";
         
-        my %read_alignment_counter = &count_read_alignments_among_fusion_contigs($bam_file);
+        my $read_alignment_counter_tiedhash = &count_read_alignments_among_fusion_contigs($bam_file);
         
 
         my %filtered_read_reason_counter;
@@ -438,7 +440,7 @@ main: {
                                                                                           qual => $qual_val,
                                                                                           full_read_name => $full_read_name,
                                                                                           NH => $hit_count,
-                                                                                          fusion_scaff_hit_count => $read_alignment_counter{$full_read_name},
+                                                                                          fusion_scaff_hit_count => $read_alignment_counter_tiedhash->get_value($full_read_name),
                                                                                           read_group => $read_group,
                 };
                 
@@ -879,7 +881,7 @@ sub capture_spanning_frags {
 sub count_read_alignments_among_fusion_contigs {
     my ($bam_file) = @_;
 
-    my %alignment_counter;
+    my $alignment_counter_tiedhash = new TiedHash( { create => "$bam_file.read_align_counts.idx" } );;
 
     my $sam_reader = new SAM_reader($bam_file);
     while (my $sam_entry = $sam_reader->get_next()) {
@@ -892,10 +894,11 @@ sub count_read_alignments_among_fusion_contigs {
         
         my $full_read_name = $sam_entry->reconstruct_full_read_name();
         
-        $alignment_counter{$full_read_name} += 1;
+        my $curr_count = $alignment_counter_tiedhash->get_value($full_read_name) || 0;
+        $alignment_counter_tiedhash->store_key_value($full_read_name, $curr_count + 1);
     }
 
-    return(%alignment_counter);
+    return($alignment_counter_tiedhash);
 }
     
         
