@@ -30,6 +30,10 @@ my $MIN_SEQ_ENTROPY = 1.2;
 
 my $FUZZ = 5; # small fuzzy alignment bounds for spanning frags around breakpoint
 
+my $HAS_SPANNING_FRAGS = 0;
+my $MAX_READS_PER_POS = 10000; # not needed now that the dupsRemoval is effective
+
+
 my $usage = <<__EOUSAGE__;
 
 ###############################################################
@@ -220,7 +224,9 @@ main: {
     ####################################################
     ## for each paired read, get the bounds of that read
     
-    my %spanning_read_want;       
+    
+    
+    my $spanning_read_want_tiedhash = new TiedHash( { create => "$bam_file.spanning_reads_want.idx" } );       
     {
 
         #########################################################################
@@ -253,7 +259,7 @@ main: {
  
         print STDERR " - counting read alignments among fusion contigs.\n";
         
-        my %read_alignment_counter = &count_read_alignments_among_fusion_contigs($bam_file);
+        my $read_alignment_counter_tiedhash = &count_read_alignments_among_fusion_contigs($bam_file);
         
 
         my %filtered_read_reason_counter;
@@ -264,6 +270,9 @@ main: {
         
     
         my $counter = 0;
+        my $prev_read_align_pos = 0;
+        my $read_align_pos_counter = 0;
+
         my $sam_reader = new SAM_reader($bam_file);
         while (my $sam_entry = $sam_reader->get_next()) {
             $counter++;
@@ -292,12 +301,15 @@ main: {
                                             \%scaffold_read_pair_to_read_bounds,
                                             \%core_counter,
                                             $tab_writer, 
-                                            \%spanning_read_want);
+                                            $spanning_read_want_tiedhash);
                     
                 }
                 %scaffold_read_pair_to_read_bounds = (); # reinit
                 %core_counter = (); # reinit
                 $prev_scaffold = $scaffold;
+                $counter = 0;
+                $prev_read_align_pos = 0;
+                $read_align_pos_counter = 0;
             }
             
             my $qual_val = $sam_entry->get_mapping_quality();
@@ -430,24 +442,39 @@ main: {
             my $full_read_name = $sam_entry->reconstruct_full_read_name();
             if ($full_read_name =~ /^(\S+)\/([12])$/) {
                 my ($core, $pair_end) = ($1, $2);
-                $core_counter{"$scaffold|$core"}++;  # track how many alignments we have for this rnaseq fragment
                 
-                $scaffold_read_pair_to_read_bounds{$scaffold}->{$core}->[$pair_end-1] = { span_lend => $span_lend, 
-                                                                                          span_rend => $span_rend, 
-                                                                                          strand => $strand,
-                                                                                          qual => $qual_val,
-                                                                                          full_read_name => $full_read_name,
-                                                                                          NH => $hit_count,
-                                                                                          fusion_scaff_hit_count => $read_alignment_counter{$full_read_name},
-                                                                                          read_group => $read_group,
-                };
+                my $scaffold_core_name = "$scaffold|$core";
                 
+                if ($scaffold_pos ==  $prev_read_align_pos) {
+                    $read_align_pos_counter += 1;
+                }
+                else {
+                    # reinit
+                    $read_align_pos_counter = 1;
+                }
+                
+                if ($read_align_pos_counter < $MAX_READS_PER_POS || exists($core_counter{$scaffold_core_name}) ) {
+                
+                    $core_counter{$scaffold_core_name}++;  # track how many alignments we have for this rnaseq fragment
+                    
+                    $scaffold_read_pair_to_read_bounds{$scaffold}->{$core}->[$pair_end-1] = { span_lend => $span_lend, 
+                                                                                              span_rend => $span_rend, 
+                                                                                              strand => $strand,
+                                                                                              qual => $qual_val,
+                                                                                              full_read_name => $full_read_name,
+                                                                                              NH => $hit_count,
+                                                                                              fusion_scaff_hit_count => $read_alignment_counter_tiedhash->get_value($full_read_name),
+                                                                                              read_group => $read_group,
+                    };
+                }
+                
+                $prev_read_align_pos = $scaffold_pos;
                 
             }
         } # end of sam reading
         
         if (%scaffold_read_pair_to_read_bounds) {
-            &capture_spanning_frags($scaffold, \%scaffold_read_pair_to_read_bounds, \%core_counter, $tab_writer, \%spanning_read_want);
+            &capture_spanning_frags($scaffold, \%scaffold_read_pair_to_read_bounds, \%core_counter, $tab_writer, $spanning_read_want_tiedhash);
         }
         
         close $ofh; # done writing fusion report.
@@ -460,31 +487,24 @@ main: {
     
     #################################################
     # output the spanning reads we want in SAM format
-    
-    if (%spanning_read_want) {
 
-        my $num_spanning_reads_want = scalar(keys %spanning_read_want);
-        print STDERR "-retrieving read alignments for $num_spanning_reads_want spanning frags.\n";
-        
-        my %missing = %spanning_read_want;
+    
+    if ($HAS_SPANNING_FRAGS) {
         
         my $sam_reader = new SAM_reader($bam_file);
         while (my $sam_entry = $sam_reader->get_next()) {
                         
             my $scaffold = $sam_entry->get_scaffold_name();
             my $core_read_name = $sam_entry->get_core_read_name();
-            if ($spanning_read_want{"$scaffold|$core_read_name"}) {
+            if ($spanning_read_want_tiedhash->get_value("$scaffold|$core_read_name")) {
                 print $sam_entry->get_original_line() . "\n";
-
-                if (exists $missing{"$scaffold|$core_read_name"}) {
-                    delete $missing{"$scaffold|$core_read_name"};
-                }
             }
         }
-
-        if (%missing) {
-            confess "Error, didn't extract the following spanning frags from the bam file ($bam_file): " . Dumper(\%missing);
-        }
+        
+        ## TODO:  add back the check to ensure all are captured
+        #if (%missing) {
+        #    confess "Error, didn't extract the following spanning frags from the bam file ($bam_file): " . Dumper(\%missing);
+        #}
     }
     
 
@@ -641,7 +661,7 @@ sub partition_gene_structs {
 
 ####
 sub capture_spanning_frags {
-    my ($scaffold, $scaffold_read_pair_to_read_bounds_href, $core_counter_href, $tab_writer, $spanning_read_want_href) = @_;
+    my ($scaffold, $scaffold_read_pair_to_read_bounds_href, $core_counter_href, $tab_writer, $spanning_read_want_tiedhash) = @_;
     
     print STDERR "-fusion SPANNING read extraction for scaff: $scaffold\n";
     
@@ -707,8 +727,9 @@ sub capture_spanning_frags {
                 ) 
             {
                 $is_fusion_spanning_fragment_flag = 1;
-                $spanning_read_want_href->{"$scaffold|$fragment"}++; # capture for SAM-retreival next.
+                $spanning_read_want_tiedhash->store_key_value("$scaffold|$fragment", 1); # capture for SAM-retreival next.
                 #print STDERR "-want $scaffold|$fragment in sam\n";
+                $HAS_SPANNING_FRAGS = 1;
             }
             else {
                 if ($DEBUG) {
@@ -879,7 +900,16 @@ sub capture_spanning_frags {
 sub count_read_alignments_among_fusion_contigs {
     my ($bam_file) = @_;
 
-    my %alignment_counter;
+    my $idx_file = "$bam_file.read_align_counts.idx";
+    my $idx_checkpoint_file = $idx_file . ".ok";
+    
+    if (-e $idx_checkpoint_file) {
+        my $alignment_counter_tiedhash = new TiedHash( { 'use' => $idx_file });
+        print STDERR "-reusing earlier idx: $idx_file\n";
+        return ($alignment_counter_tiedhash);
+    }
+    
+    my $alignment_counter_tiedhash = new TiedHash( { create => "$bam_file.read_align_counts.idx" } );;
 
     my $sam_reader = new SAM_reader($bam_file);
     while (my $sam_entry = $sam_reader->get_next()) {
@@ -892,10 +922,13 @@ sub count_read_alignments_among_fusion_contigs {
         
         my $full_read_name = $sam_entry->reconstruct_full_read_name();
         
-        $alignment_counter{$full_read_name} += 1;
+        my $curr_count = $alignment_counter_tiedhash->get_value($full_read_name) || 0;
+        $alignment_counter_tiedhash->store_key_value($full_read_name, $curr_count + 1);
     }
 
-    return(%alignment_counter);
+    system("touch $idx_checkpoint_file");
+    
+    return($alignment_counter_tiedhash);
 }
     
         

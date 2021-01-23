@@ -142,17 +142,19 @@ RUN wget https://github.com/broadinstitute/picard/releases/download/2.20.3/picar
 ENV PICARD_HOME $SRC
 
 
-##################
-## FusionInspector  v2.3.2
+## FusionInspector  v2.4.0
 
 RUN apt-get update && apt-get install -y git && apt-get clean
 
-ENV FI_HASH=db65d798ebc0e2ca84af6188d41bd6b547c114a5
+ENV FI_HASH=4d2ca6d328dc414933e5e6771576beb525b79189
+
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
     git checkout ${FI_HASH} && \
     git submodule init && git submodule update && \
     mv * $BIN
+
+COPY sam_readname_cleaner.py $BIN/
 
 
