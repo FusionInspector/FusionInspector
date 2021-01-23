@@ -917,6 +917,16 @@ class FusionInspector:
                     args_parsed.out_prefix + ".spanning_reads.bam",
                 ]
             )
+
+            # hack for now to avoid errors in single-end mode.
+            # initialize an empty bam
+            cmdstr = str(
+                "samtools view -H {} -b -o {}".format(
+                    star_bam_file, consolidated_spanning_reads_bam
+                )
+            )
+            pipeliner.add_commands([Command(cmdstr, "init_spanning_reads_bam.ok")])
+
             cmdstr = str(
                 UTILDIR
                 + "/retrieve_fusion_spanning_reads_by_accession.pl "
@@ -932,8 +942,8 @@ class FusionInspector:
                 + str(args_parsed.CPU)
                 + " - -o "
                 + consolidated_spanning_reads_bam
-            )
-            # + " || : ") # again, cant afford for this to fail due to lack of evidence reads.
+                + " || : "
+            )  # again, cant afford for this to fail due to lack of evidence reads.
 
             pipeliner.add_commands([Command(cmdstr, "prep_spanning_reads.ok")])
 
