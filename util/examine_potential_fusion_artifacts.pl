@@ -30,6 +30,10 @@ my $usage = <<__EOUSAGE__;
 # 
 # --CPU <int>                        number of CPUs for parallel processing
 #
+# # optional
+#
+# --fusions_restrict <string>        file containing lists of fusions to restrict analysis to
+#
 ###############################################################################################
 
 
@@ -43,6 +47,8 @@ my $fusion_contigs_gtf;
 my $output_directory;
 my $fusion_results_tsv;
 my $CPU;
+my $fusions_restrict_file;
+
 
 &GetOptions ( 'help|h' => \$help_flag,
               'fusion_contigs_fasta=s' => \$fusion_contigs_fasta,
@@ -50,6 +56,8 @@ my $CPU;
               'output_directory=s' => \$output_directory,
               'fusion_results_tsv=s' => \$fusion_results_tsv,
               'CPU=i' => \$CPU,
+              'fusions_restrict=s' => \$fusions_restrict_file,
+              
     );
 
 if ($help_flag) {
@@ -58,6 +66,16 @@ if ($help_flag) {
 
 unless ($fusion_contigs_fasta && $fusion_contigs_gtf && $output_directory && $fusion_results_tsv && defined($CPU)) {
     die $usage;
+}
+
+
+my %FUSIONS_RESTRICT;
+if ($fusions_restrict_file) {
+    open(my $fh, $fusions_restrict_file) or die "Error, cannot open file $fusions_restrict_file";
+    while(<$fh>) {
+        chomp;
+        $FUSIONS_RESTRICT{$_} = 1;
+    }
 }
 
 
@@ -118,6 +136,11 @@ main: {
 
         ## write outputs.
         foreach my $fusion (keys(%fusion_name_to_rows)) {
+            
+            if (%FUSIONS_RESTRICT && ! exists $FUSIONS_RESTRICT{$fusion} ) {
+                next;
+            }
+            
             my $fusion_output_dir = "$output_directory/$fusion";
             if (! -d $fusion_output_dir) {
                 mkdir $fusion_output_dir or die "Error, cannot mkdir $fusion_output_dir";
@@ -125,47 +148,53 @@ main: {
             $fusion_to_files{$fusion}->{output_dir} = $fusion_output_dir;
             
             print STDERR "-processing fusion: $fusion\n";
-            
-            my $fusion_predictions_file = "$fusion_output_dir/fusions.tsv";
-            {
-                open(my $ofh, ">$fusion_predictions_file") or die "Error, cannot write to file: $fusion_predictions_file";
-                my $delim_writer = new DelimParser::Writer($ofh, "\t", \@column_headers);
-                my @fusion_rows = @{$fusion_name_to_rows{$fusion}};
-                foreach my $fusion_row (@fusion_rows) {
-                    $delim_writer->write_row($fusion_row);
+
+            eval {
+
+                my $fusion_predictions_file = "$fusion_output_dir/fusions.tsv";
+                {
+                    open(my $ofh, ">$fusion_predictions_file") or die "Error, cannot write to file: $fusion_predictions_file";
+                    my $delim_writer = new DelimParser::Writer($ofh, "\t", \@column_headers);
+                    my @fusion_rows = @{$fusion_name_to_rows{$fusion}};
+                    foreach my $fusion_row (@fusion_rows) {
+                        $delim_writer->write_row($fusion_row);
+                    }
+                    close $ofh;
+                    
+                    $fusion_to_files{$fusion}->{preds_file} = $fusion_predictions_file;
                 }
-                close $ofh;
                 
-                $fusion_to_files{$fusion}->{preds_file} = $fusion_predictions_file;
-            }
+                my $fusion_genome_fasta_file = "$fusion_output_dir/fusions.fa";
+                {
+                    open(my $ofh, ">$fusion_genome_fasta_file") or die "Error, cannot write to $fusion_genome_fasta_file";
+                    my $sequence = $contigs_fa{$fusion} or die "Error, no contig for fusion: $fusion";
+                    print $ofh ">$fusion\n$sequence\n";
+                    close $ofh;
+                    
+                    $fusion_to_files{$fusion}->{fasta_file} = $fusion_genome_fasta_file;
+                    
+                }
+                
+                my $fusion_gtf_file = "$fusion_output_dir/fusions.gtf";
+                {
+                    open(my $ofh, ">$fusion_gtf_file") or die "Error, cannot write to file: $fusion_gtf_file";
+                    my $fusion_gtf = $contig_to_gtf{$fusion} or die "Error, no gtf info for fusion: $fusion ";;
+                    print $ofh $fusion_gtf;
+                    close $ofh;
+                    
+                    $fusion_to_files{$fusion}->{gtf_file} = $fusion_gtf_file;
+                    
+                }
+            };
             
-            my $fusion_genome_fasta_file = "$fusion_output_dir/fusions.fa";
-            {
-                open(my $ofh, ">$fusion_genome_fasta_file") or die "Error, cannot write to $fusion_genome_fasta_file";
-                my $sequence = $contigs_fa{$fusion} or die "Error, no contig for fusion: $fusion";
-                print $ofh ">$fusion\n$sequence\n";
-                close $ofh;
-                
-                $fusion_to_files{$fusion}->{fasta_file} = $fusion_genome_fasta_file;
-                
+            if ($@) {
+                print STDERR " - error writing files for fusion: $fusion_output_dir/ \n";
             }
-            
-            my $fusion_gtf_file = "$fusion_output_dir/fusions.gtf";
-            {
-                open(my $ofh, ">$fusion_gtf_file") or die "Error, cannot write to file: $fusion_gtf_file";
-                my $fusion_gtf = $contig_to_gtf{$fusion} or die "Error, no gtf info for fusion: $fusion ";;
-                print $ofh $fusion_gtf;
-                close $ofh;
-                
-                $fusion_to_files{$fusion}->{gtf_file} = $fusion_gtf_file;
-                
-            }
-            
         }
-
+        
     }
-
-
+    
+    
     my $cmds_file = "$output_directory/fusion_analysis_cmds.txt";
     open(my $ofh, ">$cmds_file") or die "Error, cannot write to $cmds_file";
     
