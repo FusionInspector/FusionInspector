@@ -142,12 +142,12 @@ RUN wget https://github.com/broadinstitute/picard/releases/download/2.20.3/picar
 ENV PICARD_HOME $SRC
 
 
-##################
 ## FusionInspector  v2.4.0
 
 RUN apt-get update && apt-get install -y git && apt-get clean
 
-ENV FI_HASH=4d2ca6d328dc414933e5e6771576beb525b79189
+ENV FI_HASH=895b3fee0edaa946739f73b244c7c39e0f5d6648
+
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
