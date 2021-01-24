@@ -38,8 +38,8 @@ ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
 
-# VERSION = "__BLEEDING_EDGE__"
-VERSION = "2.4.0"
+VERSION = "__BLEEDING_EDGE__"
+#VERSION = "2.4.0"
 
 
 BASEDIR = os.path.dirname(__file__)
