@@ -43,10 +43,12 @@ VERSION = "__BLEEDING_EDGE__"
 
 
 BASEDIR = os.path.dirname(__file__)
-UTILDIR = os.sep.join([BASEDIR, "util"])
+UTILDIR = os.path.join(BASEDIR, "util")
+MISCDIR = os.path.join(UTILDIR, "misc")
 
 TRINITY_HOME = None  # init below if --include_Trinity
 
+FAR_PSEUDOCOUNT = 1
 
 """
 ______         _            _____                          _
@@ -320,12 +322,7 @@ class FusionInspector:
             default=False,
             help="do not exclude duplicate reads",
         )
-        optional.add_argument(
-            "--FAR_pseudocount",
-            type=float,
-            default=1,
-            help="pseudocount to be used in fusion allelic ratio (FAR) computation",
-        )
+        
 
         optional.add_argument(
             "--version",
@@ -376,6 +373,19 @@ class FusionInspector:
             help=" max sensitivity settings (specificity unchecked) equivalent to --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --max_promiscuity 1000000 --min_pct_dom_promiscuity 1 --min_per_id 1 --no_remove_dups --skip_EM",
         )
 
+        optional.add_argument(
+            "--incl_microH_expr_brkpt_plots",
+            action="store_true",
+            default=False,
+            help=" include microhomology expression breakpoint plots")
+
+        optional.add_argument(
+            "--predict_cosmic_like",
+            action="store_true",
+            default=False,
+            help=" predict if fusion looks COSMIC-like wrt expression and microhomology charachteristics" )
+        
+                
         # done setting up options menu
 
         args_parsed = arg_parser.parse_args()
@@ -791,7 +801,7 @@ class FusionInspector:
             + ",".join(fusion_junction_info_files_list)
             + " "
             + ",".join(fusion_spanning_info_files_list)
-            + " {} ".format(args_parsed.FAR_pseudocount)
+            + " {} ".format(FAR_PSEUDOCOUNT)
             + " > "
             + fusion_summary_file
         )
@@ -1232,6 +1242,14 @@ class FusionInspector:
             )
 
             fusions_file = fusions_file + ".FFPM"
+
+
+        ## microhomology analysis
+        fusions_file = run_microhomology_analysis(args_parsed, fusions_file, mergedContig_fasta_filename, mergedContig_gtf_filename, workdir, pipeliner)
+        
+        ## predict fusion class incl. cosmic-like fusions
+        
+        
 
         final_fusions_file = os.sep.join(
             [
@@ -1707,6 +1725,46 @@ def contains_fusions(fusion_files):
         fh.close()
 
     return False  # no fusions listed
+
+
+
+def run_microhomology_analysis(args_parsed, fusions_file, mergedContig_fasta_filename, mergedContig_gtf_filename, workdir, pipeliner):
+
+    # compute microhomologies:
+
+    microH_outfile = os.path.join(workdir, "microH.dat")
+    
+    cmdstr = str(" ".join([ os.path.join(MISCDIR, "find_microhomologies_by_kmer_matches.pl"),
+                            "--fasta {}".format(mergedContig_fasta_filename),
+                            "--gtf {}".format(mergedContig_gtf_filename),
+                            " > {}".format(microH_outfile) ]) )
+    
+
+    pipeliner.add_commands( [ Command(cmdstr, "microH.dat.ok") ])
+
+
+    fusions_w_microH = fusions_file + ".wMicroH"
+    cmdstr = str(" ".join([ os.path.join(MISCDIR, "append_microH_distance.py"),
+                            microH_outfile, fusions_file,
+                            " > ", fusions_w_microH ]) )
+                            
+    pipeliner.add_commands([ Command(cmdstr, "append_microH_info.ok") ])
+    
+        
+    if args_parsed.incl_microH_expr_brkpt_plots:
+
+        plots_dir = os.path.join(args_parsed.str_out_dir, "microH_expr_brkpt_plots")
+
+        cmdstr = str(" ".join([ os.path.join(MISCDIR, "RT_artifact_inspector.Rscript"),
+                                "--fusion_preds_tsv {}".format(fusions_file),
+                                "--microhomologies_tsv {}".format(microH_outfile),
+                                    "--plots_dir {}".format(plots_dir) ]) )
+
+        pipeliner.add_commands( [ Command(cmdstr, "microH_expr_brkpt_plots.ok") ] )
+    
+
+    return fusions_w_microH
+    
 
 
 if __name__ == "__main__":
