@@ -8,13 +8,13 @@ suppressPackageStartupMessages(library("ranger"))
 parser = ArgumentParser()
 parser$add_argument("--fusions", help="input fusions data file with all attributes assigned", required=TRUE, nargs=1)
 parser$add_argument("--output", help="output filename", required=TRUE, nargs=1)
-parser$add_argument("--train_data", help="input training data with fusions classified", required=TRUE, nargs=1)
+parser$add_argument("--ranger", help="ranger predictor rds obj", required=TRUE, nargs=1)
 
 args = parser$parse_args()
 
 dat_filename = args$fusions
 out_filename = args$output
-train_data_filename = args$train_data
+rg_rds_file = args$ranger
 
 message("-parsing ", dat_filename)
 data = read.table(dat_filename, header=T, sep="\t", stringsAsFactors = F)
@@ -33,7 +33,8 @@ data$adj_FAR_left = log2(data$FAR_left + pseudocount)
 data$adj_FAR_right = log2(data$FAR_right + pseudocount)
 data$adj_microh_brkpt_dist = log2(data$microh_brkpt_dist + pseudocount)
 data$adj_num_microh = log2(data$num_microh + pseudocount)
-
+data$adj_annot_splice = data$annot_splice
+data$adj_consensus_splice = data$consensus_splice
 
 
 ## center and scale
@@ -107,20 +108,32 @@ data.scaled = data.scaled %>% mutate(adj_annot_splice = (adj_annot_splice - -2) 
 
 ## build predictor:
 message("-building predictor")
-umap.merged.layout = read.table(train_data_filename, header=T, stringsAsFactors = F, sep="\t")
+#umap.merged.layout = read.table(train_data_filename, header=T, stringsAsFactors = F, sep="\t")
 
 
-rangerdata = umap.merged.layout %>% select(leiden, FFPM, annot_splice, consensus_splice,
-                       left_counter_ffpm, right_counter_ffpm,  FAR_left, FAR_right,
-                       microh_brkpt_dist, num_microh)
+#rangerdata = umap.merged.layout %>% select(leiden, FFPM, annot_splice, consensus_splice,
+#                       left_counter_ffpm, right_counter_ffpm,  FAR_left, FAR_right,
+#                       microh_brkpt_dist, num_microh)
+#
+#rangerdata$leiden = factor(rangerdata$leiden)
+# rg = ranger(leiden ~ ., data=rangerdata)
 
-rangerdata$leiden = factor(rangerdata$leiden)
 
-rg = ranger(leiden ~ ., data=rangerdata)
+rg = readRDS(rg_rds_file)
+
 
 message("-predicting fusion clusters")
 pred = predict(rg, data=data.scaled)
 
 orig_data$pred_cluster = pred$predictions
+
+## annotate clusters according to attribute types.
+orig_data = orig_data %>%
+    mutate(fusion_cluster_att = ifelse(leiden == 4, "cosmic-like", "NA")) %>%
+    mutate(fusion_cluster_att = ifelse(leiden %in% c(47,20,41,15), "expr_microH_RT_artifact?", fusion_cluster_att)) %>%
+    mutate(fusion_cluster_att = ifelse(leiden %in% c(57,56,60), "high_FAR_microH_bioinf_artifact?", fusion_cluster_att)) %>%
+    mutate(fusion_cluster_att = ifelse(leiden %in% c(49,51), "high_counter_evidence", fusion_cluster_att))
+
+
 write.table(orig_data, file=out_filename, quote=F, sep="\t", row.names=F)
 
