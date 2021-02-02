@@ -1736,14 +1736,25 @@ def run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipelin
     # prep for prediction (adds counter ffpm and booleans for splice types)
     fusions_prepped_for_pred_file = os.path.join(workdir, "fusions.pre-pred-cosmic-like.tsv")
 
-    cmdstr = str(" ".join([ os.path.join(MISCDIR, "prep_data_for_clustering.py"),
+    cmdstr = str(" ".join([ os.path.join(MISCDIR, "prep_data_for_cosmic-like_pred.py"),
                            fusions_file,
                            ">", fusions_prepped_for_pred_file]) )
 
     pipeliner.add_commands( [ Command(cmdstr, "prepped-cosmic-like.ok")] )
 
     # run predictor
+    fusions_incl_cosmic_like_preds_file = os.path.join(workdir, "fusions.pred-cosmic-like.tsv")
+
+    cmdstr = str(" ".join([ os.path.join(MISCDIR, "predict_cosmic_like_fusion_cluster.R"),
+                           "--fusions {}".format(fusions_prepped_for_pred_file),
+                           "--ranger {}".format(os.path.join(MISCDIR, "data", "ranger.rg_obj.rds")),
+                           "--output {}".format(fusions_incl_cosmic_like_preds_file) ]))
+
+
+    pipeliner.add_commands( [Command(cmdstr, "pred-comsic-like.ok")] )
     
+    return fusions_incl_cosmic_like_preds_file
+                                                            
 
 
 
