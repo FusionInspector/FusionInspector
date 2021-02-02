@@ -65,4 +65,6 @@ clean:
 	rm -rf ./FusionInspector-pe_samples
 	rm -rf ./FusionInspector-no_shrink_introns
 	rm -rf ./FusionInspector-by-docker
+	rm -rf ./FusionInspector-multreadsets-outdir
+
 
