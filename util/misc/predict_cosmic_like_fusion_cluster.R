@@ -22,7 +22,7 @@ data = read.table(dat_filename, header=T, sep="\t", stringsAsFactors = F, com=''
 orig_data = data
 
 
-data = data %>% select(annot_splice, consensus_splice, FFPM, left_counter_ffpm, right_counter_ffpm, FAR_left, FAR_right, microh_brkpt_dist, num_microh)
+data = data %>% select(annot_splice, consensus_splice, FFPM, left_counter_ffpm, right_counter_ffpm, FAR_left, FAR_right, microh_brkpt_dist, num_microh_near_brkpt)
 
 pseudocount = 1
 
@@ -32,7 +32,7 @@ data$adj_right_counter_ffpm = log2(data$right_counter_ffpm + pseudocount)
 data$adj_FAR_left = log2(data$FAR_left + pseudocount)
 data$adj_FAR_right = log2(data$FAR_right + pseudocount)
 data$adj_microh_brkpt_dist = log2(data$microh_brkpt_dist + pseudocount)
-data$adj_num_microh = log2(data$num_microh + pseudocount)
+data$adj_num_microh = log2(data$num_microh_near_brkpt + pseudocount)
 data$adj_annot_splice = data$annot_splice
 data$adj_consensus_splice = data$consensus_splice
 
@@ -129,10 +129,10 @@ orig_data$pred_cluster = pred$predictions
 
 ## annotate clusters according to attribute types.
 orig_data = orig_data %>%
-    mutate(fusion_cluster_att = ifelse(leiden == 4, "cosmic-like", "NA")) %>%
-    mutate(fusion_cluster_att = ifelse(leiden %in% c(47,20,41,15), "expr_microH_RT_artifact?", fusion_cluster_att)) %>%
-    mutate(fusion_cluster_att = ifelse(leiden %in% c(57,56,60), "high_FAR_microH_bioinf_artifact?", fusion_cluster_att)) %>%
-    mutate(fusion_cluster_att = ifelse(leiden %in% c(49,51), "high_counter_evidence", fusion_cluster_att))
+    mutate(fusion_cluster_att = ifelse(pred_cluster == 4, "cosmic-like", "NA")) %>%
+    mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(47,20,41,15), "expr_microH_RT_artifact?", fusion_cluster_att)) %>%
+    mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(57,56,60), "high_FAR_microH_bioinf_artifact?", fusion_cluster_att)) %>%
+    mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(49,51), "high_counter_evidence", fusion_cluster_att))
 
 
 write.table(orig_data, file=out_filename, quote=F, sep="\t", row.names=F)
