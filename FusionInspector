@@ -50,6 +50,9 @@ TRINITY_HOME = None  # init below if --include_Trinity
 
 FAR_PSEUDOCOUNT = 1
 
+RG_OBJ_FILE = os.path.join(MISCDIR, "data", "ranger.rg_obj.rds")
+
+
 """
 ______         _            _____                          _
 |  ___|       (_)          |_   _|                        | |
@@ -564,6 +567,13 @@ class FusionInspector:
         if args_parsed.no_FFPM:
             # cannot make cosmic-like preds without proper FFPM info
             args_parsed.no_predict_cosmic_like = True
+
+
+        if not args_parsed.no_predict_cosmic_like:
+            if not os.path.exists(RG_OBJ_FILE):
+                print("FusionInspector must be first installed by running 'make' in the base installation directory")
+                sys.exit(1)
+    
         
         ## Construct pipeline
         pipeliner = Pipeliner(checkpoints_dir)
@@ -1753,7 +1763,7 @@ def run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipelin
 
     cmdstr = str(" ".join([ os.path.join(MISCDIR, "predict_cosmic_like_fusion_cluster.R"),
                            "--fusions {}".format(fusions_prepped_for_pred_file),
-                           "--ranger {}".format(os.path.join(MISCDIR, "data", "ranger.rg_obj.rds")),
+                           "--ranger {}".format(RG_OBJ_FILE),
                            "--output {}".format(fusions_incl_cosmic_like_preds_file) ]))
 
 
