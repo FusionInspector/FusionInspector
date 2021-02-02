@@ -17,7 +17,7 @@ out_filename = args$output
 rg_rds_file = args$ranger
 
 message("-parsing ", dat_filename)
-data = read.table(dat_filename, header=T, sep="\t", stringsAsFactors = F)
+data = read.table(dat_filename, header=T, sep="\t", stringsAsFactors = F, com='')
 
 orig_data = data
 
