@@ -4,7 +4,8 @@ use strict;
 use warnings;
 use Carp;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
-use lib ($ENV{EUK_MODULES});
+use FindBin;
+use lib ("$FindBin::Bin/../../PerlLib");
 use Overlap_piler;
 use Fasta_reader;
 

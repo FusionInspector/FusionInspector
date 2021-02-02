@@ -142,17 +142,44 @@ RUN wget https://github.com/broadinstitute/picard/releases/download/2.20.3/picar
 ENV PICARD_HOME $SRC
 
 
-## FusionInspector  v2.4.0
 
-RUN apt-get update && apt-get install -y git && apt-get clean
 
-ENV FI_HASH=895b3fee0edaa946739f73b244c7c39e0f5d6648
+## R installation:
+
+RUN apt-get update && apt-get install -y gfortran libreadline-dev libcurl4-openssl-dev libx11-dev \
+                       libxt-dev x11-common libcairo2-dev libpng-dev  libjpeg-dev pkg-config
+
+WORKDIR $SRC
+
+ENV R_VERSION=R-3.6.3
+
+RUN curl https://cran.r-project.org/src/base/R-3/$R_VERSION.tar.gz -o $R_VERSION.tar.gz && \
+        tar xvf $R_VERSION.tar.gz && \
+        cd $R_VERSION && \
+        ./configure && make && make install
+
+
+RUN R -e 'install.packages("BiocManager", repos="http://cran.us.r-project.org")'
+RUN R -e 'BiocManager::install("tidyverse")'
+RUN R -e 'BiocManager::install("argparse")'
+RUN R -e 'BiocManager::install("ranger")'
+
+
+## FusionInspector  v2.5.0-dev
+
+RUN apt-get update && apt-get install -y git libxml2-dev  libssl-dev libcurl4-openssl-dev && apt-get clean
+
+
+RUN R -e 'BiocManager::install("tidyverse")'
+
+ENV FI_HASH=da87bdc2c2b04d67edd51af98d2f061fab9b8516
 
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
     git checkout ${FI_HASH} && \
     git submodule init && git submodule update && \
+    make && \
     mv * $BIN
 
 COPY sam_readname_cleaner.py $BIN/

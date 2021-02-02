@@ -13,7 +13,7 @@ VERSION=`cat VERSION.txt`
 # run FusionInspector
 
 TESTDIR=test
-fusion_files_list="${TESTDIR}/fusion_targets.A.txt,${TESTDIR}/fusion_targets.B.txt,${TESTDIR}/fusion_targets.C.txt"
+fusion_files_list="${TESTDIR}/fusion_targets.A.txt,${TESTDIR}/fusion_targets.B.txt,${TESTDIR}/fusion_targets.C.txt.gz"
 left_fq="${TESTDIR}/test.reads_1.fastq.gz"
 right_fq="${TESTDIR}/test.reads_2.fastq.gz"
 
