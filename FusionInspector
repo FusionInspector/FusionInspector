@@ -380,10 +380,10 @@ class FusionInspector:
             help=" include microhomology expression breakpoint plots")
 
         optional.add_argument(
-            "--predict_cosmic_like",
+            "--no_predict_cosmic_like",
             action="store_true",
             default=False,
-            help=" predict if fusion looks COSMIC-like wrt expression and microhomology charachteristics" )
+            help="do not predict if fusion looks COSMIC-like wrt expression and microhomology charachteristics. Automatically enabled if --no_FFPM is set." )
         
                 
         # done setting up options menu
@@ -561,6 +561,10 @@ class FusionInspector:
             + chim_summary_files_list
         )
 
+        if args_parsed.no_FFPM:
+            # cannot make cosmic-like preds without proper FFPM info
+            args_parsed.no_predict_cosmic_like = True
+        
         ## Construct pipeline
         pipeliner = Pipeliner(checkpoints_dir)
 
@@ -1248,8 +1252,10 @@ class FusionInspector:
         fusions_file = run_microhomology_analysis(args_parsed, fusions_file, mergedContig_fasta_filename, mergedContig_gtf_filename, workdir, pipeliner)
 
 
-        ## predict cosmic-like fusions
-        fusions_file = run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipeliner)
+        if not args_parsed.no_predict_cosmic_like:
+            ## predict cosmic-like fusions
+            fusions_file = run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipeliner)
+
         
         ## predict fusion class incl. cosmic-like fusions
         
