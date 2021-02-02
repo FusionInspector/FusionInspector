@@ -1757,7 +1757,7 @@ def run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipelin
                            "--output {}".format(fusions_incl_cosmic_like_preds_file) ]))
 
 
-    pipeliner.add_commands( [Command(cmdstr, "pred-comsic-like.ok")] )
+    pipeliner.add_commands( [Command(cmdstr, "pred-cosmic-like.ok")] )
     
     return fusions_incl_cosmic_like_preds_file
                                                             
