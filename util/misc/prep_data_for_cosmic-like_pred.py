@@ -21,7 +21,8 @@ def main():
         reader = csv.DictReader(fh, delimiter="\t")
     
         colnames = list(reader.fieldnames)
-        colnames = colnames.extend(["annot_splice", "consensus_splice", "left_counter_ffpm", "right_counter_ffpm"])
+
+        colnames.extend(["annot_splice", "consensus_splice", "left_counter_ffpm", "right_counter_ffpm"])
             
         writer = csv.DictWriter(sys.stdout, fieldnames=colnames, delimiter="\t")
     
