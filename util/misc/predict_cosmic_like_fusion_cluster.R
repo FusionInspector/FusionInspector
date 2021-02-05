@@ -135,5 +135,10 @@ orig_data = orig_data %>%
     mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(49,51), "high_counter_evidence", fusion_cluster_att))
 
 
+
+## can do this elsewhere, but will do it here for now:  assign the primary isoform based on fusion expression.  //TODO: relocate this part earlier on in pipeline.
+
+
+
 write.table(orig_data, file=out_filename, quote=F, sep="\t", row.names=F)
 
