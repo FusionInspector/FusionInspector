@@ -6,6 +6,7 @@ suppressPackageStartupMessages(library("tidyverse"))
 
 message("-building rg obj")
 traindata = read.table(gzfile("ranger.test_data.gz"), header=T, stringsAsFactors=F, sep="\t")
+traindata$leiden = factor(traindata$leiden)
 rg = ranger(leiden ~ ., data=traindata)
 
 message("-saving rg obj")

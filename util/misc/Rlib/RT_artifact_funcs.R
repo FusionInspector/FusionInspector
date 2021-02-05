@@ -46,9 +46,13 @@ stingray_plot = function(data, include_background=FALSE) {
 
 breakpoint_plot = function(fusion_data, microhomology_data, title, fusion_brkpt_size_by=c("FFPM", "num_samples")) {
 
+    #message(fusion_data)
+    
     fusion_brkpt_size_by = match.arg(fusion_brkpt_size_by)
 
-    splice_type_colors = c("ONLY_REF_SPLICE" = "purple", "INCL_NON_REF_SPLICE" = "orange")
+    splice_type_colors = c("ONLY_REF_SPLICE" = "purple",
+                           "INCL_NON_REF_SPLICE" = "orange",
+                           "NO_JUNCTION_READS_IDENTIFIED" = "red")
 
     if (fusion_brkpt_size_by == "FFPM") {
 

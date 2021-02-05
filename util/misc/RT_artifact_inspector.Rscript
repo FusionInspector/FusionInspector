@@ -68,6 +68,7 @@ for (fusion_name in fusion_names) {
     ## make stingray plot for all sample fusions.
     all_stingray_plot = stingray_plot(fusion_preds_data, include_background=TRUE)
 
+    
     ## make breakpoint plot
     fusion_pair_microhomologies = grouped_microhomologies[[fusion_name]]
 
@@ -75,16 +76,17 @@ for (fusion_name in fusion_names) {
     all_brkpt_plot_ffpm = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies,
                                           title=paste0(fusion_name, " FFPM"), "FFPM")
 
-    all_brkpt_plot_num_samples = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies,
-                                                 title=paste0(fusion_name, " num samples"), "num_samples")
 
     pg = plot_grid(all_stingray_plot, all_brkpt_plot_ffpm, ncol=1, rel_heights=c(0.5, 0.5))
     plot(pg)
 
-
+    all_brkpt_plot_num_samples = breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies,
+                                                 title=paste0(fusion_name, " num samples"), "num_samples")
+    
     ## now, make the per-sample plots
 
     if (! "sample" %in% colnames(fusion_preds_data)) { next; }
+    
 
     plot(all_brkpt_plot_num_samples)
 
