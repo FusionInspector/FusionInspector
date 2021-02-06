@@ -11,6 +11,11 @@ test:
 all: test fusion_contigs_only incl_Trinity annotate coding_effect samples_file_PE no_shrink_introns multiple_read_sets single_reads single_reads_fc_only
 
 
+
+test_incl_brktp_plots:
+	./runMe.pl --output_dir FusionInspector-outdir --left_fq ${left_fq} --right_fq ${right_fq} --vis --incl_microH_expr_brkpt_plots
+
+
 no_shrink_introns:
 	./runMe.pl --output_dir FusionInspector-no_shrink_introns --left_fq ${left_fq} --right_fq ${right_fq} --no_shrink_introns 
 
