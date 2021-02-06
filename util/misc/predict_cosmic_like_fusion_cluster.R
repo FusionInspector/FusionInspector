@@ -127,9 +127,10 @@ pred = predict(rg, data=data.scaled)
 
 orig_data$pred_cluster = pred$predictions
 
-## annotate clusters according to attribute types.
+## annotate clusters according to attribute types. (based on Leiden res=3)
 orig_data = orig_data %>%
-    mutate(fusion_cluster_att = ifelse(pred_cluster == 4, "cosmic-like", "NA")) %>%
+    mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(4, 6, 39, 38, 23, 8, 54, 13, 45, 46, 34, 21, 7, 26, 10, 12, 3, 18),
+                                       "cosmic-like", "NA")) %>%
     mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(47,20,41,15), "expr_microH_RT_artifact?", fusion_cluster_att)) %>%
     mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(57,56,60), "high_FAR_microH_bioinf_artifact?", fusion_cluster_att)) %>%
     mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(49,51), "high_counter_evidence", fusion_cluster_att))

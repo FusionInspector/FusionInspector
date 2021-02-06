@@ -172,7 +172,7 @@ RUN apt-get update && apt-get install -y git libxml2-dev  libssl-dev libcurl4-op
 
 RUN R -e 'BiocManager::install("tidyverse")'
 
-ENV FI_HASH=da87bdc2c2b04d67edd51af98d2f061fab9b8516
+ENV FI_HASH=5c11a951ed77148e37f0e027537ece295f434c0d
 
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
