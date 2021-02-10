@@ -15,7 +15,7 @@ parser = ArgumentParser()
 parser$add_argument("--fusion_preds_tsv", help="fusion prediction info in FusionInspector tsv format", required=TRUE, nargs=1)
 parser$add_argument("--microhomologies_tsv", help="fusion contig microhomologies", required=TRUE, nargs=1)
 parser$add_argument("--plots_dir", help="directory for writing plot pdf files", required=TRUE, nargs=1)
-parser$add_argument("--max_indiv_sample_plots", default=10, help="max number of sample plots to process", nargs=1)
+parser$add_argument("--max_indiv_sample_plots", default=10, type='integer', help="max number of sample plots to process", nargs=1)
 
 args = parser$parse_args()
 
@@ -53,6 +53,7 @@ fusion_preds = fusion_preds %>% mutate(SpliceDinuc=ifelse(LeftBreakDinuc %in% c(
 grouped_fusion_preds = split(x=fusion_preds, f=fusion_preds$FusionName)
 fusion_names = names(grouped_fusion_preds)
 
+message("fusion_names: ", fusion_names)
 
 ## parse microhomolgy data
 microhomologies = read.table(microhomologies_tsv, header=T, row.names=NULL, sep="\t", stringsAsFactors=F)
@@ -93,6 +94,7 @@ for (fusion_name in fusion_names) {
     plot(all_brkpt_plot_num_samples)
 
     sample_grouped_fusion_preds = split(fusion_preds_data, fusion_preds_data$sample)
+
     if (length(sample_grouped_fusion_preds) > max_indiv_sample_plots) {
         sample_grouped_fusion_preds = sample_grouped_fusion_preds[1:max_indiv_sample_plots]
         message("-truncating number of sample plots to --max_indiv_sample_plots: ", max_indiv_sample_plots)
