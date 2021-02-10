@@ -137,9 +137,5 @@ orig_data = orig_data %>%
 
 
 
-## can do this elsewhere, but will do it here for now:  assign the primary isoform based on fusion expression.  //TODO: relocate this part earlier on in pipeline.
-
-
-
 write.table(orig_data, file=out_filename, quote=F, sep="\t", row.names=F)
 
