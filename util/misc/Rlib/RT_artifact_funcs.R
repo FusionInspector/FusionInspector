@@ -54,12 +54,17 @@ breakpoint_plot = function(fusion_data, microhomology_data, title, fusion_brkpt_
                            "INCL_NON_REF_SPLICE" = "orange",
                            "NO_JUNCTION_READS_IDENTIFIED" = "red")
 
+    splice_dinuc_shapes = c("Consensus" = 16,
+                            "Non" = 17)
+    
+    
     if (fusion_brkpt_size_by == "FFPM") {
 
         p = fusion_data %>% ggplot() +
             geom_point(aes(x=LeftLocalBreakpoint, y=RightLocalBreakpoint, size=FFPM,
                            color=SpliceType, shape=SpliceDinuc), alpha=0.5) +
-                           scale_color_manual(values=splice_type_colors)
+                           scale_color_manual(values=splice_type_colors) +
+                           scale_shape_manual(values=splice_dinuc_shapes)
 
     } else if (fusion_brkpt_size_by == "num_samples") {
 
@@ -68,7 +73,8 @@ breakpoint_plot = function(fusion_data, microhomology_data, title, fusion_brkpt_
                             ggplot() +
                             geom_point(aes(x=LeftLocalBreakpoint, y=RightLocalBreakpoint, size=num_samples,
                                            color=SpliceType, shape=SpliceDinuc), alpha=0.3) +
-                            scale_color_manual(values=splice_type_colors)
+                            scale_color_manual(values=splice_type_colors) +
+                            scale_shape_manual(values=splice_dinuc_shapes)
 
     } else {
         ## shouldn't happen.
