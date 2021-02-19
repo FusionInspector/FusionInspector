@@ -19,6 +19,12 @@ rg_rds_file = args$ranger
 message("-parsing ", dat_filename)
 data = read.table(dat_filename, header=T, sep="\t", stringsAsFactors = F, com='', check.names=F)
 
+if (nrow(data) < 1) {
+    message("-no input, just writing emtpy headered file")
+    write.table(data, file=out_filename, sep="\t", quote=F, row.names=F)
+    quit(save = "no", status = 0, runLast = FALSE)
+}
+
 orig_data = data
 
 
@@ -140,3 +146,4 @@ orig_data = orig_data %>%
 
 write.table(orig_data, file=out_filename, quote=F, sep="\t", row.names=F)
 
+quit(save = "no", status = 0, runLast = FALSE)
