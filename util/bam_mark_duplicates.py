@@ -64,8 +64,10 @@ def main():
         start = read.reference_start
         read_name = read.query_name
 
-        if read.is_secondary:
-            continue
+        ## do not rely on existing flags in bam.  Determine duplicates directly here.
+
+        #if read.is_secondary:  important: need to hold on to secondary reads... could be a duplicate fusion entry, still want to capture it.
+        #    continue
         
         if chrom != prev_chrom:
             reinit_new_contig()
