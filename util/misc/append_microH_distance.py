@@ -19,6 +19,8 @@ def main():
 
     microH_dat_filename = sys.argv[1]
     fusions_file = sys.argv[2]
+
+    csv.field_size_limit(sys.maxsize)
     
     microH_info = defaultdict(list)
 
