@@ -3,7 +3,7 @@
 import sys, os, re
 import csv
 
-
+csv.field_size_limit(sys.maxsize)
 
 def main():
 
