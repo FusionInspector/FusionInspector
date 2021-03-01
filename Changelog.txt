@@ -1,3 +1,8 @@
+## FusionInspector v2.5.0 (Mar 1, 2021)
+- incorporates microhomology analysis and plots for exploring likely artifacts
+- duplicate removal more strictly handles duplicates and not excluding secondary alignments, important for certain alt fusion pairs ie. geneA--geneB but geneA--geneC is just as good.
+
+
 ## FusionInspector v2.4.0 (Jan 23, 2020)
 - replaced picard dup marking w/ our own dup removal
 - use tiedhash for storing read counts in get_fusion_SPANNING_reads_from_bam.from_chim_summary.pl

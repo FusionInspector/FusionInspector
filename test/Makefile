@@ -8,11 +8,11 @@ test:
 	./runMe.pl --output_dir FusionInspector-outdir --left_fq ${left_fq} --right_fq ${right_fq} --vis
 
 
-all: test fusion_contigs_only incl_Trinity annotate coding_effect samples_file_PE no_shrink_introns multiple_read_sets single_reads single_reads_fc_only
+all: test_incl_brkpt_plots fusion_contigs_only incl_Trinity annotate coding_effect samples_file_PE no_shrink_introns multiple_read_sets single_reads single_reads_fc_only
 
 
 
-test_incl_brktp_plots:
+test_incl_brkpt_plots:
 	./runMe.pl --output_dir FusionInspector-outdir --left_fq ${left_fq} --right_fq ${right_fq} --vis --incl_microH_expr_brkpt_plots
 
 
