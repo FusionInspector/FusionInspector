@@ -172,7 +172,7 @@ RUN apt-get update && apt-get install -y git libxml2-dev  libssl-dev libcurl4-op
 
 RUN R -e 'BiocManager::install("tidyverse")'
 
-ENV FI_HASH=5c11a951ed77148e37f0e027537ece295f434c0d
+ENV FI_HASH=f85510af48e3ba6537c19879e2560f53a9027ab5
 
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
@@ -185,3 +185,4 @@ RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git
 COPY sam_readname_cleaner.py $BIN/
 
 
+RUN R -e 'BiocManager::install("cowplot")'

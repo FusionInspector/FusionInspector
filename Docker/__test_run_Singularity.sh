@@ -28,5 +28,8 @@ cd ../ && singularity exec -e -B ${CTAT_GENOME_LIB}:/ctat_genome_lib:ro \
        --vis \
        --include_Trinity \
        --examine_coding_effect \
-       --extract_fusion_reads_file ${TESTDIR}/FusionInspector-by-singularity/fusion_reads 
+       --extract_fusion_reads_file ${TESTDIR}/FusionInspector-by-singularity/fusion_reads \
+       --incl_microH_expr_brkpt_plots
+
+
 
