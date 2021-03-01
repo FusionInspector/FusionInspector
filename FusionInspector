@@ -39,7 +39,7 @@ logger.addHandler(ch)
 
 
 VERSION = "__BLEEDING_EDGE__"
-#VERSION = "2.4.0"
+# VERSION = "2.4.0"
 
 
 BASEDIR = os.path.dirname(__file__)
@@ -65,6 +65,9 @@ ______         _            _____                          _
                                                                                     
 
 """
+
+
+SKIP_EXPERIMENTAL = True
 
 
 class FusionInspector:
@@ -325,7 +328,6 @@ class FusionInspector:
             default=False,
             help="do not exclude duplicate reads",
         )
-        
 
         optional.add_argument(
             "--version",
@@ -380,18 +382,23 @@ class FusionInspector:
             "--incl_microH_expr_brkpt_plots",
             action="store_true",
             default=False,
-            help=" include microhomology expression breakpoint plots")
+            help=" include microhomology expression breakpoint plots",
+        )
 
-        optional.add_argument(
-            "--no_predict_cosmic_like",
-            action="store_true",
-            default=False,
-            help="do not predict if fusion looks COSMIC-like wrt expression and microhomology charachteristics. Automatically enabled if --no_FFPM is set." )
-        
-                
+        if not SKIP_EXPERIMENTAL:
+            optional.add_argument(
+                "--no_predict_cosmic_like",
+                action="store_true",
+                default=False,
+                help="do not predict if fusion looks COSMIC-like wrt expression and microhomology charachteristics. Automatically enabled if --no_FFPM is set.",
+            )
+
         # done setting up options menu
 
         args_parsed = arg_parser.parse_args()
+
+        if SKIP_EXPERIMENTAL:
+            args_parsed.no_predict_cosmic_like = True
 
         if not (args_parsed.left_fq_filename or args_parsed.samples_file):
             print("Error, must specify --left_fq or --samples_file", file=sys.stderr)
@@ -568,13 +575,13 @@ class FusionInspector:
             # cannot make cosmic-like preds without proper FFPM info
             args_parsed.no_predict_cosmic_like = True
 
-
         if not args_parsed.no_predict_cosmic_like:
             if not os.path.exists(RG_OBJ_FILE):
-                print("FusionInspector must be first installed by running 'make' in the base installation directory")
+                print(
+                    "FusionInspector must be first installed by running 'make' in the base installation directory"
+                )
                 sys.exit(1)
-    
-        
+
         ## Construct pipeline
         pipeliner = Pipeliner(checkpoints_dir)
 
@@ -1257,18 +1264,24 @@ class FusionInspector:
 
             fusions_file = fusions_file + ".FFPM"
 
-
         ## microhomology analysis
-        fusions_file = run_microhomology_analysis(args_parsed, fusions_file, mergedContig_fasta_filename, mergedContig_gtf_filename, workdir, pipeliner)
-
+        fusions_file = run_microhomology_analysis(
+            args_parsed,
+            fusions_file,
+            mergedContig_fasta_filename,
+            mergedContig_gtf_filename,
+            workdir,
+            pipeliner,
+        )
 
         if not args_parsed.no_predict_cosmic_like:
             ## predict cosmic-like fusions
-            fusions_file = run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipeliner)
+            fusions_file = run_cosmic_like_fusion_predictor(
+                args_parsed, fusions_file, workdir, pipeliner
+            )
 
-        
         ## predict fusion class incl. cosmic-like fusions
-        
+
         final_fusions_file = os.sep.join(
             [
                 args_parsed.str_out_dir,
@@ -1745,72 +1758,106 @@ def contains_fusions(fusion_files):
     return False  # no fusions listed
 
 
-
 def run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipeliner):
 
-
     # prep for prediction (adds counter ffpm and booleans for splice types)
-    fusions_prepped_for_pred_file = os.path.join(workdir, "fusions.pre-pred-cosmic-like.tsv")
+    fusions_prepped_for_pred_file = os.path.join(
+        workdir, "fusions.pre-pred-cosmic-like.tsv"
+    )
 
-    cmdstr = str(" ".join([ os.path.join(MISCDIR, "prep_data_for_cosmic-like_pred.py"),
-                           fusions_file,
-                           ">", fusions_prepped_for_pred_file]) )
+    cmdstr = str(
+        " ".join(
+            [
+                os.path.join(MISCDIR, "prep_data_for_cosmic-like_pred.py"),
+                fusions_file,
+                ">",
+                fusions_prepped_for_pred_file,
+            ]
+        )
+    )
 
-    pipeliner.add_commands( [ Command(cmdstr, "prepped-cosmic-like.ok")] )
+    pipeliner.add_commands([Command(cmdstr, "prepped-cosmic-like.ok")])
 
     # run predictor
-    fusions_incl_cosmic_like_preds_file = os.path.join(workdir, "fusions.pred-cosmic-like.tsv")
+    fusions_incl_cosmic_like_preds_file = os.path.join(
+        workdir, "fusions.pred-cosmic-like.tsv"
+    )
 
-    cmdstr = str(" ".join([ os.path.join(MISCDIR, "predict_cosmic_like_fusion_cluster.R"),
-                           "--fusions {}".format(fusions_prepped_for_pred_file),
-                           "--ranger {}".format(RG_OBJ_FILE),
-                           "--output {}".format(fusions_incl_cosmic_like_preds_file) ]))
+    cmdstr = str(
+        " ".join(
+            [
+                os.path.join(MISCDIR, "predict_cosmic_like_fusion_cluster.R"),
+                "--fusions {}".format(fusions_prepped_for_pred_file),
+                "--ranger {}".format(RG_OBJ_FILE),
+                "--output {}".format(fusions_incl_cosmic_like_preds_file),
+            ]
+        )
+    )
 
+    pipeliner.add_commands([Command(cmdstr, "pred-cosmic-like.ok")])
 
-    pipeliner.add_commands( [Command(cmdstr, "pred-cosmic-like.ok")] )
-    
     return fusions_incl_cosmic_like_preds_file
-                                                            
 
 
-
-def run_microhomology_analysis(args_parsed, fusions_file, mergedContig_fasta_filename, mergedContig_gtf_filename, workdir, pipeliner):
+def run_microhomology_analysis(
+    args_parsed,
+    fusions_file,
+    mergedContig_fasta_filename,
+    mergedContig_gtf_filename,
+    workdir,
+    pipeliner,
+):
 
     # compute microhomologies:
 
     microH_outfile = os.path.join(workdir, "microH.dat")
-    
-    cmdstr = str(" ".join([ os.path.join(MISCDIR, "find_microhomologies_by_kmer_matches.pl"),
-                            "--fasta {}".format(mergedContig_fasta_filename),
-                            "--gtf {}".format(mergedContig_gtf_filename),
-                            " > {}".format(microH_outfile) ]) )
-    
 
-    pipeliner.add_commands( [ Command(cmdstr, "microH.dat.ok") ])
+    cmdstr = str(
+        " ".join(
+            [
+                os.path.join(MISCDIR, "find_microhomologies_by_kmer_matches.pl"),
+                "--fasta {}".format(mergedContig_fasta_filename),
+                "--gtf {}".format(mergedContig_gtf_filename),
+                " > {}".format(microH_outfile),
+            ]
+        )
+    )
 
+    pipeliner.add_commands([Command(cmdstr, "microH.dat.ok")])
 
     fusions_w_microH = fusions_file + ".wMicroH"
-    cmdstr = str(" ".join([ os.path.join(MISCDIR, "append_microH_distance.py"),
-                            microH_outfile, fusions_file,
-                            " > ", fusions_w_microH ]) )
-                            
-    pipeliner.add_commands([ Command(cmdstr, "append_microH_info.ok") ])
-    
-        
+    cmdstr = str(
+        " ".join(
+            [
+                os.path.join(MISCDIR, "append_microH_distance.py"),
+                microH_outfile,
+                fusions_file,
+                " > ",
+                fusions_w_microH,
+            ]
+        )
+    )
+
+    pipeliner.add_commands([Command(cmdstr, "append_microH_info.ok")])
+
     if args_parsed.incl_microH_expr_brkpt_plots:
 
         plots_dir = os.path.join(args_parsed.str_out_dir, "microH_expr_brkpt_plots")
 
-        cmdstr = str(" ".join([ os.path.join(MISCDIR, "RT_artifact_inspector.Rscript"),
-                                "--fusion_preds_tsv {}".format(fusions_file),
-                                "--microhomologies_tsv {}".format(microH_outfile),
-                                    "--plots_dir {}".format(plots_dir) ]) )
+        cmdstr = str(
+            " ".join(
+                [
+                    os.path.join(MISCDIR, "RT_artifact_inspector.Rscript"),
+                    "--fusion_preds_tsv {}".format(fusions_file),
+                    "--microhomologies_tsv {}".format(microH_outfile),
+                    "--plots_dir {}".format(plots_dir),
+                ]
+            )
+        )
 
-        pipeliner.add_commands( [ Command(cmdstr, "microH_expr_brkpt_plots.ok") ] )
-    
+        pipeliner.add_commands([Command(cmdstr, "microH_expr_brkpt_plots.ok")])
 
     return fusions_w_microH
-    
 
 
 if __name__ == "__main__":
