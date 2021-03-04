@@ -9,12 +9,14 @@ parser = ArgumentParser()
 parser$add_argument("--fusions", help="input fusions data file with all attributes assigned", required=TRUE, nargs=1)
 parser$add_argument("--output", help="output filename", required=TRUE, nargs=1)
 parser$add_argument("--ranger", help="ranger predictor rds obj", required=TRUE, nargs=1)
+parser$add_argument("--write_scaled_data", help="write the scaled data to a tsv file", required=FALSE, action='store_true', default=FALSE)
 
 args = parser$parse_args()
 
 dat_filename = args$fusions
 out_filename = args$output
 rg_rds_file = args$ranger
+write_scaled_data_flag = args$write_scaled_data
 
 message("-parsing ", dat_filename)
 data = read.table(dat_filename, header=T, sep="\t", stringsAsFactors = F, com='', check.names=F)
@@ -24,6 +26,9 @@ if (nrow(data) < 1) {
     write.table(data, file=out_filename, sep="\t", quote=F, row.names=F)
     quit(save = "no", status = 0, runLast = FALSE)
 }
+
+
+
 
 orig_data = data
 
@@ -145,5 +150,13 @@ orig_data = orig_data %>%
 
 
 write.table(orig_data, file=out_filename, quote=F, sep="\t", row.names=F)
+
+
+if (write_scaled_data_flag) {
+    message("-writing scaled data file");
+    orig_data = cbind(orig_data, data.scaled[,grepl("^adj", colnames(data.scaled))])
+    out_filename = paste0(out_filename, ".wScaled.tsv");
+    write.table(orig_data, file=out_filename, quote=F, sep="\t", row.names=F);
+}
 
 quit(save = "no", status = 0, runLast = FALSE)
