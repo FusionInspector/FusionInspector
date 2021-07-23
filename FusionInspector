@@ -311,7 +311,7 @@ class FusionInspector:
             "--fusion_contigs_only",
             action="store_true",
             default=False,
-            help="align reads only to the fusion contigs",
+            help="align reads only to the fusion contigs (note, FFPM calcs disabled in this mode)",
         )
 
         optional.add_argument(
@@ -383,12 +383,12 @@ class FusionInspector:
             help=" include microhomology expression breakpoint plots",
         )
 
-
+        
         optional.add_argument(
-            "--no_predict_cosmic_like",
+            "--predict_cosmic_like",
             action="store_true",
             default=False,
-            help="do not predict if fusion looks COSMIC-like wrt expression and microhomology charachteristics. Automatically enabled if --no_FFPM is set.",
+            help="predict if fusion looks COSMIC-like wrt expression and microhomology charachteristics. Automatically disabled if --no_FFPM is set.",
             )
         
         # done setting up options menu
@@ -567,14 +567,19 @@ class FusionInspector:
             + chim_summary_files_list
         )
 
+
+        if args_parsed.fusion_contigs_only:
+            args_parsed.no_FFPM = True
+
+        
         if args_parsed.no_FFPM:
             # cannot make cosmic-like preds without proper FFPM info
-            args_parsed.no_predict_cosmic_like = True
+            args_parsed.predict_cosmic_like = False
 
-        if not args_parsed.no_predict_cosmic_like:
+        if args_parsed.predict_cosmic_like:
             if not os.path.exists(RG_OBJ_FILE):
                 print(
-                    "FusionInspector must be first installed by running 'make' in the base installation directory"
+                    "FusionInspector must be first installed by running 'make' in the base installation directory for cosmic-like predictions to work"
                 )
                 sys.exit(1)
 
@@ -1269,8 +1274,8 @@ class FusionInspector:
             workdir,
             pipeliner,
         )
-
-        if not args_parsed.no_predict_cosmic_like:
+        
+        if args_parsed.predict_cosmic_like and args_parsed.left_fq_filename and (not args_parsed.no_FFPM) :
             ## predict cosmic-like fusions
             fusions_file = run_cosmic_like_fusion_predictor(
                 args_parsed, fusions_file, workdir, pipeliner

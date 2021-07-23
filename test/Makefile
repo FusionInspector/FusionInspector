@@ -15,6 +15,9 @@ all: test_incl_brkpt_plots fusion_contigs_only incl_Trinity annotate coding_effe
 test_incl_brkpt_plots:
 	./runMe.pl --output_dir FusionInspector-outdir --left_fq ${left_fq} --right_fq ${right_fq} --vis --incl_microH_expr_brkpt_plots
 
+test_incl_cosmic_like_preds:
+	./runMe.pl --output_dir FusionInspector-outdir --left_fq ${left_fq} --right_fq ${right_fq} --vis --predict_cosmic_like
+
 
 no_shrink_introns:
 	./runMe.pl --output_dir FusionInspector-no_shrink_introns --left_fq ${left_fq} --right_fq ${right_fq} --no_shrink_introns 
