@@ -29,6 +29,7 @@ docker run -v `pwd`/../:/data -v ${CTAT_GENOME_LIB}:/ctat_genome_lib \
        --include_Trinity \
        --examine_coding_effect \
        --extract_fusion_reads_file ${TESTDIR}/FusionInspector-by-docker/fusion_reads \
-       --incl_microH_expr_brkpt_plots
+       --incl_microH_expr_brkpt_plots \
+       --predict_cosmic_like
 
 

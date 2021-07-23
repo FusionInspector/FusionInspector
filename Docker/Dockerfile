@@ -6,8 +6,11 @@ RUN apt-get update && apt-get install -y gcc g++ perl python3 automake make \
                                        wget curl libdb-dev \
                                        bzip2 zlibc zlib1g zlib1g-dev  default-jre \
                        python3-setuptools python3-dev build-essential python3-distutils \
-                                       unzip libbz2-dev  liblzma-dev && \
+                                       unzip libbz2-dev  liblzma-dev gfortran libreadline-dev libcurl4-openssl-dev libx11-dev \
+                       libxt-dev x11-common libcairo2-dev libpng-dev  libjpeg-dev pkg-config \
+                       libxml2-dev  libssl-dev libcurl4-openssl-dev pbzip2 && \
     apt-get clean
+
 
 ## Python 3 stuff
 
@@ -20,8 +23,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 
 RUN pip install numpy requests igv-reports
 
-
-
 ## set up tool config and deployment area:
 
 ENV SRC /usr/local/src
@@ -29,7 +30,6 @@ ENV BIN /usr/local/bin
 
 ENV DATA /usr/local/data
 RUN mkdir $DATA
-
 
 
 ## perl lib installations
@@ -52,8 +52,6 @@ RUN cpanm install JSON::XS.pm
 ########
 # Samtools
 
-
- 
 ENV SAMTOOLS_VERSION=1.9
 
 RUN SAMTOOLS_URL="https://github.com/samtools/samtools/releases/download/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2" && \
@@ -118,22 +116,7 @@ RUN GMAP_URL="http://research-pub.gene.com/gmap/src/gmap-gsnap-$GMAP_VERSION.tar
 
 
 
-##############
-## STAR
 
-ENV STAR_VERSION=2.7.2b
-RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" &&\
-    wget -P $SRC $STAR_URL &&\
-    tar -xvf $SRC/${STAR_VERSION}.tar.gz -C $SRC && \
-    mv $SRC/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /usr/local/bin
-
-
-
-
-
-RUN pip install -U igv-reports
-
-RUN apt-get install -y pbzip2
 
 ## Picard tools
 
@@ -146,9 +129,6 @@ ENV PICARD_HOME $SRC
 
 ## R installation:
 
-RUN apt-get update && apt-get install -y gfortran libreadline-dev libcurl4-openssl-dev libx11-dev \
-                       libxt-dev x11-common libcairo2-dev libpng-dev  libjpeg-dev pkg-config
-
 WORKDIR $SRC
 
 ENV R_VERSION=R-3.6.3
@@ -160,20 +140,29 @@ RUN curl https://cran.r-project.org/src/base/R-3/$R_VERSION.tar.gz -o $R_VERSION
 
 
 RUN R -e 'install.packages("BiocManager", repos="http://cran.us.r-project.org")'
-RUN R -e 'BiocManager::install("tidyverse")'
 RUN R -e 'BiocManager::install("argparse")'
+RUN R -e 'BiocManager::install("tidyverse")'
+RUN R -e 'BiocManager::install("cowplot")'
 RUN R -e 'BiocManager::install("ranger")'
 
 
-## FusionInspector  v2.5.0-dev
+##############
+## STAR
 
-RUN apt-get update && apt-get install -y git libxml2-dev  libssl-dev libcurl4-openssl-dev && apt-get clean
+ENV STAR_VERSION=2.7.8a
+RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" &&\
+    wget -P $SRC $STAR_URL &&\
+    tar -xvf $SRC/${STAR_VERSION}.tar.gz -C $SRC && \
+    mv $SRC/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /usr/local/bin
 
 
-RUN R -e 'BiocManager::install("tidyverse")'
 
-ENV FI_HASH=f85510af48e3ba6537c19879e2560f53a9027ab5
 
+# FusionInspector
+
+RUN apt-get install -y git
+
+ENV FI_HASH=afbcda7726c6b39a7c5d8719245f6b5b8604cdf7
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
@@ -185,4 +174,4 @@ RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git
 COPY sam_readname_cleaner.py $BIN/
 
 
-RUN R -e 'BiocManager::install("cowplot")'
+
