@@ -39,7 +39,7 @@ logger.addHandler(ch)
 
 
 # VERSION = "__BLEEDING_EDGE__"
-VERSION = "2.5.0"
+VERSION = "2.6.0"
 
 
 BASEDIR = os.path.dirname(__file__)
@@ -66,8 +66,6 @@ ______         _            _____                          _
 
 """
 
-
-SKIP_EXPERIMENTAL = True
 
 
 class FusionInspector:
@@ -385,20 +383,18 @@ class FusionInspector:
             help=" include microhomology expression breakpoint plots",
         )
 
-        if not SKIP_EXPERIMENTAL:
-            optional.add_argument(
-                "--no_predict_cosmic_like",
-                action="store_true",
-                default=False,
-                help="do not predict if fusion looks COSMIC-like wrt expression and microhomology charachteristics. Automatically enabled if --no_FFPM is set.",
-            )
 
+        optional.add_argument(
+            "--no_predict_cosmic_like",
+            action="store_true",
+            default=False,
+            help="do not predict if fusion looks COSMIC-like wrt expression and microhomology charachteristics. Automatically enabled if --no_FFPM is set.",
+            )
+        
         # done setting up options menu
 
         args_parsed = arg_parser.parse_args()
 
-        if SKIP_EXPERIMENTAL:
-            args_parsed.no_predict_cosmic_like = True
 
         if not (args_parsed.left_fq_filename or args_parsed.samples_file):
             print("Error, must specify --left_fq or --samples_file", file=sys.stderr)
@@ -1837,7 +1833,7 @@ def run_microhomology_analysis(
             ]
         )
     )
-
+    
     pipeliner.add_commands([Command(cmdstr, "append_microH_info.ok")])
 
     if args_parsed.incl_microH_expr_brkpt_plots:
