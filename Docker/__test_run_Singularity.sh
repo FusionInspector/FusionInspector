@@ -17,7 +17,7 @@ fusion_files_list="${TESTDIR}/fusion_targets.A.txt,${TESTDIR}/fusion_targets.B.t
 left_fq="${TESTDIR}/test.reads_1.fastq.gz"
 right_fq="${TESTDIR}/test.reads_2.fastq.gz"
 
-cd ../ && singularity exec -e -B ${CTAT_GENOME_LIB}:/ctat_genome_lib:ro \
+cd ../ && singularity exec -H /tmp -e -B ${CTAT_GENOME_LIB}:/ctat_genome_lib:ro \
           Docker/FusionInspector.v${VERSION}.simg FusionInspector  \
        --fusions $fusion_files_list \
        --output_dir ${TESTDIR}/FusionInspector-by-singularity \
@@ -29,7 +29,8 @@ cd ../ && singularity exec -e -B ${CTAT_GENOME_LIB}:/ctat_genome_lib:ro \
        --include_Trinity \
        --examine_coding_effect \
        --extract_fusion_reads_file ${TESTDIR}/FusionInspector-by-singularity/fusion_reads \
-       --incl_microH_expr_brkpt_plots
+       --incl_microH_expr_brkpt_plots \
+       --predict_cosmic_like
 
 
 
