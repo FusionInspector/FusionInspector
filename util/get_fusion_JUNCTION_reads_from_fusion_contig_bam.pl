@@ -167,8 +167,10 @@ main: {
         ## ensure the match is unique
         $line =~ /NH:i:(\d+)/ or die "Error, cannot extract hit count (NH:i:) from sam entry: $line";
         my $num_hits = $1;
+        my $num_hits_on_fusion_contigs = $read_alignment_counter{$full_read_name} || 0;
+        
         if ($num_hits != $read_alignment_counter{$full_read_name}) {
-            $elimination_counter{"num_hits: $num_hits != num_counted_on_fusion_contigs $read_alignment_counter{$full_read_name} "}++;
+            $elimination_counter{"num_hits: $num_hits != num_counted_on_fusion_contigs $num_hits_on_fusion_contigs "}++;
             if ($DEBUG) { print STDERR "-skipping, num hits ($num_hits) indicates not unique\n"; }
             next;
         }
