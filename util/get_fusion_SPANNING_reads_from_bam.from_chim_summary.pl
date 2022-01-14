@@ -319,10 +319,13 @@ main: {
             ## examine number of mismatches in read alignment
             my $line = $sam_entry->get_original_line();
             my $mismatch_count = 0;
-            if ($line =~ /NM:i:(\d+)/i) {
+            if ($line =~ /NM:i:(\d+)/) {
                 $mismatch_count = $1;
             }
-
+            else {
+                confess "Error, cannot extract mismatch count from NM tag of line: $line";
+            }
+            
             my $read_group;
             if ($line =~ /RG:Z:(\S+)/) {
                 $read_group = $1;

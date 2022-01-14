@@ -176,8 +176,11 @@ main: {
         }
         
         
-        if ($line =~ /NM:i:(\d+)/i) {
+        if ($line =~ /NM:i:(\d+)/) {
             $mismatch_count = $1;
+        }
+        else {
+            confess "Error, cannot extract read mismatch count from NM tag of line $line";
         }
 
         my $read_group;

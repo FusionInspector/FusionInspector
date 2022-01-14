@@ -235,8 +235,9 @@ main: {
         . " --limitBAMsortRAM $estimated_ram "  #20000000000";
         . " --alignInsertionFlush Right  "
         . " --alignMatesGapMax $max_mate_dist "
-        . " --alignIntronMax $max_mate_dist ";
-        
+        . " --alignIntronMax $max_mate_dist "
+        . " --outSAMattributes All ";
+    
     if (length($reads) > 1000) {
         my $star_params_file = "star_params.$$.txt";
         open(my $ofh, ">$star_params_file") or die "Error, cannot write to file: $star_params_file";
