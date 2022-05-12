@@ -149,12 +149,15 @@ sub parse_cdna_info {
             my $gene_name;
             my $orig_coords;
 
-
+            
             if ($info =~ /gene_name \"([^\"]+)\"/) {
                 $gene_name = $1;
             }
+            elsif ($info =~ /gene_id \"([^\"]+)/) {
+                $gene_name = $1;
+            }
             else {
-                die "Error, couldn't extract gene_name from $info";
+                die "Error, couldn't extract gene_name or gene_id from $info";
             }
             
             if ($info =~ /orig_coord_info \"([^\"]+)\"/) {
