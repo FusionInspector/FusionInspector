@@ -229,7 +229,7 @@ main: {
         . " --runThreadN $CPU "
         . " --genomeDir $star_index "
         . " --outSAMtype BAM SortedByCoordinate "
-        . " --twopassMode Basic "
+        . " --twopassMode None "
         . " --alignSJDBoverhangMin 10 "
         . " --genomeSuffixLengthMax 10000"
         . " --limitBAMsortRAM $estimated_ram "  #20000000000";
