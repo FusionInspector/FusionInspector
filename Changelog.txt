@@ -1,5 +1,5 @@
 
-## FusionInspector v2.7.0 (
+## FusionInspector v2.7.0 (June 13, 2022)
 - uses single pass mode instead of 2-pass to avoid potential input-dataset-specific effects on findings.
 - use gene_id when gene_name not available
 - still extract counter-evidence if single-end reads provided as input
