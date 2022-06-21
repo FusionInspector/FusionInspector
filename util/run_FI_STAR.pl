@@ -42,6 +42,7 @@ my $usage = <<__EOUSAGE__;
 #  --chim_search               include Chimeric.junction outputs
 #  --max_mate_dist <int>       maximum distance between mates (and individual introns) allowed (default: $max_mate_dist)
 #  --no_splice_score_boost     do not augment alignment score for spliced alignments 
+#  --STAR_xtra_params <string>   extra parameters to pass on to the STAR aligner. Be sure to embed parameters in quotes.
 #
 #################################################################################################
 
@@ -70,6 +71,7 @@ my $capture_genome_alignments_flag = 0;
 my $chim_search;
 my $samples_file;
 my $no_splice_score_boost = 0;
+my $STAR_xtra_params = "";
 
 &GetOptions( 'h' => \$help_flag,
              'genome=s' => \$genome,
@@ -92,6 +94,9 @@ my $no_splice_score_boost = 0;
              'max_mate_dist=i' => \$max_mate_dist,
 
              'no_splice_score_boost' => \$no_splice_score_boost,
+
+             'STAR_xtra_params=s' => \$STAR_xtra_params,
+
     );
 
 
@@ -299,7 +304,9 @@ main: {
         $cmd .= " --readFilesCommand 'gunzip -c' ";
     }
     
-    
+    if ($STAR_xtra_params) {
+        $cmd .= " $STAR_xtra_params ";
+    }
     
     $pipeliner->add_commands( new Command($cmd, "star_align.ok") );
     

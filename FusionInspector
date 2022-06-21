@@ -390,6 +390,13 @@ class FusionInspector:
             default=False,
             help="predict if fusion looks COSMIC-like wrt expression and microhomology charachteristics. Automatically disabled if --no_FFPM is set.",
             )
+
+        optional.add_argument(
+            "--STAR_xtra_params",
+            type=str,
+            default=None,
+            help="extra parameters to pass on to the STAR aligner"
+        )
         
         # done setting up options menu
 
@@ -739,6 +746,11 @@ class FusionInspector:
         if args_parsed.no_splice_score_boost:
             cmdstr += " --no_splice_score_boost "
 
+
+        if args_parsed.STAR_xtra_params:
+            cmdstr += f" --STAR_xtra_params \"{args_parsed.STAR_xtra_params}\" "
+        
+            
         star_bam_file = os.sep.join(
             [workdir, args_parsed.out_prefix + ".star.sortedByCoord.out.bam"]
         )
