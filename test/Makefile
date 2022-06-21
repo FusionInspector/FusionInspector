@@ -19,6 +19,10 @@ test_incl_cosmic_like_preds:
 	./runMe.pl --output_dir FusionInspector-outdir --left_fq ${left_fq} --right_fq ${right_fq} --vis --predict_cosmic_like
 
 
+test_incl_STAR_xtra_params:
+	./runMe.pl --output_dir FusionInspector-STARxtraparams --left_fq ${left_fq} --right_fq ${right_fq} --STAR_xtra_params \"--limitSjdbInsertNsj 1005121\"
+
+
 no_shrink_introns:
 	./runMe.pl --output_dir FusionInspector-no_shrink_introns --left_fq ${left_fq} --right_fq ${right_fq} --no_shrink_introns 
 
