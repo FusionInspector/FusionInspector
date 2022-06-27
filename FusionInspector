@@ -369,12 +369,6 @@ class FusionInspector:
             help="skip expectation maximization step that fractionally assigns spanning frags across multiple breakpoints",
         )
 
-        optional.add_argument(
-            "--max_sensitivity",
-            action="store_true",
-            default=False,
-            help=" max sensitivity settings (specificity unchecked) equivalent to --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --max_promiscuity 1000000 --min_pct_dom_promiscuity 1 --min_per_id 1 --no_remove_dups --skip_EM",
-        )
 
         optional.add_argument(
             "--incl_microH_expr_brkpt_plots",
@@ -397,6 +391,34 @@ class FusionInspector:
             default=None,
             help="extra parameters to pass on to the STAR aligner"
         )
+
+
+        optional.add_argument(
+            "--no_homology_filter",
+            action='store_true',
+            default=False,
+            help='no gene symbol-based blast pair homology filter or promiscuity checks to remove potential false positives')
+
+
+        optional.add_argument(
+            "--no_annot_filter",
+            action='store_true',
+            default=False,
+            help="no annotation-based filters applied (ie. removing GTEx normal fusions)")
+
+
+        optional.add_argument(
+            "--max_sensitivity",
+            action="store_true",
+            default=False,
+            help=" max sensitivity settings (specificity unchecked) equivalent to --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --no_homology_filter --no_annot_filter --min_per_id 1 --no_remove_dups --skip_EM",
+        )
+
+        optional.add_argument(
+            "--extreme_sensitivity",
+            action="store_true",
+            default=False,
+            help="extreme sensitivity. If there are evidence reads, this should ideally find them - however, false positive rate is expected to be maximally high too!. Equivalent to settings:  --max_sensitivity --fusion_contigs_only --no_shrink_introns --max_mate_dist 10000000")
         
         # done setting up options menu
 
@@ -406,17 +428,26 @@ class FusionInspector:
         if not (args_parsed.left_fq_filename or args_parsed.samples_file):
             print("Error, must specify --left_fq or --samples_file", file=sys.stderr)
             sys.exit(1)
+        
+
+        if args_parsed.extreme_sensitivity:
+            logger.info("--extreme sensitivy setting chosen! Equivalent to  --max_sensitivity --fusion_contigs_only --no_shrink_introns --max_mate_dist 10000000")
+            args_parsed.max_sensitivity = 1
+            args_parsed.fusion_contigs_only = True
+            args_parsed.no_shrink_introns = True
+            args_parsed.max_mate_dist = 10000000
+        
 
         if args_parsed.max_sensitivity:
             logger.info(
-                "--max_sensitivity settings in effect:  --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --max_promiscuity 1000000 --min_pct_dom_promiscuity 1 --min_per_id 1 --no_remove_dups --skip_EM"
+                "--max_sensitivity settings in effect:  --min_sum_frags 1 --min_spanning_frags_only 1 --min_novel_junction_support 1 --require_LDAS 0 --no_homology_filter --no_annot_filter --min_per_id 1 --no_remove_dups --skip_EM"
             )
             args_parsed.min_sum_frags = 1
             args_parsed.min_spanning_frags_only = 1
             args_parsed.min_novel_junction_support = 1
             args_parsed.require_LDAS = 0
-            args_parsed.max_promiscuity = 1000000
-            args_parsed.min_pct_dom_promiscuity = 1
+            args_parsed.no_homology_filter = True
+            args_parsed.no_annot_filter = True
             args_parsed.min_per_id = 1
             args_parsed.no_remove_dups = True
             args_parsed.SKIP_EM_FLAG = True
@@ -802,6 +833,7 @@ class FusionInspector:
             workdir_mergedContig_fasta_filename,
             star_bam_file,
             pipeliner,
+            args_parsed.max_sensitivity
         )
 
         bam_files_list = [
@@ -1199,49 +1231,59 @@ class FusionInspector:
         ## Score and filter the final fusion predictions
         ################################################
 
-        post_blast_promisc_filter_fusions_file = os.sep.join(
-            [
-                args_parsed.str_out_dir,
-                args_parsed.out_prefix + ".post_blast_and_promiscuity_filter",
-            ]
-        )
+        fusions_file = preds_including_splice_info_file
 
-        cmdstr = str(
-            UTILDIR
-            + "/../FusionFilter/blast_and_promiscuity_filter.pl "
-            + " --fusion_preds "
-            + preds_including_splice_info_file
-            + " --out_prefix "
-            + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix])
-            + " --genome_lib_dir "
-            + args_parsed.genome_lib_dir
-            + " --max_promiscuity "
-            + str(args_parsed.max_promiscuity)
-            + " --min_pct_dom_promiscuity "
-            + str(args_parsed.min_pct_dom_promiscuity)
-        )
+        if not args_parsed.no_homology_filter:
 
-        pipeliner.add_commands(
-            [Command(cmdstr, "blast_filter{}.ok".format(trinity_ok_token))]
-        )
+            post_blast_promisc_filter_fusions_file = os.sep.join(
+                [
+                    args_parsed.str_out_dir,
+                    args_parsed.out_prefix + ".post_blast_and_promiscuity_filter",
+                ]
+            )
 
-        ## Filter based on annotation rules
-        cmdstr = str(
-            UTILDIR
-            + "/../FusionFilter/util/filter_by_annotation_rules.pl "
-            + " --fusions {}".format(post_blast_promisc_filter_fusions_file)
-            + " --genome_lib_dir {}".format(genome_lib_dir)
-        )
+            cmdstr = str(
+                UTILDIR
+                + "/../FusionFilter/blast_and_promiscuity_filter.pl "
+                + " --fusion_preds "
+                + fusions_file
+                + " --out_prefix "
+                + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix])
+                + " --genome_lib_dir "
+                + args_parsed.genome_lib_dir
+                + " --max_promiscuity "
+                + str(args_parsed.max_promiscuity)
+                + " --min_pct_dom_promiscuity "
+                + str(args_parsed.min_pct_dom_promiscuity)
+            )
 
-        pipeliner.add_commands(
-            [Command(cmdstr, "annot_filter{}.ok".format(trinity_ok_token))]
-        )
+            pipeliner.add_commands(
+                [Command(cmdstr, "blast_filter{}.ok".format(trinity_ok_token))]
+            )
 
-        annot_pass_fusions_file = "{}.annot_filter.pass".format(
-            post_blast_promisc_filter_fusions_file
-        )
+            fusions_file = post_blast_promisc_filter_fusions_file
 
-        fusions_file = annot_pass_fusions_file
+
+        if not args_parsed.no_annot_filter:
+
+            ## Filter based on annotation rules
+            cmdstr = str(
+                UTILDIR
+                + "/../FusionFilter/util/filter_by_annotation_rules.pl "
+                + " --fusions {}".format(fusions_file)
+                + " --genome_lib_dir {}".format(genome_lib_dir)
+            )
+
+            pipeliner.add_commands(
+                [Command(cmdstr, "annot_filter{}.ok".format(trinity_ok_token))]
+            )
+
+            annot_pass_fusions_file = "{}.annot_filter.pass".format(
+                post_blast_promisc_filter_fusions_file
+            )
+
+            fusions_file = annot_pass_fusions_file
+
 
         if not args_parsed.SKIP_EM_FLAG:
             ## adjust counts using EM
@@ -1481,12 +1523,16 @@ class FusionInspector:
         mergedContig_fasta_filename,
         bam_file,
         pipeliner,
+        max_sensitivity_setting
     ):
 
         ## extract the fusion JUNCTION reads
         fusion_junction_reads_sam_file = bam_file + ".fusion_junc_reads.sam"
         fusion_junction_info_file = bam_file + ".fusion_junction_info"
 
+
+        seq_sim_filter_setting = "--no_seq_sim_filter" if max_sensitivity_setting else ""
+        
         cmdstr = str(
             os.sep.join(
                 [UTILDIR, "get_fusion_JUNCTION_reads_from_fusion_contig_bam.pl"]
@@ -1497,11 +1543,12 @@ class FusionInspector:
             + str(args_parsed.min_per_id)
             + " --bam "
             + bam_file
+            + f" {seq_sim_filter_setting}"
             + " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir)
             + " > "
             + fusion_junction_reads_sam_file
         )
-
+        
         pipeliner.add_commands(
             [Command(cmdstr, "get_fusion_JUNCTION_reads_from_bam.ok")]
         )
@@ -1544,6 +1591,7 @@ class FusionInspector:
             + " --junction_info "
             + fusion_junction_info_file
             + " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir)
+            + f" {seq_sim_filter_setting}"
             + " > "
             + fusion_spanning_reads_sam_file
         )
