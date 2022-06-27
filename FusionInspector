@@ -418,7 +418,7 @@ class FusionInspector:
             "--extreme_sensitivity",
             action="store_true",
             default=False,
-            help="extreme sensitivity. If there are evidence reads, this should ideally find them - however, false positive rate is expected to be maximally high too!. Equivalent to settings:  --max_sensitivity --fusion_contigs_only --no_shrink_introns --max_mate_dist 10000000")
+            help="extreme sensitivity. If there are evidence reads, this should ideally find them - however, false positive rate is expected to be maximally high too!. Equivalent to settings:  --max_sensitivity --fusion_contigs_only  --max_mate_dist 10000000")
         
         # done setting up options menu
 
@@ -431,10 +431,9 @@ class FusionInspector:
         
 
         if args_parsed.extreme_sensitivity:
-            logger.info("--extreme sensitivy setting chosen! Equivalent to  --max_sensitivity --fusion_contigs_only --no_shrink_introns --max_mate_dist 10000000")
+            logger.info("--extreme sensitivy setting chosen! Equivalent to  --max_sensitivity --fusion_contigs_only --max_mate_dist 10000000")
             args_parsed.max_sensitivity = 1
             args_parsed.fusion_contigs_only = True
-            args_parsed.no_shrink_introns = True
             args_parsed.max_mate_dist = 10000000
         
 
