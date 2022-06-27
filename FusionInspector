@@ -1531,7 +1531,7 @@ class FusionInspector:
         fusion_junction_info_file = bam_file + ".fusion_junction_info"
 
 
-        seq_sim_filter_setting = "--no_seq_sim_filter" if max_sensitivity_setting else ""
+        read_filter_settings = "--no_seq_sim_filter --ignore_num_hits" if max_sensitivity_setting else ""
         
         cmdstr = str(
             os.sep.join(
@@ -1543,7 +1543,7 @@ class FusionInspector:
             + str(args_parsed.min_per_id)
             + " --bam "
             + bam_file
-            + f" {seq_sim_filter_setting}"
+            + f" {read_filter_settings}"
             + " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir)
             + " > "
             + fusion_junction_reads_sam_file
@@ -1591,7 +1591,7 @@ class FusionInspector:
             + " --junction_info "
             + fusion_junction_info_file
             + " --genome_lib_dir {} ".format(args_parsed.genome_lib_dir)
-            + f" {seq_sim_filter_setting}"
+            + f" {read_filter_settings}"
             + " > "
             + fusion_spanning_reads_sam_file
         )

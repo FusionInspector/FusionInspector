@@ -48,7 +48,10 @@ my $usage = <<__EOUSAGE__;
 #  --MAX_END_CLIP <int>       default: $MAX_END_CLIP
 #  --MIN_SEQ_ENTROPY <float>    default: $MIN_SEQ_ENTROPY
 #
+# # increase sensitivity by disabling certain filters
 #  --no_seq_sim_filter       exclude the sequence region similarity filter
+#  --ignore_num_hits         ignore the number of alignments for reads  
+#
 #
 #  --debug|d                         debug mode
 #
@@ -65,6 +68,7 @@ my $bam_file;
 my $help_flag;
 my $genome_lib_dir;
 my $no_seq_sim_filter = 0;
+my $ignore_num_hits = 0;
 
 &GetOptions('help|h' => \$help_flag,
             'gtf_file=s' => \$gtf_file,
@@ -79,6 +83,7 @@ my $no_seq_sim_filter = 0;
             'MIN_LARGE_ANCHOR=i' => \$MIN_LARGE_ANCHOR,
             'MIN_SEQ_ENTROPY=f' => \$MIN_SEQ_ENTROPY,
             'no_seq_sim_filter' => \$no_seq_sim_filter,
+            'ignore_num_hits' => \$ignore_num_hits,
             
             'debug|d' => \$DEBUG,
   );
@@ -173,10 +178,12 @@ main: {
         my $num_hits = $1;
         my $num_hits_on_fusion_contigs = $read_alignment_counter{$full_read_name} || 0;
         
-        if ($num_hits != $read_alignment_counter{$full_read_name}) {
-            $elimination_counter{"num_hits: $num_hits != num_counted_on_fusion_contigs $num_hits_on_fusion_contigs "}++;
-            if ($DEBUG) { print STDERR "-skipping, num hits ($num_hits) indicates not unique\n"; }
-            next;
+        if (! $ignore_num_hits) {
+            if ($num_hits != $read_alignment_counter{$full_read_name}) {
+                $elimination_counter{"num_hits: $num_hits != num_counted_on_fusion_contigs $num_hits_on_fusion_contigs "}++;
+                if ($DEBUG) { print STDERR "-skipping, num hits ($num_hits) indicates not unique\n"; }
+                next;
+            }
         }
         
         

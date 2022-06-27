@@ -51,8 +51,10 @@ my $usage = <<__EOUSAGE__;
 #  --MAX_END_CLIP <int>         default: $MAX_END_CLIP
 #  --MIN_SEQ_ENTROPY <float>    default: $MIN_SEQ_ENTROPY
 #
-#
+# # removing certain filters:
 #  --no_seq_sim_filter         exclude the seq-similarity evidence filtering
+#  --ignore_num_hits           ignore filtering of reads based on number of hits
+#
 #
 #  --debug|d
 #
@@ -67,6 +69,7 @@ __EOUSAGE__
 my $help_flag;
 my $DEBUG = 0;
 my $no_seq_sim_filter = 0;
+my $ignore_num_hits = 0;
 
 &GetOptions('help|h' => \$help_flag,
             
@@ -80,7 +83,8 @@ my $no_seq_sim_filter = 0;
             'MIN_SEQ_ENTROPY=f' => \$MIN_SEQ_ENTROPY,
 
             'no_seq_sim_filter' => \$no_seq_sim_filter,
-            
+            'ignore_num_hits' => \$ignore_num_hits,
+
             'debug|d' => \$DEBUG,
     );
 
@@ -306,7 +310,8 @@ main: {
                                             \%scaffold_read_pair_to_read_bounds,
                                             \%core_counter,
                                             $tab_writer, 
-                                            $spanning_read_want_tiedhash);
+                                            $spanning_read_want_tiedhash,
+                                            $ignore_num_hits);
                     
                 }
                 %scaffold_read_pair_to_read_bounds = (); # reinit
@@ -674,7 +679,7 @@ sub partition_gene_structs {
 
 ####
 sub capture_spanning_frags {
-    my ($scaffold, $scaffold_read_pair_to_read_bounds_href, $core_counter_href, $tab_writer, $spanning_read_want_tiedhash) = @_;
+    my ($scaffold, $scaffold_read_pair_to_read_bounds_href, $core_counter_href, $tab_writer, $spanning_read_want_tiedhash, $ignore_num_hits) = @_;
     
     print STDERR "-fusion SPANNING read extraction for scaff: $scaffold\n";
     
@@ -739,8 +744,12 @@ sub capture_spanning_frags {
             # && $pair_coords[0]->{qual} > 0 && $pair_coords[1]->{qual} > 0
             
             # ensure single hit
-            && $pair_coords[0]->{NH} == $pair_coords[0]->{fusion_scaff_hit_count} 
-            && $pair_coords[1]->{NH} == $pair_coords[1]->{fusion_scaff_hit_count} # yes, must be uniquely supporting the fusion here!
+            && ( $ignore_num_hits || (
+                     $pair_coords[0]->{NH} == $pair_coords[0]->{fusion_scaff_hit_count} 
+                     && 
+                     $pair_coords[1]->{NH} == $pair_coords[1]->{fusion_scaff_hit_count} # yes, must be uniquely supporting the fusion here!
+                 )
+              )
             ) 
         {
             $is_fusion_spanning_fragment_flag = 1;
