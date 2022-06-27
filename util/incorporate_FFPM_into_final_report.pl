@@ -17,6 +17,7 @@ my $finspector_results = $ARGV[1] or die $usage;
 main: {
 
     my $num_frags = &get_num_total_frags($fq_filename);
+    print STDERR "-total frags in $fq_filename: $num_frags\n";
     
     open (my $fh, $finspector_results) or die "Error, cannot open file $finspector_results";
     my $tab_reader = new DelimParser::Reader($fh, "\t");
@@ -29,8 +30,14 @@ main: {
     while (my $row = $tab_reader->get_row()) {
 
         # now using estimated counts
-        my $J = $row->{est_J}; # $row->{JunctionReadCount};
-        my $S = $row->{est_S}; # $row->{SpanningFragCount};
+        my $J = $row->{est_J};
+        if (! defined($J)) {
+            $J = $row->{JunctionReadCount};
+        }
+        my $S = $row->{est_S};
+        if (! defined($S)) {
+            $S = $row->{SpanningFragCount};
+        }
         
         my $J_FFPM = &compute_FFPM($J, $num_frags);
         my $S_FFPM = &compute_FFPM($S, $num_frags);

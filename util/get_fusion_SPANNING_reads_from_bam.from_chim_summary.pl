@@ -51,6 +51,9 @@ my $usage = <<__EOUSAGE__;
 #  --MAX_END_CLIP <int>         default: $MAX_END_CLIP
 #  --MIN_SEQ_ENTROPY <float>    default: $MIN_SEQ_ENTROPY
 #
+#
+#  --no_seq_sim_filter         exclude the seq-similarity evidence filtering
+#
 #  --debug|d
 #
 ##############################################################
@@ -63,7 +66,7 @@ __EOUSAGE__
 
 my $help_flag;
 my $DEBUG = 0;
-
+my $no_seq_sim_filter = 0;
 
 &GetOptions('help|h' => \$help_flag,
             
@@ -76,6 +79,8 @@ my $DEBUG = 0;
             'MAX_END_CLIP=i' => \$MAX_END_CLIP,
             'MIN_SEQ_ENTROPY=f' => \$MIN_SEQ_ENTROPY,
 
+            'no_seq_sim_filter' => \$no_seq_sim_filter,
+            
             'debug|d' => \$DEBUG,
     );
 
@@ -950,6 +955,11 @@ sub count_read_alignments_among_fusion_contigs {
 ####
 sub exceedingly_overlaps_homologous_segment {
     my ($scaffold, $alignment_side, $read_genome_coords_aref, $align_segment_overlap_pairs_aref, $original_genome_coord_mapping_href) = @_;
+    
+
+    if ($no_seq_sim_filter) {
+        return(0);
+    }
     
     my $blast_pair_info = $BLAST_ALIGNS_IDX->get_value($scaffold);
     unless (defined $blast_pair_info) {

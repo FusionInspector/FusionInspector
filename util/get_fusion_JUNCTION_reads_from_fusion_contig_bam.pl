@@ -48,6 +48,8 @@ my $usage = <<__EOUSAGE__;
 #  --MAX_END_CLIP <int>       default: $MAX_END_CLIP
 #  --MIN_SEQ_ENTROPY <float>    default: $MIN_SEQ_ENTROPY
 #
+#  --no_seq_sim_filter       exclude the sequence region similarity filter
+#
 #  --debug|d                         debug mode
 #
 ##############################################################
@@ -62,6 +64,7 @@ my $gtf_file;
 my $bam_file;
 my $help_flag;
 my $genome_lib_dir;
+my $no_seq_sim_filter = 0;
 
 &GetOptions('help|h' => \$help_flag,
             'gtf_file=s' => \$gtf_file,
@@ -75,7 +78,8 @@ my $genome_lib_dir;
             'MIN_SMALL_ANCHOR=i' => \$MIN_SMALL_ANCHOR,
             'MIN_LARGE_ANCHOR=i' => \$MIN_LARGE_ANCHOR,
             'MIN_SEQ_ENTROPY=f' => \$MIN_SEQ_ENTROPY,
-
+            'no_seq_sim_filter' => \$no_seq_sim_filter,
+            
             'debug|d' => \$DEBUG,
   );
 
@@ -860,6 +864,10 @@ sub count_read_alignments_among_fusion_contigs {
 sub exceedingly_overlaps_homologous_segment {
     my ($gene, $genome_alignment_coordsets_aref, $read_FI_alignment_coordsets_aref, $exon_structs_aref) = @_;
 
+    if ($no_seq_sim_filter) {
+        return(0);
+    }
+    
     
     if ($DEBUG) {
         print STDERR "exceedingly_overlaps_homologous_segment: inputs:\n"
