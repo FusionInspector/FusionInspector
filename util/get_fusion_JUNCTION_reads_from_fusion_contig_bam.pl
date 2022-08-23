@@ -292,8 +292,10 @@ main: {
             print STDERR "Genes matched: " . join(" ", keys %genes_matched) . "\n" if $DEBUG;
             
             my $junction_coord_token = &get_junction_coord_token(@exon_hits);
+            
+
             if ($junction_coord_token) {
-                #print STDERR "-junction coord token: $junction_coord_token\n";
+                print STDERR "-junction coord token: $junction_coord_token\n" if $DEBUG;
                 my ($gene_A, $brkpt_A, $genome_brkpt_A, $gene_B, $brkpt_B, $genome_brkpt_B, $splice_token) = split(/\t/, $junction_coord_token);
                 my ($left_read_segments_aref, $left_genome_segments_aref, 
                     $right_read_segments_aref, $right_genome_segments_aref) = &divide_junction_read_at_breakpoint($genome_coords_aref, $read_coords_aref, $brkpt_A);
@@ -386,6 +388,9 @@ main: {
                 
                 
                 
+            } # end of if junction_coord_token
+            else {
+                print STDERR "-no junction coord token.\n" if $DEBUG;
             }
         }
         
