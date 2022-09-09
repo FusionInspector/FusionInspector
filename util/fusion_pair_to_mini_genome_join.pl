@@ -99,13 +99,13 @@ main: {
               unless (/\w/) { next; }
               
               my ($chim_pair, @rest) = split(/\s+/);
-              if ($chim_pair =~ /^(\S+)--(\S+)$/) {
+              if ($chim_pair =~ /^(\S+)(--|::)(\S+)$/) {
                   
-                  my ($geneA, $geneB) = ($1, $2);
+                  my ($geneA, $geneB) = ($1, $3);
                   
                   if ($geneA eq $geneB) { next; } ## no selfies
                   
-                  push (@chim_pairs, $chim_pair);
+                  push (@chim_pairs, [$geneA, $geneB]);
               }
               else {
                   die "Error, cannot parse $chim_pair as a fusion-gene candidate.";
@@ -118,7 +118,7 @@ main: {
     my %genes_want;
     {
         foreach my $chim_pair (@chim_pairs) {
-            foreach my $gene (split(/--/, $chim_pair)) {
+            foreach my $gene (@$chim_pair) {
                 $genes_want{$gene} = 1;
                 my @parts = split(/-/, $gene);
                 if (scalar @parts > 1) {
@@ -137,7 +137,7 @@ main: {
     ## split readthru transcripts into their separate parts
     my @tmp_chim_pairs;
     foreach my $chim_pair (@chim_pairs) {
-        my ($left_gene, $right_gene) = split(/--/, $chim_pair);
+        my ($left_gene, $right_gene) = @$chim_pair;
         
         my @pairs;
 
@@ -158,7 +158,7 @@ main: {
                     $tmp_left_gene ne $tmp_right_gene
                     ) {
                     
-                    push (@pairs, "$tmp_left_gene--$tmp_right_gene");
+                    push (@pairs, [$tmp_left_gene, $tmp_right_gene]);
                 }
                 else {
                     $all_ok = 0;
@@ -184,15 +184,17 @@ main: {
     my %seen;
     
     
-    foreach my $chim_pair (sort @chim_pairs) {
+    foreach my $chim_pair (sort {$a->[0] cmp $b->[0]} @chim_pairs) {
+
+        my $chim_pair_token = join("--", @$chim_pair);
         
-        if ($seen{$chim_pair}) {
+        if ($seen{$chim_pair_token}) {
             next; 
         }
-        $seen{$chim_pair}++;
+        $seen{$chim_pair_token}++;
         
-        my ($left_gene, $right_gene) = split(/--/, $chim_pair);
-                        
+        my ($left_gene, $right_gene) = @$chim_pair;
+        
         my $left_gene_gtf = $gene_to_gtf{$left_gene};
         my $right_gene_gtf = $gene_to_gtf{$right_gene};
         
@@ -224,11 +226,11 @@ main: {
             $supercontig =~ s/(\S{60})/$1\n/g; # make fasta 
             chomp $supercontig;
             
-            print $out_genome_ofh ">$chim_pair\n$supercontig\n";
+            print $out_genome_ofh ">$chim_pair_token\n$supercontig\n";
             
             
             my $out_gtf = $left_gene_supercontig_gtf . $right_gene_supercontig_gtf;
-            $out_gtf = &set_gtf_scaffold_name($chim_pair, $out_gtf);
+            $out_gtf = &set_gtf_scaffold_name($chim_pair_token, $out_gtf);
                         
             print $out_gtf_ofh $out_gtf;
             
