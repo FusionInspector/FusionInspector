@@ -1,0 +1,119 @@
+#!/usr/bin/env Rscript
+
+suppressPackageStartupMessages(library("argparse"))
+suppressPackageStartupMessages(library("tidyverse"))
+suppressPackageStartupMessages(library("cowplot"))
+
+
+initial_args = commandArgs (trailingOnly = FALSE)
+file_arg_name <- "--file="
+script_name <- sub(file_arg_name, "", initial_args[grep(file_arg_name, initial_args)])
+
+source(file.path(dirname(script_name), "Rlib/RT_artifact_funcs.R"))
+
+parser = ArgumentParser()
+parser$add_argument("--fusion_preds_tsv", help="fusion prediction info in FusionInspector tsv format", required=TRUE, nargs=1)
+parser$add_argument("--microhomologies_tsv", help="fusion contig microhomologies", required=TRUE, nargs=1)
+parser$add_argument("--plots_dir", help="directory for writing plot pdf files", required=TRUE, nargs=1)
+parser$add_argument("--max_indiv_sample_plots", default=10, type='integer', help="max number of sample plots to process", nargs=1)
+
+args = parser$parse_args()
+
+fusion_preds_tsv = args$fusion_preds_tsv
+microhomologies_tsv = args$microhomologies_tsv
+plots_dir = args$plots_dir
+max_indiv_sample_plots = args$max_indiv_sample_plots
+
+
+if (! file.exists(plots_dir)) {
+    dir.create(plots_dir)
+}
+
+########
+## main:
+
+####################
+## parse fusion data
+fusion_preds = read.table(fusion_preds_tsv, header=T, row.names=NULL, sep="\t", stringsAsFactors=F, com='')
+colnames(fusion_preds) = str_replace(colnames(fusion_preds), "^X\\.", "")
+
+
+if ('fusion_name' %in% colnames(fusion_preds) ) {
+    fusion_preds = fusion_preds %>% rename(FusionName = fusion_name)
+}
+
+if ('sample_name' %in% colnames(fusion_preds) ) {
+    fusion_preds = fusion_preds %>% rename(sample = sample_name)
+}
+
+## add splice type info for consenus vs. non-consensus dinucleotides
+
+fusion_preds = fusion_preds %>% mutate(SpliceDinuc=ifelse(LeftBreakDinuc %in% c("GT", "GC") & RightBreakDinuc == "AG", "Consensus", "Non"))
+
+grouped_fusion_preds = split(x=fusion_preds, f=fusion_preds$FusionName)
+fusion_names = names(grouped_fusion_preds)
+
+message("fusion_names: ", fusion_names)
+
+## parse microhomolgy data
+microhomologies = read.table(microhomologies_tsv, header=T, row.names=NULL, sep="\t", stringsAsFactors=F)
+grouped_microhomologies = split(x=microhomologies, f=microhomologies$contig)
+
+
+for (fusion_name in fusion_names) {
+
+    message("processing: ", fusion_name)
+
+    pdf(file.path(plots_dir, paste0(fusion_name, ".pdf")))
+
+    fusion_preds_data = grouped_fusion_preds[[fusion_name]]
+
+        
+    ## make breakpoint plot
+    fusion_pair_microhomologies = grouped_microhomologies[[fusion_name]]
+
+
+    all_brkpt_plot_ffpm = linear_breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies,
+                                          title=paste0(fusion_name, " FFPM"), "FFPM")
+
+	
+    
+
+    #pg = plot_grid(all_stingray_plot, all_brkpt_plot_ffpm, ncol=1, rel_heights=c(0.5, 0.5))
+    #plot(pg)
+
+	plot(all_brkpt_plot_ffpm)
+
+	#stop()
+    
+    all_brkpt_plot_num_samples = linear_breakpoint_plot(fusion_preds_data, fusion_pair_microhomologies,
+                                                 title=paste0(fusion_name, " num samples"), "num_samples")
+    
+    ## now, make the per-sample plots
+
+    if (! "sample" %in% colnames(fusion_preds_data)) { next; }
+    
+
+    plot(all_brkpt_plot_num_samples)
+
+    sample_grouped_fusion_preds = split(fusion_preds_data, fusion_preds_data$sample)
+
+    if (length(sample_grouped_fusion_preds) > max_indiv_sample_plots) {
+        sample_grouped_fusion_preds = sample_grouped_fusion_preds[1:max_indiv_sample_plots]
+        message("-truncating number of sample plots to --max_indiv_sample_plots: ", max_indiv_sample_plots)
+    }
+    
+    for (sample_name in names(sample_grouped_fusion_preds)) {
+        message("\t-sample:", sample_name)
+        sample_data = sample_grouped_fusion_preds[[sample_name]]
+        #sample_stingray_plot = stingray_plot(sample_data)
+        #plot(sample_stingray_plot)
+
+        sample_brkpt_plot = linear_breakpoint_plot(sample_data, fusion_pair_microhomologies, title=paste(fusion_name, sample_name, sep=" : "))
+        plot(sample_brkpt_plot)
+    }
+
+    dev.off()
+
+	#stop()
+}
