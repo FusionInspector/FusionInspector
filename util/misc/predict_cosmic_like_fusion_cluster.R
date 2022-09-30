@@ -140,13 +140,15 @@ orig_data$pred_cluster = pred$predictions
 
 ## annotate clusters according to attribute types. (based on Leiden res=3)
 orig_data = orig_data %>%
-    mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(6, 39, 38, 23, 8, 54, 13, 46, 34, 21, 7, 26, 10, 12, 3, 18),
-                                       "cosmic-like", "NA")) %>%
+    #mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(6, 39, 38, 23, 8, 54, 13, 46, 34, 21, 7, 26, 10, 12, 3, 18),
+    #                                   "cosmic-like", "NA")) %>%
     mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(47,20,41,15), "expr_microH_RT_artifact?", fusion_cluster_att)) %>%
     mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(57,56,60), "high_FAR_microH_bioinf_artifact?", fusion_cluster_att)) %>%
-    mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(49,51), "high_counter_evidence", fusion_cluster_att)) %>%
+    #mutate(fusion_cluster_att = ifelse(pred_cluster %in% c(49,51), "high_counter_evidence", fusion_cluster_att)) %>%
     mutate(fusion_cluster_att = ifelse(pred_cluster == 4, "cosmic-peak-enriched", fusion_cluster_att))
 
+## ^^^ removing high counter evidence prediction because it doesn't predict usefully on other data sets. Needs to be reexamined and retrained w/ larger cohort
+## also, now only labeling the cosmic-peak-enriched for cosmic-like entries, as other cosmic fusions will trickle into other clusters at lower prevalence over time and often aren't statistically enriched.
 
 
 write.table(orig_data, file=out_filename, quote=F, sep="\t", row.names=F)
