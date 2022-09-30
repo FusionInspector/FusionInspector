@@ -1,3 +1,7 @@
+## FusionInspector v2.8.0 (Sept 30, 2022)
+- compatible with :: delim fusion pairs - HUGO nomenclature
+- revised cluster prediction to focus on cosmic-peak-enriched or artifact vs. other
+
 
 ## FusionInspector v2.7.0 (June 13, 2022)
 - uses single pass mode instead of 2-pass to avoid potential input-dataset-specific effects on findings.
