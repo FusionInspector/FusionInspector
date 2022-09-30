@@ -162,8 +162,8 @@ RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" 
 
 RUN apt-get install -y git
 
-ENV FI_VERSION=2.8.0-dev1
-ENV FI_HASH=6534f76e36688724c0a0c115b288fb7093c78edb
+ENV FI_VERSION=2.8.0
+ENV FI_HASH=592d13a8a0a0726c94b6351094b7aa53d87adaa3
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
