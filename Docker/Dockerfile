@@ -1,8 +1,8 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 MAINTAINER bhaas@broadinstitute.org
 
-RUN apt-get update && apt-get install -y gcc g++ perl python3 automake make \
+RUN  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gcc g++ perl python3 automake make \
                                        wget curl libdb-dev \
                                        bzip2 zlibc zlib1g zlib1g-dev  default-jre \
                        python3-setuptools python3-dev build-essential python3-distutils \
