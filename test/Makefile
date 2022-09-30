@@ -8,7 +8,7 @@ test:
 	./runMe.pl --output_dir FusionInspector-outdir --left_fq ${left_fq} --right_fq ${right_fq} --vis
 
 
-all: test_incl_brkpt_plots test_incl_cosmic_like_preds fusion_contigs_only incl_Trinity annotate coding_effect samples_file_PE no_shrink_introns multiple_read_sets single_reads single_reads_fc_only
+all: test test_incl_brkpt_plots test_incl_cosmic_like_preds fusion_contigs_only incl_Trinity annotate coding_effect samples_file_PE no_shrink_introns multiple_read_sets single_reads single_reads_fc_only
 
 
 
