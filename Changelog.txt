@@ -1,3 +1,21 @@
+## FusionInspector v2.8.0 (Sept 30, 2022)
+- compatible with :: delim fusion pairs - HUGO nomenclature
+- revised cluster prediction to focus on cosmic-peak-enriched or artifact vs. other
+
+
+## FusionInspector v2.7.0 (June 13, 2022)
+- uses single pass mode instead of 2-pass to avoid potential input-dataset-specific effects on findings.
+- use gene_id when gene_name not available
+- still extract counter-evidence if single-end reads provided as input
+
+
+## FusionInspector v2.6.0 (July 23, 2021)
+
+uses STAR version 2.7.8a for compatibility with CTAT genome libs: https://data.broadinstitute.org/Trinity/CTAT_RESOURCE_LIB/__genome_libs_StarFv1.10/
+Incorporates predictions of fusions as COSMIC-like, artifact-like, or other based on sequence and expression characteristics. Use the new option --predict_cosmic_like
+See https://github.com/FusionInspector/FusionInspector/wiki#evaluation-of-fusions-as-cosmic-like-or-likely-artifacts for details.
+
+
 ## FusionInspector v2.5.0 (Mar 1, 2021)
 - incorporates microhomology analysis and plots for exploring likely artifacts
 - duplicate removal more strictly handles duplicates and not excluding secondary alignments, important for certain alt fusion pairs ie. geneA--geneB but geneA--geneC is just as good.

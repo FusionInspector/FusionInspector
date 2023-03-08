@@ -53,7 +53,7 @@ fusion_preds = fusion_preds %>% mutate(SpliceDinuc=ifelse(LeftBreakDinuc %in% c(
 grouped_fusion_preds = split(x=fusion_preds, f=fusion_preds$FusionName)
 fusion_names = names(grouped_fusion_preds)
 
-message("fusion_names: ", fusion_names)
+message("fusion_names: ", paste(fusion_names, collapse=" "))
 
 ## parse microhomolgy data
 microhomologies = read.table(microhomologies_tsv, header=T, row.names=NULL, sep="\t", stringsAsFactors=F)
@@ -64,8 +64,10 @@ for (fusion_name in fusion_names) {
 
     message("processing: ", fusion_name)
 
-    pdf(file.path(plots_dir, paste0(fusion_name, ".pdf")))
-
+    fusion_name_for_file = str_replace_all(fusion_name, "[^\\w\\-]", "_")
+    pdf_filename = file.path(plots_dir, paste0(fusion_name_for_file, ".pdf"))
+    pdf(pdf_filename)
+    
     fusion_preds_data = grouped_fusion_preds[[fusion_name]]
 
     ## make stingray plot for all sample fusions.

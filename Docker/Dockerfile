@@ -1,8 +1,8 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 MAINTAINER bhaas@broadinstitute.org
 
-RUN apt-get update && apt-get install -y gcc g++ perl python3 automake make \
+RUN  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gcc g++ perl python3 automake make \
                                        wget curl libdb-dev \
                                        bzip2 zlibc zlib1g zlib1g-dev  default-jre \
                        python3-setuptools python3-dev build-essential python3-distutils \
@@ -162,8 +162,8 @@ RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" 
 
 RUN apt-get install -y git
 
-ENV FI_VERSION=2.8.0-dev1
-ENV FI_HASH=6534f76e36688724c0a0c115b288fb7093c78edb
+ENV FI_VERSION=2.8.0
+ENV FI_HASH=592d13a8a0a0726c94b6351094b7aa53d87adaa3
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
