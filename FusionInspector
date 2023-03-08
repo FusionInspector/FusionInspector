@@ -1286,7 +1286,7 @@ class FusionInspector:
 
         if not args_parsed.SKIP_EM_FLAG:
             ## adjust counts using EM
-            EM_adjusted_counts_fusions_file = annot_pass_fusions_file + ".EMadj"
+            EM_adjusted_counts_fusions_file = fusions_file + ".EMadj"
             cmdstr = str(
                 UTILDIR
                 + "/fusion_EM_runner.pl {} > {}".format(
