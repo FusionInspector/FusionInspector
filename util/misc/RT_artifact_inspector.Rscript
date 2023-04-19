@@ -48,7 +48,9 @@ if ('sample_name' %in% colnames(fusion_preds) ) {
 
 ## add splice type info for consenus vs. non-consensus dinucleotides
 
-fusion_preds = fusion_preds %>% mutate(SpliceDinuc=ifelse(LeftBreakDinuc %in% c("GT", "GC") & RightBreakDinuc == "AG", "Consensus", "Non"))
+if ('SpliceDinuc' %in% colnames(fusion_preds)) {
+    fusion_preds = fusion_preds %>% mutate(SpliceDinuc=ifelse(LeftBreakDinuc %in% c("GT", "GC") & RightBreakDinuc == "AG", "Consensus", "Non"))
+}
 
 grouped_fusion_preds = split(x=fusion_preds, f=fusion_preds$FusionName)
 fusion_names = names(grouped_fusion_preds)
@@ -72,7 +74,7 @@ for (fusion_name in fusion_names) {
 
     ## make stingray plot for all sample fusions.
     all_stingray_plot = stingray_plot(fusion_preds_data, include_background=TRUE)
-
+    message("done stingray plot")
     
     ## make breakpoint plot
     fusion_pair_microhomologies = grouped_microhomologies[[fusion_name]]

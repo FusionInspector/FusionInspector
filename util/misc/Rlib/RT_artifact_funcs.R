@@ -12,6 +12,12 @@ stingray_plot = function(data, include_background=FALSE) {
 
     stringray_boilerplate_plot = ggplot()
 
+        
+    if (! 'FFPM' %in% colnames(data)) {
+              
+        return(stringray_boilerplate_plot)
+    }
+        
     if (include_background) {
         ## build stingray plot template.
 
@@ -27,6 +33,7 @@ stingray_plot = function(data, include_background=FALSE) {
 
         stringray_boilerplate_plot = stringray_boilerplate_plot  + geom_point(data=background_ffpm_far, aes(y=log2_FAR, x=log2FFPM), color='lightgray', alpha=0.2)
     }
+
 
     ## now plot the given data on top of it.
     plotdata = data %>% mutate(log2FFPM = log2(FFPM + 1),
@@ -57,6 +64,7 @@ breakpoint_plot = function(fusion_data, microhomology_data, title, fusion_brkpt_
     splice_dinuc_shapes = c("Consensus" = 16,
                             "Non" = 17)
     
+    if ('LeftLocalBreakpoint' %in% colnames(fusion_data)) {
     
     if (fusion_brkpt_size_by == "FFPM") {
 
@@ -81,7 +89,9 @@ breakpoint_plot = function(fusion_data, microhomology_data, title, fusion_brkpt_
         stop("Error, not recognizing fusion_brkpt_size_by_param: ", fusion_brkpt_size_by)
     }
 
-
+    } else {
+        p = ggplot()
+    }
     p = p + ggtitle(title)
 
     ## plot gene structures.
