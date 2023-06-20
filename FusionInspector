@@ -420,6 +420,21 @@ class FusionInspector:
             default=False,
             help="extreme sensitivity. If there are evidence reads, this should ideally find them - however, false positive rate is expected to be maximally high too!. Equivalent to settings:  --max_sensitivity --fusion_contigs_only  --max_mate_dist 10000000")
         
+
+        optional.add_argument(
+            "--FI_contigs_gtf",
+            type=str,
+            default=None,
+            help="provide the fusion inspector contig targets directly instead of making it at runtime.")
+
+        optional.add_argument(
+            "--FI_contigs_fa",
+            type=str,
+            default=None,
+            help="provide the fusion inspector contigs fasta directly instead of making it at runtime")
+        
+        
+
         # done setting up options menu
 
         args_parsed = arg_parser.parse_args()
@@ -627,31 +642,41 @@ class FusionInspector:
 
         chim_summary_files = args_parsed.chim_summary_files.split(",")
 
-        cmdstr = str(
-            os.sep.join([UTILDIR, "fusion_pair_to_mini_genome_join.pl"])
-            + " --fusions "
-            + args_parsed.chim_summary_files
-            + " --gtf "
-            + args_parsed.gtf_filename
-            + " --genome_fa "
-            + args_parsed.genome_fasta_filename
-            + " --out_prefix "
-            + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix])
-        )
 
-        if not args_parsed.no_shrink_introns:
-            cmdstr += " --shrink_introns --max_intron_length {} ".format(
-                args_parsed.shrink_intron_max_length
+        if args_parsed.FI_contigs_gtf and args_parsed.FI_contigs_fa:
+
+            mergedContig_fasta_filename = args_parsed.FI_contigs_fa
+            
+            mergedContig_gtf_filename = args_parsed.FI_contigs_gtf
+            
+        else:
+
+            cmdstr = str(
+                os.sep.join([UTILDIR, "fusion_pair_to_mini_genome_join.pl"])
+                + " --fusions "
+                + args_parsed.chim_summary_files
+                + " --gtf "
+                + args_parsed.gtf_filename
+                + " --genome_fa "
+                + args_parsed.genome_fasta_filename
+                + " --out_prefix "
+                + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix])
             )
 
-        mergedContig_fasta_filename = os.sep.join(
-            [args_parsed.str_out_dir, args_parsed.out_prefix + ".fa"]
-        )
-        mergedContig_gtf_filename = os.sep.join(
-            [args_parsed.str_out_dir, args_parsed.out_prefix + ".gtf"]
-        )
+            if not args_parsed.no_shrink_introns:
+                cmdstr += " --shrink_introns --max_intron_length {} ".format(
+                    args_parsed.shrink_intron_max_length
+                )
 
-        pipeliner.add_commands([Command(cmdstr, "fusion_contigs.ok")])
+            mergedContig_fasta_filename = os.sep.join(
+                [args_parsed.str_out_dir, args_parsed.out_prefix + ".fa"]
+            )
+            mergedContig_gtf_filename = os.sep.join(
+                [args_parsed.str_out_dir, args_parsed.out_prefix + ".gtf"]
+            )
+
+            pipeliner.add_commands([Command(cmdstr, "fusion_contigs.ok")])
+
 
         # symlink them in the workdir
         workdir_mergedContig_fasta_filename = os.sep.join(
