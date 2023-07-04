@@ -953,7 +953,7 @@ sub convert_from_FI_contig_to_genome_coordinates {
         
         my $matching_exon_struct = undef;
         foreach my $exon_struct (@$exon_structs_aref) {
-            if ($exon_struct->{lend} < $read_FI_rend && $exon_struct->{rend} > $read_FI_lend) {
+            if ($exon_struct->{lend} <= $read_FI_rend && $exon_struct->{rend} >= $read_FI_lend) {
                 $matching_exon_struct = $exon_struct;
                 last;
             }
