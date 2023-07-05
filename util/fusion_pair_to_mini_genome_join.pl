@@ -51,6 +51,8 @@ my $genome_fasta_file;
 my $out_prefix = "geneMergeContig.$$";
 my $shrink_introns_flag = 0;
 
+my $top_candidates_only = 0; # for troubleshooting
+
 &GetOptions ( 'h' => \$help_flag,
               
               'fusions=s' => \$fusions_file,
@@ -64,6 +66,7 @@ my $shrink_introns_flag = 0;
               
               'out_prefix=s' => \$out_prefix,
               
+              'top_candidates_only=i' => \$top_candidates_only,
 
     );
 
@@ -109,6 +112,10 @@ main: {
               }
               else {
                   die "Error, cannot parse $chim_pair as a fusion-gene candidate.";
+              }
+              if ($top_candidates_only && scalar(@chim_pairs) >= $top_candidates_only) {
+                  print STDERR "-restricting to $top_candidates_only top fusion candidates as directed.\n";
+                  last;
               }
           }
           close $fh;
