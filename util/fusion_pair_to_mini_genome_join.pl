@@ -51,6 +51,8 @@ my $genome_fasta_file;
 my $out_prefix = "geneMergeContig.$$";
 my $shrink_introns_flag = 0;
 
+my $top_candidates_only = 0; # for troubleshooting
+
 &GetOptions ( 'h' => \$help_flag,
               
               'fusions=s' => \$fusions_file,
@@ -64,6 +66,7 @@ my $shrink_introns_flag = 0;
               
               'out_prefix=s' => \$out_prefix,
               
+              'top_candidates_only=i' => \$top_candidates_only,
 
     );
 
@@ -110,6 +113,10 @@ main: {
               else {
                   die "Error, cannot parse $chim_pair as a fusion-gene candidate.";
               }
+              if ($top_candidates_only && scalar(@chim_pairs) >= $top_candidates_only) {
+                  print STDERR "-restricting to $top_candidates_only top fusion candidates as directed.\n";
+                  last;
+              }
           }
           close $fh;
       }
@@ -133,6 +140,7 @@ main: {
     
     my %gene_to_gtf = &extract_gene_gtfs($gtf_file, \%genes_want);
     
+    print STDERR "-splitting readthru fusions into composite genes\n";
     
     ## split readthru transcripts into their separate parts
     my @tmp_chim_pairs;
@@ -177,14 +185,22 @@ main: {
     
     @chim_pairs = @tmp_chim_pairs;
     
-
+    
+    print STDERR "-building fusion contigs.\n";
     open (my $out_genome_ofh, ">$out_prefix.fa.tmp") or die "Error, cannot write to $out_prefix.fa.tmp";
     open (my $out_gtf_ofh, ">$out_prefix.gtf.tmp") or die "Error, cannot write to $out_prefix.gtf.tmp";
     
     my %seen;
     
+    my $num_chim_pairs = scalar(@chim_pairs);
+    my $counter = 0;
     
     foreach my $chim_pair (sort {$a->[0] cmp $b->[0]} @chim_pairs) {
+
+        $counter+= 1;
+        my $pct_done = sprintf("%.1f", $counter / $num_chim_pairs * 100);
+        print STDERR "\r[$counter/$num_chim_pairs = $pct_done % done]    ";
+                      
 
         my $chim_pair_token = join("--", @$chim_pair);
         
@@ -477,6 +493,8 @@ sub get_genomic_region_sequence {
 sub extract_gene_gtfs {
     my ($gtf_file, $gene_want_href) = @_;
 
+    print STDERR "-extracting gene gtfs\n";
+    
     my %gene_to_gtf;
 
     open (my $fh, $gtf_file) or die "Error, cannot open file $gtf_file";
@@ -497,6 +515,7 @@ sub extract_gene_gtfs {
         
         unless ($feat_type eq 'exon' || $feat_type eq 'CDS') { next; } # only exon records of gtf file
         
+                
         my $gene_id = "";
         my $gene_name = "";
         
@@ -523,33 +542,91 @@ sub extract_gene_gtfs {
         
         unless ($gene_want_href->{$gene_id} || $gene_want_href->{$gene_name}) { next; }
 
-
+        
+        my $gene_type = "";
+        if ($info =~ /gene_type \"([^\"]+)\"/) {
+            $gene_type = $1;
+        }
+        
+        
         $line = join("\t", @x);
                 
         $line .= " FI_gene_label \"$gene_id_use\";";
-        
-        
+                
         my $orig_info = "$chr,$lend,$rend,$orient";
         $line .= " orig_coord_info \"$orig_info\";\n";
         
-        $gene_to_gtf{$gene_id} .= $line;
+        my $token = join($;, $chr, $gene_type, $orient);        
+
+        $gene_to_gtf{$gene_id}->{$token}  .= $line;
             
         
         if ($gene_name && $gene_name ne $gene_id) {
-            $gene_to_gtf{$gene_name} .= $line;
+            $gene_to_gtf{$gene_name}->{$token} .= $line;
         }
         
     }
     close $fh;
+
+    %gene_to_gtf = &clean_gene_GTFs(\%gene_to_gtf);
+
 
     return(%gene_to_gtf);
 }
 
 
 ####
+sub clean_gene_GTFs {
+    my ($gene_to_gtf_href) = @_;
+    
+    print STDERR "-cleaning gene GTFs.\n";
+    
+    my %ret_gene_to_gtf;
+
+    foreach my $gene_id (keys %$gene_to_gtf_href) {
+        
+        my @gene_tokens = keys %{$gene_to_gtf_href->{$gene_id}};
+        
+        if (scalar(@gene_tokens) == 1) {
+            $ret_gene_to_gtf{$gene_id} = $gene_to_gtf_href->{$gene_id}->{$gene_tokens[0]};
+        }
+        else {
+            # choose the 'best' one.
+            my @structs;
+            foreach my $gene_token (@gene_tokens) {
+                my $gtf_text = $gene_to_gtf_href->{$gene_id}->{$gene_token};
+                
+                my $score = 0;
+                if ($gtf_text =~ /gene_type \"protein_coding\"/) {
+                    $score = 1;
+                }
+                if ($gtf_text =~ / tag \"PAR\";/) {
+                    $score = -1;
+                }
+
+                push (@structs, { gtf_text => $gtf_text,
+                                  score => $score } );
+            }
+            @structs = reverse sort {$a->{score}<=>$b->{score}} @structs;
+            
+            my $best_struct = $structs[0];
+                            
+            
+            my $gene_gtf_text = $gene_to_gtf_href->{$gene_id};
+            $ret_gene_to_gtf{$gene_id} = $best_struct->{gtf_text};
+        }
+
+
+    }
+
+    return(%ret_gene_to_gtf);
+    
+}
+
+
+####
 sub get_gene_span_info {
     my ($gene_gtf_text) = @_;
-
         
     my ($chr, $min_lend, $max_rend, $orient);
 
@@ -563,15 +640,15 @@ sub get_gene_span_info {
         my $rend = $x[4];
         ($lend, $rend) = sort {$a<=>$b} ($lend, $rend);
         my $strand = $x[6];
-        if (defined $chr) {
+        if (defined($chr) && defined($orient)) {
             ## check to ensure the rest of the info matches up
             ## if discrepancy, use first found.
             if ($chr ne $scaffold) {
-                print STDERR "Error, chr discrepancy in gtf info for $line\n";
+                print STDERR "Error, chr discrepancy in gtf info for $line\n" . Dumper(\@gtf_lines);
                 next; 
             }
             if ($orient ne $strand) {
-                print STDERR "Error, strand conflict in gtf info for $line\n";
+                print STDERR "Error, strand conflict in gtf info for $line\n" . Dumper(\@gtf_lines);
                 next;
             }
             if ($lend < $min_lend) {
