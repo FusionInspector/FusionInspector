@@ -254,6 +254,9 @@ main: {
         rename("$out_prefix.fa.tmp", "$out_prefix.fa");
         rename("$out_prefix.gtf.tmp", "$out_prefix.gtf");
     }
+
+    # index the fasta file
+    &process_cmd("samtools faidx $out_prefix.fa");
     
     exit(0);
     
