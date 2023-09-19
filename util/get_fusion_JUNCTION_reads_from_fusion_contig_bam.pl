@@ -695,6 +695,9 @@ sub parse_gtf_file {
         };
         
         if ($lend != $rend) {
+            if ($DEBUG) {
+                print STDERR "Inserting exon struct [$scaffold_id, $lend, $rend]: " . Dumper($exon_struct);
+            }
             $interval_tree->insert($exon_struct, $lend, $rend);
         }
         
@@ -703,7 +706,7 @@ sub parse_gtf_file {
     }
     close $fh;
 
-    
+        
     my %scaffold_to_gene_structs;
 
     foreach my $scaffold (keys %scaff_to_gene_to_coords) {
