@@ -1733,21 +1733,19 @@ class FusionInspector:
         workdir,
     ):
 
-        mm2_gff3_output_filename = os.sep.join(
-            [workdir, args_parsed.out_prefix + ".mm2_trinity_GG.gff3"]
-        )
-
+        mm2_gff3_output_filename = f"{trinity_fasta_filename}.mm2.bam.gff3"
+                
         cmdstr = str(
             TRINITY_HOME
             + "/util/misc/process_minimap2_alignments.pl "
             + f" --genome {mergedContig_fasta_filename} "
             + f" --transcripts {trinity_fasta_filename} "
             + f" --gtf {mergedContig_gtf_filename} "
+            + f" -o {trinity_fasta_filename}.mm2.bam "
             + " --incl_out_gff3 "
-            + f" -o {args_parsed.out_prefix} "
                         
         )
-
+        
         pipeliner.add_commands([Command(cmdstr, "trinity_mm2_alignment.ok")])
 
         ## extract the Trinity fusion transcripts

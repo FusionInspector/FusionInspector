@@ -83,7 +83,7 @@ arguments = argparse.ArgumentParser( prog = "Fusion Inspector JSON Maker",
 arguments.add_argument( C_ARG_INCLUDE_TRINITY,
                         dest="f_include_trinity",
                         action="store_true",
-                        help = "Adds the gmap_trinity_GG bed file to the json for viewing." )
+                        help = "Adds the trinity_GG bed file to the json for viewing." )
 
 arguments.add_argument( "--fusion_inspector_directory",
                         dest="fusion_inspector_directory",
@@ -113,8 +113,8 @@ absolute_fusion_directory = os.path.abspath( args.fusion_inspector_directory )
 file_prefix = args.file_prefix
 
 # Include Trinity related files
-C_STR_INCLUDE_TRINITY_BED = file_prefix + ".gmap_trinity_GG.fusions.gff3.bed.sorted.bed"
-C_STR_INCLUDE_TRINITY_BED_GZ = file_prefix + ".gmap_trinity_GG.fusions.gff3.bed.sorted.bed.gz"
+C_STR_INCLUDE_TRINITY_BED = file_prefix + ".mm2_trinity_GG.fusions.gff3.bed.sorted.bed"
+C_STR_INCLUDE_TRINITY_BED_GZ = file_prefix + ".mm2_trinity_GG.fusions.gff3.bed.sorted.bed.gz"
 
 
 # Dict to be translated to JSON object

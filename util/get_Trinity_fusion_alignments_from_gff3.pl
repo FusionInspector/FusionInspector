@@ -171,7 +171,7 @@ sub parse_gff3_file {
         my $info = $x[8];
 
         my $trinity_id;
-        if ($info =~ /ID=([^;]+)\.path[\d+];/) {
+        if ($info =~ /ID=([^;]+)\.p[\d+];/) {
 
             $trinity_id = $1;
         }
@@ -211,7 +211,7 @@ sub report_trin_fusions {
         my $info = $x[8];
 
 
-        if ($info =~ /ID=([^;]+)\.path[\d+];/) {
+        if ($info =~ /ID=([^;]+)\.p[\d+];/) {
 
             my $trinity_id = $1;
             
