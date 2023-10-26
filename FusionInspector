@@ -46,6 +46,10 @@ BASEDIR = os.path.dirname(__file__)
 UTILDIR = os.path.join(BASEDIR, "util")
 MISCDIR = os.path.join(UTILDIR, "misc")
 
+# add UTILDIR to PATH setting
+os.environ['PATH'] += ":$UTILDIR"
+
+
 TRINITY_HOME = None  # init below if --include_Trinity
 
 FAR_PSEUDOCOUNT = 1
@@ -1103,7 +1107,7 @@ class FusionInspector:
                 pipeliner.add_commands([Command(cmdstr, "run_trinity.ok")])
 
                 ## Run TrinityGG, reconstruct fusion transcripts locally via de novo assembly
-                trinGG_fusion_gff3 = self.add_trinfusion_gmap_subpipe(
+                trinGG_fusion_gff3 = self.add_trinfusion_mm2_subpipe(
                     args_parsed,
                     workdir_mergedContig_fasta_filename,
                     workdir_mergedContig_gtf_filename,
@@ -1719,7 +1723,7 @@ class FusionInspector:
 
         return
 
-    def add_trinfusion_gmap_subpipe(
+    def add_trinfusion_mm2_subpipe(
         self,
         args_parsed,
         mergedContig_fasta_filename,
@@ -1729,28 +1733,28 @@ class FusionInspector:
         workdir,
     ):
 
-        gmap_gff3_output_filename = os.sep.join(
-            [workdir, args_parsed.out_prefix + ".gmap_trinity_GG.gff3"]
+        mm2_gff3_output_filename = os.sep.join(
+            [workdir, args_parsed.out_prefix + ".mm2_trinity_GG.gff3"]
         )
 
         cmdstr = str(
             TRINITY_HOME
-            + "/util/misc/process_GMAP_alignments_gff3_chimeras_ok.pl "
-            + "--genome "
-            + mergedContig_fasta_filename
-            + " --transcripts "
-            + trinity_fasta_filename
-            + " --no_chimera > "
-            + gmap_gff3_output_filename
+            + "/util/misc/process_minimap2_alignments.pl "
+            + f" --genome {mergedContig_fasta_filename} "
+            + f" --transcripts {trinity_fasta_filename} "
+            + f" --gtf {mergedContig_gtf_filename} "
+            + " --incl_out_gff3 "
+            + f" -o {args_parsed.out_prefix} "
+                        
         )
 
-        pipeliner.add_commands([Command(cmdstr, "trinity_gmap_alignment.ok")])
+        pipeliner.add_commands([Command(cmdstr, "trinity_mm2_alignment.ok")])
 
         ## extract the Trinity fusion transcripts
         trinity_fusion_trans_filename = os.sep.join(
             [
                 args_parsed.str_out_dir,
-                args_parsed.out_prefix + ".gmap_trinity_GG.fusions.gff3",
+                args_parsed.out_prefix + ".mm2_trinity_GG.fusions.gff3",
             ]
         )
         cmdstr = str(
@@ -1758,7 +1762,7 @@ class FusionInspector:
             + " "
             + mergedContig_gtf_filename
             + " "
-            + gmap_gff3_output_filename
+            + mm2_gff3_output_filename
             + " > "
             + trinity_fusion_trans_filename
         )
@@ -1771,7 +1775,7 @@ class FusionInspector:
         trinityGG_fusion_fasta = os.sep.join(
             [
                 args_parsed.str_out_dir,
-                args_parsed.out_prefix + ".gmap_trinity_GG.fusions.fasta",
+                args_parsed.out_prefix + ".mm2_trinity_GG.fusions.fasta",
             ]
         )
         cmdstr = str(

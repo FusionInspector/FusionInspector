@@ -101,20 +101,6 @@ RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v0.9.1/Salmon-0
     ln -s $SRC/Salmon-latest_linux_x86_64/bin/salmon $BIN/.
 
 
-########
-# GMAP  (compile this last because this version unfortunately disrupts some headers in DL_LIBRARY_PATH)
-
-ENV GMAP_VERSION=2017-11-15
-WORKDIR $SRC
-RUN GMAP_URL="http://research-pub.gene.com/gmap/src/gmap-gsnap-$GMAP_VERSION.tar.gz" && \
-    wget $GMAP_URL && \
-    tar xvf gmap-gsnap-$GMAP_VERSION.tar.gz && \
-    cd gmap-$GMAP_VERSION && ./configure --prefix=`pwd` && make && make install && cp ./bin/* $BIN/
-
-
-
-
-
 
 
 
