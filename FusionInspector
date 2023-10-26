@@ -450,7 +450,7 @@ class FusionInspector:
         
 
         if args_parsed.extreme_sensitivity:
-            logger.info("--extreme sensitivy setting chosen! Equivalent to  --max_sensitivity --fusion_contigs_only --max_mate_dist 10000000")
+            logger.info("--extreme sensitivity setting chosen! Equivalent to  --max_sensitivity --fusion_contigs_only --max_mate_dist 10000000")
             args_parsed.max_sensitivity = 1
             args_parsed.fusion_contigs_only = True
             args_parsed.max_mate_dist = 10000000
@@ -563,11 +563,21 @@ class FusionInspector:
 
         args_parsed.str_out_dir = os.path.abspath(args_parsed.str_out_dir)
 
+
+        ## set up work dir
         workdir = args_parsed.str_out_dir + "/fi_workdir"
         workdir = os.path.abspath(workdir)
         if not os.path.exists(workdir):
             os.makedirs(workdir)
 
+
+        ## set up igv prep dir
+        igvprep_dir =  args_parsed.str_out_dir + "/IGV_inputs"
+        igvprep_dir = os.path.abspath(igvprep_dir)
+        if not os.path.exists(igvprep_dir):
+            os.makedirs(igvprep_dir)
+
+                    
         checkpoints_dir = args_parsed.str_out_dir + "/chckpts_dir"
         checkpoints_dir = os.path.abspath(checkpoints_dir)
         if not os.path.exists(checkpoints_dir):
@@ -664,7 +674,7 @@ class FusionInspector:
                 + " --genome_fa "
                 + args_parsed.genome_fasta_filename
                 + " --out_prefix "
-                + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix])
+                + os.sep.join([igvprep_dir, args_parsed.out_prefix])
             )
 
             if not args_parsed.no_shrink_introns:
@@ -673,16 +683,16 @@ class FusionInspector:
                 )
 
             mergedContig_fasta_filename = os.sep.join(
-                [args_parsed.str_out_dir, args_parsed.out_prefix + ".fa"]
+                [igvprep_dir, args_parsed.out_prefix + ".fa"]
             )
             mergedContig_gtf_filename = os.sep.join(
-                [args_parsed.str_out_dir, args_parsed.out_prefix + ".gtf"]
+                [igvprep_dir, args_parsed.out_prefix + ".gtf"]
             )
 
             pipeliner.add_commands([Command(cmdstr, "fusion_contigs.ok")])
 
 
-        # symlink them in the workdir
+        # copy them to the workdir
         workdir_mergedContig_fasta_filename = os.sep.join(
             [workdir, args_parsed.out_prefix + ".fa"]
         )
@@ -703,7 +713,7 @@ class FusionInspector:
         pipeliner.add_commands([Command(cmdstr, "cp_gtf_file_workdir.ok")])
 
         ## build a cytoband file
-        cytoband_file = os.sep.join([args_parsed.str_out_dir, "cytoBand.txt"])
+        cytoband_file = os.path.join(igvprep_dir, "cytoBand.txt")
         cmdstr = str(
             os.sep.join([UTILDIR, "fasta_and_gtf_to_cytoband.pl"])
             + " "
@@ -718,7 +728,7 @@ class FusionInspector:
 
         ## Convert the gtf to bed format for easier viewing
         mergedContig_bed_filename = os.sep.join(
-            [args_parsed.str_out_dir, args_parsed.out_prefix + ".bed"]
+            [igvprep_dir, args_parsed.out_prefix + ".bed"]
         )
 
         cmdstr = str(
@@ -816,6 +826,8 @@ class FusionInspector:
 
         pipeliner.add_commands([Command(cmdstr, "run_STAR.ok")])
 
+        
+        
         if not args_parsed.no_remove_dups:
 
             # mark duplicate reads
@@ -855,6 +867,10 @@ class FusionInspector:
 
             star_bam_file = star_dups_marked_bam_file
 
+
+        
+
+            
         self.get_fusion_and_spanning_reads(
             args_parsed,
             workdir_mergedContig_gtf_filename,
@@ -902,6 +918,9 @@ class FusionInspector:
 
         pipeliner.add_commands([Command(cmdstr, "coalesce_junc_n_span.ok")])
 
+        
+
+        
         file_to_filter = fusion_summary_file
 
         if not args_parsed.SKIP_EM_FLAG:
@@ -917,6 +936,9 @@ class FusionInspector:
 
             file_to_filter = init_EM_adjusted_counts_fusions_file
 
+
+
+            
         ## need to filter based on remaining fusion support.
         fusion_summary_min_score_thresh_file = file_to_filter + ".min_frag_thresh"
 
@@ -940,6 +962,8 @@ class FusionInspector:
 
         pipeliner.add_commands([Command(cmdstr, "filter_by_frag_threshs.ok")])
 
+
+        
         if args_parsed.include_Trinity or args_parsed.vis:
 
             #################################################################
@@ -966,7 +990,7 @@ class FusionInspector:
 
             consolidated_junction_reads_bam = os.sep.join(
                 [
-                    args_parsed.str_out_dir,
+                    igvprep_dir,
                     args_parsed.out_prefix + ".junction_reads.bam",
                 ]
             )
@@ -994,8 +1018,8 @@ class FusionInspector:
 
             pipeliner.add_commands([Command(cmdstr, "samtools_idx_junc_reads_bam.ok")])
 
-            if args_parsed.vis:
-                self.bam_to_bed(consolidated_junction_reads_bam, pipeliner)
+            #if args_parsed.vis:
+            #    self.bam_to_bed(consolidated_junction_reads_bam, pipeliner)
 
             ## Spanning reads
 
@@ -1017,7 +1041,7 @@ class FusionInspector:
 
             consolidated_spanning_reads_bam = os.sep.join(
                 [
-                    args_parsed.str_out_dir,
+                    igvprep_dir,
                     args_parsed.out_prefix + ".spanning_reads.bam",
                 ]
             )
@@ -1056,8 +1080,8 @@ class FusionInspector:
                 [Command(cmdstr, "samtools_index_span_reads_bam.ok")]
             )
 
-            if args_parsed.vis:
-                self.bam_to_bed(consolidated_spanning_reads_bam, pipeliner)
+            #if args_parsed.vis:
+            #    self.bam_to_bed(consolidated_spanning_reads_bam, pipeliner)
 
             # consolidate all fusion-contig aligned reads into a single bam file
             # consolidated_bam_file =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix  + ".consolidated"])
@@ -1075,7 +1099,7 @@ class FusionInspector:
             # pipeliner.add_commands([Command(cmdstr, "consolidate_bam_and_uniq_readss.ok")])
 
             outdir_consolidated_bam_file = os.sep.join(
-                [args_parsed.str_out_dir, args_parsed.out_prefix + ".consolidated.bam"]
+                [igvprep_dir, args_parsed.out_prefix + ".consolidated.bam"]
             )
 
             cmdstr = "cp " + consolidated_bam_file + " " + outdir_consolidated_bam_file
@@ -1084,6 +1108,8 @@ class FusionInspector:
             cmdstr = "samtools index {}".format(outdir_consolidated_bam_file)
             pipeliner.add_commands([Command(cmdstr, "index_consol_bam.ok")])
 
+            
+            
             if args_parsed.include_Trinity:
 
                 ############################
@@ -1114,6 +1140,7 @@ class FusionInspector:
                     trinity_fasta_filename,
                     pipeliner,
                     workdir,
+                    igvprep_dir
                 )
 
                 # merge de novo assembly fusion results w/ read-based fusion results:
@@ -1136,47 +1163,49 @@ class FusionInspector:
 
                 fusion_summary_min_score_thresh_file = fusion_summary_w_trinity  ## NOTE, VARIABLE REPLACEMENT HERE INCL TRINITY RESULTS
 
+            
+            
             if args_parsed.vis:
                 ## just make the coords file
 
-                cmdstr = str(
-                    UTILDIR
-                    + "/SAM_to_frag_coords.pl --sam "
-                    + outdir_consolidated_bam_file
-                    + " --max_insert_size 10000000 "
-                )
-
-                pipeliner.add_commands(
-                    [Command(cmdstr, "prep_igv_sam_frag_coordss.ok")]
-                )
+                #cmdstr = str(
+                #    UTILDIR
+                #    + "/SAM_to_frag_coords.pl --sam "
+                #    + outdir_consolidated_bam_file
+                #    + " --max_insert_size 10000000 "
+                #)
+                #
+                #pipeliner.add_commands(
+                #    [Command(cmdstr, "prep_igv_sam_frag_coordss.ok")]
+                #)
 
                 ## Prep IGV fusion junction view
-
-                frag_coords_file = outdir_consolidated_bam_file + ".frag_coords"
-                igv_junc_view_file = os.sep.join(
-                    [
-                        args_parsed.str_out_dir,
-                        args_parsed.out_prefix + ".igv.FusionJuncSpan",
-                    ]
-                )
-
-                cmdstr = str(
-                    UTILDIR
-                    + "/fusion_summary_to_igv_JuncSpan_fmt.pl "
-                    + fusion_summary_file
-                    + " "
-                    + frag_coords_file
-                    + " > "
-                    + igv_junc_view_file
-                )
-
-                pipeliner.add_commands([Command(cmdstr, "prep_igv_juncspan_fmt.ok")])
+                #
+                #frag_coords_file = outdir_consolidated_bam_file + ".frag_coords"
+                #igv_junc_view_file = os.sep.join(
+                #    [
+                #        args_parsed.str_out_dir,
+                #        args_parsed.out_prefix + ".igv.FusionJuncSpan",
+                #    ]
+                #)
+                #
+                #cmdstr = str(
+                #    UTILDIR
+                #    + "/fusion_summary_to_igv_JuncSpan_fmt.pl "
+                #    + fusion_summary_file
+                #    + " "
+                #    + frag_coords_file
+                #    + " > "
+                #    + igv_junc_view_file
+                #)
+                #
+                #pipeliner.add_commands([Command(cmdstr, "prep_igv_juncspan_fmt.ok")])
 
                 ########## Pfam Matches
                 ## add pfam matches in genome coordinates:
-
+                
                 pfam_igv_gff3_filename = os.sep.join(
-                    [args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.Pfam.gff3"]
+                    [workdir, args_parsed.out_prefix + ".igv.Pfam.gff3"]
                 )
                 cmdstr = str(
                     UTILDIR
@@ -1190,7 +1219,7 @@ class FusionInspector:
 
                 ## must convert to bed for viewing
                 pfam_igv_bed_filename = os.sep.join(
-                    [args_parsed.str_out_dir, args_parsed.out_prefix + ".igv.Pfam.bed"]
+                    [igvprep_dir, args_parsed.out_prefix + ".igv.Pfam.bed"]
                 )
                 cmdstr = str(
                     UTILDIR
@@ -1203,7 +1232,7 @@ class FusionInspector:
                 ######## Seq Similar Regions
                 ## add seq-similar region info
                 seqsimilar_igv_gff3_filename = os.path.join(
-                    args_parsed.str_out_dir,
+                    workdir,
                     args_parsed.out_prefix + ".igv.seqsimilar.gff3",
                 )
                 cmdstr = str(
@@ -1219,7 +1248,7 @@ class FusionInspector:
                 ## must convert to bed for viewing
                 seqsimilar_igv_bed_filename = os.sep.join(
                     [
-                        args_parsed.str_out_dir,
+                        igvprep_dir,
                         args_parsed.out_prefix + ".igv.seqsimilar.bed",
                     ]
                 )
@@ -1231,6 +1260,9 @@ class FusionInspector:
                 )
                 pipeliner.add_commands([Command(cmdstr, "prep_igv_seqsim_bed.ok")])
 
+
+
+                
         ####################
         ## Add splicing info
         ####################
@@ -1254,7 +1286,8 @@ class FusionInspector:
         pipeliner.add_commands(
             [Command(cmdstr, "add_splice_info{}.ok".format(trinity_ok_token))]
         )
-
+        
+        
         ################################################
         ## Score and filter the final fusion predictions
         ################################################
@@ -1265,18 +1298,18 @@ class FusionInspector:
 
             post_blast_promisc_filter_fusions_file = os.sep.join(
                 [
-                    args_parsed.str_out_dir,
+                    workdir,
                     args_parsed.out_prefix + ".post_blast_and_promiscuity_filter",
                 ]
             )
-
+            
             cmdstr = str(
                 UTILDIR
                 + "/../FusionFilter/blast_and_promiscuity_filter.pl "
                 + " --fusion_preds "
                 + fusions_file
                 + " --out_prefix "
-                + os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix])
+                + os.sep.join([workdir, args_parsed.out_prefix])
                 + " --genome_lib_dir "
                 + args_parsed.genome_lib_dir
                 + " --max_promiscuity "
@@ -1288,7 +1321,7 @@ class FusionInspector:
             pipeliner.add_commands(
                 [Command(cmdstr, "blast_filter{}.ok".format(trinity_ok_token))]
             )
-
+            
             fusions_file = post_blast_promisc_filter_fusions_file
 
 
@@ -1312,6 +1345,7 @@ class FusionInspector:
 
             fusions_file = annot_pass_fusions_file
 
+        
 
         if not args_parsed.SKIP_EM_FLAG:
             ## adjust counts using EM
@@ -1325,6 +1359,7 @@ class FusionInspector:
             pipeliner.add_commands([Command(cmdstr, "EM_adj_counts.ok")])
 
             fusions_file = EM_adjusted_counts_fusions_file
+
 
         ## add FFPM calculations
         if (
@@ -1347,6 +1382,7 @@ class FusionInspector:
 
             fusions_file = fusions_file + ".FFPM"
 
+        
         ## microhomology analysis
         fusions_file = run_microhomology_analysis(
             args_parsed,
@@ -1363,6 +1399,8 @@ class FusionInspector:
                 args_parsed, fusions_file, workdir, pipeliner
             )
 
+
+
         ## predict fusion class incl. cosmic-like fusions
 
         final_fusions_file = os.sep.join(
@@ -1376,6 +1414,9 @@ class FusionInspector:
             [Command(cmdstr, "cp_final{}.ok".format(trinity_ok_token))]
         )
 
+
+        
+        
         ## back to regular non-deconvolved fusions file
         ## make an abridged version that lacks the list of supporting reads.
 
@@ -1402,7 +1443,9 @@ class FusionInspector:
             abridged_final_fusions_file  ## use the abridged version from here on
         )
 
-        if args_parsed.vis:
+        
+        
+        if False and args_parsed.vis:
             ## generate the fusion-inspector-web galaxy js
 
             json_file = os.path.sep.join(
@@ -1415,7 +1458,7 @@ class FusionInspector:
             cmdstr = str(
                 os.path.sep.join([UTILDIR, "create_fusion_inspector_igvjs.py"])
                 + " --fusion_inspector_directory "
-                + args_parsed.str_out_dir
+                + igvprep_dir
                 + " --json_outfile {}".format(json_file)
                 + " --file_prefix "
                 + args_parsed.out_prefix
@@ -1731,6 +1774,7 @@ class FusionInspector:
         trinity_fasta_filename,
         pipeliner,
         workdir,
+        igvprep_dir
     ):
 
         mm2_gff3_output_filename = f"{trinity_fasta_filename}.mm2.bam.gff3"
@@ -1751,7 +1795,7 @@ class FusionInspector:
         ## extract the Trinity fusion transcripts
         trinity_fusion_trans_filename = os.sep.join(
             [
-                args_parsed.str_out_dir,
+                workdir,
                 args_parsed.out_prefix + ".mm2_trinity_GG.fusions.gff3",
             ]
         )
@@ -1790,7 +1834,7 @@ class FusionInspector:
         )
 
         # convert fusion trans to bed
-        trinity_fusion_trans_bed_filename = trinity_fusion_trans_filename + ".bed"
+        trinity_fusion_trans_bed_filename = os.path.join(igvprep_dir, args_parsed.out_prefix + ".mm2_trinity_GG.fusions.bed")
         min_per_id = 95
         cmdstr = str(
             UTILDIR
