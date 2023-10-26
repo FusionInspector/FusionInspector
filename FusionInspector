@@ -1325,25 +1325,28 @@ class FusionInspector:
             fusions_file = post_blast_promisc_filter_fusions_file
 
 
-        if not args_parsed.no_annot_filter:
-
-            ## Filter based on annotation rules
-            cmdstr = str(
-                UTILDIR
-                + "/../FusionFilter/util/filter_by_annotation_rules.pl "
-                + " --fusions {}".format(fusions_file)
-                + " --genome_lib_dir {}".format(genome_lib_dir)
-            )
-
-            pipeliner.add_commands(
-                [Command(cmdstr, "annot_filter{}.ok".format(trinity_ok_token))]
-            )
-
-            annot_pass_fusions_file = "{}.annot_filter.pass".format(
-                post_blast_promisc_filter_fusions_file
-            )
-
-            fusions_file = annot_pass_fusions_file
+        # doesnt make sense for FusionInspector to filter based on annotations. Removed Oct 2023 - bjh
+        
+            
+        #if not args_parsed.no_annot_filter:
+        #
+        #    ## Filter based on annotation rules
+        #    cmdstr = str(
+        #        UTILDIR
+        #        + "/../FusionFilter/util/filter_by_annotation_rules.pl "
+        #        + " --fusions {}".format(fusions_file)
+        #        + " --genome_lib_dir {}".format(genome_lib_dir)
+        #    )
+        #
+        #    pipeliner.add_commands(
+        #        [Command(cmdstr, "annot_filter{}.ok".format(trinity_ok_token))]
+        #    )
+        #
+        #    annot_pass_fusions_file = "{}.annot_filter.pass".format(
+        #        post_blast_promisc_filter_fusions_file
+        #    )
+        #
+        #    fusions_file = annot_pass_fusions_file
 
         
 
@@ -1400,24 +1403,68 @@ class FusionInspector:
             )
 
 
+        ## annotate
+        # always annotate now - Oct 2023 bhaas
+        
+        annotated_fusions_file = fusions_file + ".annotated"
 
-        ## predict fusion class incl. cosmic-like fusions
+        cmdstr = str(
+            os.path.sep.join([BASEDIR, "FusionAnnotator", "FusionAnnotator"])
+            + " --annotate {} ".format(fusions_file)
+            + " --genome_lib_dir {}".format(genome_lib_dir)
+            + " > {} ".format(annotated_fusions_file)
+        )
 
+        pipeliner.add_commands(
+            [Command(cmdstr, "fusion_annotator{}.ok".format(trinity_ok_token))]
+        )
+
+        fusions_file = annotated_fusions_file
+
+        if args_parsed.examine_coding_effect:
+
+            coding_effect_file = final_fusions_file + ".coding_effect"
+
+            cmdstr = str(
+                os.path.sep.join(
+                    [
+                        BASEDIR,
+                        "FusionAnnotator",
+                        "util",
+                        "fusion_to_coding_region_effect.pl",
+                    ]
+                )
+                + " --fusions {} ".format(final_fusions_file)
+                + " --genome_lib_dir {}".format(genome_lib_dir)
+                + " > {} ".format(coding_effect_file)
+            )
+
+            pipeliner.add_commands(
+                [
+                    Command(
+                        cmdstr,
+                        "fusion_coding_region_effect{}.ok".format(trinity_ok_token),
+                    )
+                ]
+            )
+
+            fusions_file = coding_effect_file
+
+
+        ## report the final fusions file:
         final_fusions_file = os.sep.join(
             [
                 args_parsed.str_out_dir,
                 args_parsed.out_prefix + ".FusionInspector.fusions.tsv",
             ]
         )
+        
         cmdstr = str("cp {} {}".format(fusions_file, final_fusions_file))
         pipeliner.add_commands(
             [Command(cmdstr, "cp_final{}.ok".format(trinity_ok_token))]
         )
 
 
-        
-        
-        ## back to regular non-deconvolved fusions file
         ## make an abridged version that lacks the list of supporting reads.
 
         abridged_final_fusions_file = os.sep.join(
@@ -1446,7 +1493,7 @@ class FusionInspector:
         
         
         if False and args_parsed.vis:
-            ## generate the fusion-inspector-web galaxy js
+            ## generate the fusion-inspector-web igv report
 
             json_file = os.path.sep.join(
                 [
@@ -1494,53 +1541,6 @@ class FusionInspector:
                 [Command(cmdstr, "fusion_reports_html{}.ok".format(trinity_ok_token))]
             )
 
-        ## annotate
-
-        if args_parsed.annotate:
-
-            annotated_fusions_file = final_fusions_file + ".annotated"
-
-            cmdstr = str(
-                os.path.sep.join([BASEDIR, "FusionAnnotator", "FusionAnnotator"])
-                + " --annotate {} ".format(final_fusions_file)
-                + " --genome_lib_dir {}".format(genome_lib_dir)
-                + " > {} ".format(annotated_fusions_file)
-            )
-
-            pipeliner.add_commands(
-                [Command(cmdstr, "fusion_annotator{}.ok".format(trinity_ok_token))]
-            )
-
-            final_fusions_file = annotated_fusions_file
-
-        if args_parsed.examine_coding_effect:
-
-            coding_effect_file = final_fusions_file + ".coding_effect"
-
-            cmdstr = str(
-                os.path.sep.join(
-                    [
-                        BASEDIR,
-                        "FusionAnnotator",
-                        "util",
-                        "fusion_to_coding_region_effect.pl",
-                    ]
-                )
-                + " --fusions {} ".format(final_fusions_file)
-                + " --genome_lib_dir {}".format(genome_lib_dir)
-                + " > {} ".format(coding_effect_file)
-            )
-
-            pipeliner.add_commands(
-                [
-                    Command(
-                        cmdstr,
-                        "fusion_coding_region_effect{}.ok".format(trinity_ok_token),
-                    )
-                ]
-            )
-
-            final_fusions_file = coding_effect_file
 
         if args_parsed.extract_fusion_reads_file:
 

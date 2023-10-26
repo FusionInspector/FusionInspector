@@ -1,0 +1,63 @@
+[
+  {
+    "label": "ref_annot",
+    "url": "finspector.bed",
+    "displayMode": "SQUISHED",
+    "order": 10,
+    "type": "annotation",
+    "format": "bed"
+  },
+  {
+    "label": "Pfam",
+    "url": "finspector.igv.Pfam.bed",
+    "displayMode": "SQUISHED",
+    "order": 10,
+    "type": "annotation",
+    "color": "orange",
+    "format": "bed"
+  },
+  {
+    "label": "SeqSimilar",
+      "url": "finspector.igv.seqsimilar.bed",
+    "displayMode": "SQUISHED",
+    "order": 10,
+    "type": "annotation",
+    "color": "gray",
+    "format": "bed"
+  },
+  {
+    "label": "TrinityFusion",
+      "url": "TrinityFusion.bed",
+    "displayMode": "SQUISHED",
+     "order": 10,
+    "type": "annotation",
+    "color": "gray",
+    "format": "bed"
+  },
+  {
+    "url": "finspector.junction_reads.bam",
+    "label": "junction_reads",
+    "type": "alignment",
+    "format": "bam",
+    "height": 500,
+    "showCoverage": false,
+    "visibilityWindow": -1,
+    "order": 35
+  },
+  {
+    "url": "finspector.spanning_reads.bam",
+    "label": "spanning_reads",
+    "type": "alignment",
+    "format": "bam",
+    "height": 500,
+    "showCoverage": false,
+    "visibilityWindow": -1,
+    "order": 40
+  },
+  {
+    "url": "finspector.ROI.bed",
+    "type": "roi",
+    "color": "rgba(94,255,1,0.25)",
+    "format": "bed"
+  }
+]
