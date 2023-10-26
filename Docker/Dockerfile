@@ -67,13 +67,13 @@ RUN SAMTOOLS_URL="https://github.com/samtools/samtools/releases/download/${SAMTO
 
 RUN apt-get install -y cmake apt-utils && apt-get clean
 
-ENV TRINITY_VERSION=2.8.5
+ENV TRINITY_VERSION=2.15.1
 
-RUN TRINITY_URL="https://github.com/trinityrnaseq/trinityrnaseq/archive/Trinity-v${TRINITY_VERSION}.tar.gz" && \
+RUN TRINITY_URL="https://github.com/trinityrnaseq/trinityrnaseq/releases/download/Trinity-v${TRINITY_VERSION}/trinityrnaseq-v${TRINITY_VERSION}.FULL.tar.gz" && \
    cd $SRC && \
    wget $TRINITY_URL && \
-   tar xvf Trinity-v${TRINITY_VERSION}.tar.gz && \
-   cd trinityrnaseq-Trinity-v${TRINITY_VERSION} && make
+   tar xvf trinityrnaseq-v${TRINITY_VERSION}.FULL.tar.gz && \
+   cd trinityrnaseq-v${TRINITY_VERSION} && make
 
 
 ENV TRINITY_HOME /usr/local/src/trinityrnaseq-Trinity-v${TRINITY_VERSION}
@@ -117,9 +117,9 @@ ENV PICARD_HOME $SRC
 
 WORKDIR $SRC
 
-ENV R_VERSION=R-3.6.3
+ENV R_VERSION=R-4.2.0
 
-RUN curl https://cran.r-project.org/src/base/R-3/$R_VERSION.tar.gz -o $R_VERSION.tar.gz && \
+RUN curl https://cran.r-project.org/src/base/R-4/$R_VERSION.tar.gz -o $R_VERSION.tar.gz && \
         tar xvf $R_VERSION.tar.gz && \
         cd $R_VERSION && \
         ./configure && make && make install

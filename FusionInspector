@@ -1423,7 +1423,7 @@ class FusionInspector:
 
         if args_parsed.examine_coding_effect:
 
-            coding_effect_file = final_fusions_file + ".coding_effect"
+            coding_effect_file = fusions_file + ".coding_effect"
 
             cmdstr = str(
                 os.path.sep.join(
@@ -1434,7 +1434,7 @@ class FusionInspector:
                         "fusion_to_coding_region_effect.pl",
                     ]
                 )
-                + " --fusions {} ".format(final_fusions_file)
+                + " --fusions {} ".format(fusions_file)
                 + " --genome_lib_dir {}".format(genome_lib_dir)
                 + " > {} ".format(coding_effect_file)
             )

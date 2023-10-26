@@ -48,7 +48,7 @@ if ('sample_name' %in% colnames(fusion_preds) ) {
 
 ## add splice type info for consenus vs. non-consensus dinucleotides
 
-if ('SpliceDinuc' %in% colnames(fusion_preds)) {
+if (! 'SpliceDinuc' %in% colnames(fusion_preds)) {
     fusion_preds = fusion_preds %>% mutate(SpliceDinuc=ifelse(LeftBreakDinuc %in% c("GT", "GC") & RightBreakDinuc == "AG", "Consensus", "Non"))
 }
 
