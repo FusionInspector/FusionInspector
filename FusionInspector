@@ -1492,42 +1492,43 @@ class FusionInspector:
 
         
         
-        if False and args_parsed.vis:
+        if args_parsed.vis:
             ## generate the fusion-inspector-web igv report
 
             json_file = os.path.sep.join(
                 [
-                    args_parsed.str_out_dir,
+                    igvprep_dir,
                     args_parsed.out_prefix + ".fusion_inspector_web.json",
                 ]
             )
 
+            roi_file = os.path.join(igvprep_dir,   args_parsed.out_prefix + ".ROI.bed")
+            
             cmdstr = str(
                 os.path.sep.join([UTILDIR, "create_fusion_inspector_igvjs.py"])
                 + " --fusion_inspector_directory "
-                + igvprep_dir
-                + " --json_outfile {}".format(json_file)
+                + args_parsed.str_out_dir
+                + f" --json_outfile {json_file} "
+                + f" --roi_outfile {roi_file} "
                 + " --file_prefix "
                 + args_parsed.out_prefix
             )
-
-            if args_parsed.include_Trinity:
-                cmdstr = cmdstr + " --include_Trinity"
 
             pipeliner.add_commands(
                 [Command(cmdstr, "create_fi_igvjs{}.ok".format(trinity_ok_token))]
             )
 
             ## make igv-report fusion report
-            html_template = os.path.sep.join(
-                [BASEDIR, "util", "fusion_report_html_template", "igvjs_fusion.html"]
+            tracks_json_template = os.path.sep.join(
+                [BASEDIR, "util", "fusion_html_meta", "tracks.json"]
             )
+            tracks_json = os.path.join(igvprep_dir, "tracks.json")
+            cmdstr = f"cp {tracks_json_template} {tracks_json}";
+            pipeliner.add_commands([Command(cmdstr, "cp_tracks_json.ok")])
+                        
             cmdstr = str(
-                os.path.sep.join([BASEDIR, "fusion-reports", "create_fusion_report.py"])
-                + " --html_template {}".format(html_template)
-                + " --fusions_json {}".format(json_file)
-                + " --input_file_prefix {}".format(args_parsed.out_prefix)
-                + " --html_output {}".format(
+                f"cd {igvprep_dir} && create_report {json_file} {mergedContig_fasta_filename} --type fusion --track-config {tracks_json} "
+                " --output {}".format(
                     os.path.sep.join(
                         [
                             args_parsed.str_out_dir,
@@ -1536,12 +1537,12 @@ class FusionInspector:
                     )
                 )
             )
-
+            
             pipeliner.add_commands(
                 [Command(cmdstr, "fusion_reports_html{}.ok".format(trinity_ok_token))]
             )
-
-
+            
+        
         if args_parsed.extract_fusion_reads_file:
 
             fusion_reads_file = args_parsed.extract_fusion_reads_file

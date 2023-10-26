@@ -9,6 +9,7 @@ import gzip
 import os
 import sys
 import logging
+import subprocess
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -120,6 +121,11 @@ with open(args.roi_outfile, "wt") as ofh:
         print("\t".join(roi), file=ofh)
         
 
+# make sure TrinityFusion.bed file exists
+TrinityFusionBed_filename = os.path.join( absolute_fusion_directory, "IGV_inputs/TrinityFusion.bed" )
+if not os.path.exists(TrinityFusionBed_filename):
+    subprocess.check_call(f"touch {TrinityFusionBed_filename}", shell=True) 
 
+        
 sys.exit(0)
 
