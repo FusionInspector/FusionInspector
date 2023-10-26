@@ -132,10 +132,23 @@ RUN R -e 'BiocManager::install("cowplot")'
 RUN R -e 'BiocManager::install("ranger")'
 
 
+
+RUN pip install requests igv-reports==1.8.0
+
+########
+## Minimap2
+
+WORKDIR $SRC
+RUN curl -L https://github.com/lh3/minimap2/releases/download/v2.26/minimap2-2.26_x64-linux.tar.bz2 | tar -jxvf - && \
+    mv ./minimap2-2.26_x64-linux/minimap2 $BIN/
+
+
+
+
 ##############
 ## STAR
 
-ENV STAR_VERSION=2.7.8a
+ENV STAR_VERSION=2.7.11a
 RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" &&\
     wget -P $SRC $STAR_URL &&\
     tar -xvf $SRC/${STAR_VERSION}.tar.gz -C $SRC && \
