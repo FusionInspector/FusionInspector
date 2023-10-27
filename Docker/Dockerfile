@@ -8,7 +8,8 @@ RUN  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gcc g++
                        python3-setuptools python3-dev build-essential python3-distutils \
                                        unzip libbz2-dev  liblzma-dev gfortran libreadline-dev libcurl4-openssl-dev libx11-dev \
                        libxt-dev x11-common libcairo2-dev libpng-dev  libjpeg-dev pkg-config \
-                       libxml2-dev  libssl-dev libcurl4-openssl-dev pbzip2 && \
+                       libxml2-dev  libssl-dev libcurl4-openssl-dev pbzip2 git && \
+                       libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev && \
     apt-get clean
 
 
@@ -21,7 +22,8 @@ RUN apt-get install -y python3-distutils
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python get-pip.py
 
-RUN pip install numpy requests igv-reports
+RUN pip install requests igv-reports==1.8.0
+
 
 ## set up tool config and deployment area:
 
@@ -30,6 +32,26 @@ ENV BIN /usr/local/bin
 
 ENV DATA /usr/local/data
 RUN mkdir $DATA
+
+
+
+## R installation:
+
+WORKDIR $SRC
+
+ENV R_VERSION=R-4.2.0
+
+RUN curl https://cran.r-project.org/src/base/R-4/$R_VERSION.tar.gz -o $R_VERSION.tar.gz && \
+        tar xvf $R_VERSION.tar.gz && \
+        cd $R_VERSION && \
+        ./configure && make && make install
+
+
+RUN R -e 'install.packages("BiocManager", repos="http://cran.us.r-project.org")'
+RUN R -e 'BiocManager::install("argparse")'
+RUN R -e 'BiocManager::install("tidyverse")'
+RUN R -e 'BiocManager::install("cowplot")'
+RUN R -e 'BiocManager::install("ranger")'
 
 
 ## perl lib installations
@@ -76,7 +98,7 @@ RUN TRINITY_URL="https://github.com/trinityrnaseq/trinityrnaseq/releases/downloa
    cd trinityrnaseq-v${TRINITY_VERSION} && make
 
 
-ENV TRINITY_HOME /usr/local/src/trinityrnaseq-Trinity-v${TRINITY_VERSION}
+ENV TRINITY_HOME /usr/local/src/trinityrnaseq-v${TRINITY_VERSION}
 
 
 ## Bowtie2
@@ -101,9 +123,6 @@ RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v0.9.1/Salmon-0
     ln -s $SRC/Salmon-latest_linux_x86_64/bin/salmon $BIN/.
 
 
-
-
-
 ## Picard tools
 
 WORKDIR $SRC
@@ -112,29 +131,6 @@ ENV PICARD_HOME $SRC
 
 
 
-
-## R installation:
-
-WORKDIR $SRC
-
-ENV R_VERSION=R-4.2.0
-
-RUN curl https://cran.r-project.org/src/base/R-4/$R_VERSION.tar.gz -o $R_VERSION.tar.gz && \
-        tar xvf $R_VERSION.tar.gz && \
-        cd $R_VERSION && \
-        ./configure && make && make install
-
-
-RUN R -e 'install.packages("BiocManager", repos="http://cran.us.r-project.org")'
-RUN R -e 'BiocManager::install("argparse")'
-RUN R -e 'BiocManager::install("tidyverse")'
-RUN R -e 'BiocManager::install("cowplot")'
-RUN R -e 'BiocManager::install("ranger")'
-
-
-
-RUN pip install requests igv-reports==1.8.0
-
 ########
 ## Minimap2
 
@@ -142,6 +138,9 @@ WORKDIR $SRC
 RUN curl -L https://github.com/lh3/minimap2/releases/download/v2.26/minimap2-2.26_x64-linux.tar.bz2 | tar -jxvf - && \
     mv ./minimap2-2.26_x64-linux/minimap2 $BIN/
 
+# K8
+RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.2.4.tar.bz2 | tar -jxf - && \
+    cp k8-0.2.4/k8-`uname -s` $BIN/k8
 
 
 
@@ -155,19 +154,6 @@ RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" 
     mv $SRC/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /usr/local/bin
 
 
-
-RUN apt-get install -y  libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
-
-RUN R -e 'BiocManager::install("tidyverse")'
-
-
-COPY sam_readname_cleaner.py $BIN/
-
-
-
-ENV TRINITY_HOME /usr/local/src/trinityrnaseq-v${TRINITY_VERSION}
-
-
 ## Salmon
 WORKDIR $SRC
 ENV SALMON_VERSION=1.5.2
@@ -175,15 +161,11 @@ RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v${SALMON_VERSI
     tar xvf Salmon-${SALMON_VERSION}_linux_x86_64.tar.gz && \
     ln -sf $SRC/salmon-${SALMON_VERSION}_linux_x86_64/bin/salmon $BIN/.
 
-# K8
-RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.2.4.tar.bz2 | tar -jxf - && \
-    cp k8-0.2.4/k8-`uname -s` $BIN/k8
 
 
+COPY sam_readname_cleaner.py $BIN/
 
 # FusionInspector
-
-RUN apt-get install -y git
 
 ENV FI_VERSION=2.9.0
 ENV FI_HASH=22cb0d10e37ed72ad2df155b22c92b7f165652ba
