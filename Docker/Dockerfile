@@ -165,6 +165,8 @@ RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v${SALMON_VERSI
 
 COPY sam_readname_cleaner.py $BIN/
 
+RUN pip install numpy
+
 # FusionInspector
 
 ENV FI_VERSION=2.9.0
@@ -176,3 +178,4 @@ RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git
     git submodule init && git submodule update && \
     make && \
     mv * $BIN
+
