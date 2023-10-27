@@ -186,7 +186,7 @@ RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.
 RUN apt-get install -y git
 
 ENV FI_VERSION=2.9.0
-ENV FI_HASH=c8e02b1078858e0a3b5d50d2c97f0e7f52702235
+ENV FI_HASH=22cb0d10e37ed72ad2df155b22c92b7f165652ba
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
