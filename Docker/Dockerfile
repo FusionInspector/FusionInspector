@@ -156,13 +156,37 @@ RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" 
 
 
 
+RUN apt-get install -y  libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
+
+RUN R -e 'BiocManager::install("tidyverse")'
+
+
+COPY sam_readname_cleaner.py $BIN/
+
+
+
+ENV TRINITY_HOME /usr/local/src/trinityrnaseq-v${TRINITY_VERSION}
+
+
+## Salmon
+WORKDIR $SRC
+ENV SALMON_VERSION=1.5.2
+RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v${SALMON_VERSION}/Salmon-${SALMON_VERSION}_linux_x86_64.tar.gz && \
+    tar xvf Salmon-${SALMON_VERSION}_linux_x86_64.tar.gz && \
+    ln -sf $SRC/salmon-${SALMON_VERSION}_linux_x86_64/bin/salmon $BIN/.
+
+# K8
+RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.2.4.tar.bz2 | tar -jxf - && \
+    cp k8-0.2.4/k8-`uname -s` $BIN/k8
+
+
 
 # FusionInspector
 
 RUN apt-get install -y git
 
-ENV FI_VERSION=2.8.0
-ENV FI_HASH=592d13a8a0a0726c94b6351094b7aa53d87adaa3
+ENV FI_VERSION=2.9.0
+ENV FI_HASH=c8e02b1078858e0a3b5d50d2c97f0e7f52702235
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
@@ -170,8 +194,3 @@ RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git
     git submodule init && git submodule update && \
     make && \
     mv * $BIN
-
-COPY sam_readname_cleaner.py $BIN/
-
-
-

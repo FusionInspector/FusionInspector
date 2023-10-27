@@ -47,7 +47,7 @@ UTILDIR = os.path.join(BASEDIR, "util")
 MISCDIR = os.path.join(UTILDIR, "misc")
 
 # add UTILDIR to PATH setting
-os.environ['PATH'] += ":$UTILDIR"
+os.environ['PATH'] += ":" + UTILDIR
 
 
 TRINITY_HOME = None  # init below if --include_Trinity
