@@ -76,7 +76,7 @@ clean:
 	rm -rf ./FusionInspector-single_reads ./FusionInspector-single_reads-fc_only
 	rm -rf ./FusionInspector-pe_samples
 	rm -rf ./FusionInspector-no_shrink_introns
-	rm -rf ./FusionInspector-by-docker
+	rm -rf ./FusionInspector-by-docker*
 	rm -rf ./FusionInspector-multreadsets-outdir
 
 
