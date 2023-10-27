@@ -1,3 +1,9 @@
+## FusionInspector v2.9.0
+- upgraded Trinity to 2.15.1 along with minimap2 integration
+- cleaner organization of outputs and IGV-inputs
+- updated igv-reports with fusion ROI highlighting 
+- misc updates for integration with ctat-LR-fusion
+
 ## FusionInspector v2.8.0 (Sept 30, 2022)
 - compatible with :: delim fusion pairs - HUGO nomenclature
 - revised cluster prediction to focus on cosmic-peak-enriched or artifact vs. other

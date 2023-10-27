@@ -8,7 +8,7 @@ RUN  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gcc g++
                        python3-setuptools python3-dev build-essential python3-distutils \
                                        unzip libbz2-dev  liblzma-dev gfortran libreadline-dev libcurl4-openssl-dev libx11-dev \
                        libxt-dev x11-common libcairo2-dev libpng-dev  libjpeg-dev pkg-config \
-                       libxml2-dev  libssl-dev libcurl4-openssl-dev pbzip2 git && \
+                       libxml2-dev  libssl-dev libcurl4-openssl-dev pbzip2 git \
                        libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev && \
     apt-get clean
 
@@ -168,7 +168,7 @@ COPY sam_readname_cleaner.py $BIN/
 # FusionInspector
 
 ENV FI_VERSION=2.9.0
-ENV FI_HASH=22cb0d10e37ed72ad2df155b22c92b7f165652ba
+ENV FI_HASH=a43480df8dac6cfae0c01c2b636fd11de0d7bb98
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
