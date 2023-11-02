@@ -1524,6 +1524,11 @@ class FusionInspector:
             )
             tracks_json = os.path.join(igvprep_dir, "tracks.json")
             cmdstr = f"cp {tracks_json_template} {tracks_json}";
+
+            # update tracks_json
+            if args_parsed.out_prefix != "finspector":
+                cmdstr += f" && sed -i 's/finspector/{args_parsed.out_prefix}/g' {tracks_json}"
+
             pipeliner.add_commands([Command(cmdstr, "cp_tracks_json.ok")])
                         
             cmdstr = str(
