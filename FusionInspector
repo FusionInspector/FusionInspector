@@ -143,7 +143,7 @@ class FusionInspector:
             dest="out_prefix",
             type=str,
             default="finspector",
-            help="output filename prefix",
+            help="output filename prefix (default: finspector)",
         )
 
         optional.add_argument(
@@ -152,7 +152,7 @@ class FusionInspector:
             type=int,
             required=False,
             default=0,
-            help="minimum number of junction-spanning reads required",
+            help="minimum number of junction-spanning reads required (default: 0)",
         )
 
         optional.add_argument(
@@ -161,7 +161,7 @@ class FusionInspector:
             type=int,
             required=False,
             default=1,
-            help="minimum fusion support = ( # junction_reads + # spanning_frags )",
+            help="minimum fusion support = ( # junction_reads + # spanning_frags )  (default: 1)",
         )
 
         optional.add_argument(
@@ -170,7 +170,7 @@ class FusionInspector:
             type=int,
             required=False,
             default=3,
-            help="minimum number of junction reads required if breakpoint lacks involvement of only reference junctions",
+            help="minimum number of junction reads required if breakpoint lacks involvement of only reference junctions (default: 3)",
         )
 
         optional.add_argument(
@@ -179,7 +179,7 @@ class FusionInspector:
             type=int,
             required=False,
             default=5,
-            help="minimum number of spanning frags if no junction reads are found",
+            help="minimum number of spanning frags if no junction reads are found (default: 5)",
         )
 
         optional.add_argument(
@@ -187,7 +187,7 @@ class FusionInspector:
             type=int,
             required=False,
             default=1,
-            help="require long double anchor support for split reads when no spanning frags are found",
+            help="require long double anchor support for split reads when no spanning frags are found (default: 1)",
         )
 
         optional.add_argument(
@@ -196,7 +196,7 @@ class FusionInspector:
             type=int,
             required=False,
             default=10,
-            help="maximum number of partners allowed for a given fusion",
+            help="maximum number of partners allowed for a given fusion (default: 10)",
         )
 
         optional.add_argument(
@@ -206,7 +206,7 @@ class FusionInspector:
             required=False,
             default=50,
             help="for promiscuous fusions, those with less than this support of the dominant scoring pair "
-            + "are filtered prior to applying the max_promiscuity filter. ",
+            + "are filtered prior to applying the max_promiscuity filter. (default: 50)",
         )
 
         optional.add_argument(
@@ -215,7 +215,7 @@ class FusionInspector:
             type=int,
             required=False,
             default=96,
-            help="minimum percent identity for a fusion-supporting read alignment",
+            help="minimum percent identity for a fusion-supporting read alignment (defualt: 96)",
         )
 
         optional.add_argument(
@@ -224,7 +224,7 @@ class FusionInspector:
             type=int,
             default=100000,
             required=False,
-            help="max distance between mates, also max intron length for STAR alignments",
+            help="max distance between mates, also max intron length for STAR alignments (default: 100000)",
         )
 
         optional.add_argument(
@@ -283,7 +283,7 @@ class FusionInspector:
             required=False,
             type=int,
             default=4,
-            help="number of threads for multithreaded processes",
+            help="number of threads for multithreaded processes (default: 4)",
         )
 
         optional.add_argument(
@@ -362,7 +362,7 @@ class FusionInspector:
             "--shrink_intron_max_length",
             default=1000,
             type=int,
-            help="maximum length of introns when shrunk",
+            help="maximum length of introns when shrunk (default: 1000)",
         )
 
         optional.add_argument(
