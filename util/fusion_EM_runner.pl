@@ -35,7 +35,9 @@ main: {
         my $left_breakpoint = $tab_reader->get_row_val($row, "LeftBreakpoint");
         my $right_breakpoint = $tab_reader->get_row_val($row, "RightBreakpoint");
         
-        $fusion_name .= "::" . $left_breakpoint . "::" . $right_breakpoint;
+        my $left_gene = $tab_reader->get_row_val($row, "LeftGene");
+        my $right_gene = $tab_reader->get_row_val($row, "RightGene");
+        $fusion_name .= "::" . $left_gene . "::" . $left_breakpoint . "::" . $right_gene . "::" . $right_breakpoint;
         
         $row->{fusion_isoform_name} = $fusion_name; # save it for later...
 
