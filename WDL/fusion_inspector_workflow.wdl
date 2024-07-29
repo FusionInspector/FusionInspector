@@ -76,10 +76,10 @@ task fusion_inspector {
 
 
   output {
-    File fusion_inspector_inspect_web = "${sample_id}.fusion_inspector_web.html"
-    File fusion_inspector_inspect_fusions_abridged = "${sample_id}.FusionInspector.fusions.abridged.tsv"
-    File fusion_inspector_inspect_fusions = "${sample_id}.FusionInspector.fusions.tsv"
-    File fusion_inspector_IGV_inputs = "${sample_id}.IGV_inputs.tar.gz"
+    File fusion_inspector_inspect_web = "~{sample_id}.fusion_inspector_web.html"
+    File fusion_inspector_inspect_fusions_abridged = "~{sample_id}.FusionInspector.fusions.abridged.tsv"
+    File fusion_inspector_inspect_fusions = "~{sample_id}.FusionInspector.fusions.tsv"
+    File fusion_inspector_IGV_inputs = "~{sample_id}.IGV_inputs.tar.gz"
   }
 
   command <<<
@@ -101,12 +101,12 @@ task fusion_inspector {
         --vis \
         ~{"" + additional_flags}
 
-        mv ${sample_id}/IGV_inputs ${sample_id}.IGV_inputs
-        tar -zcvf ${sample_id}.IGV_inputs.tar.gz ${sample_id}.IGV_inputs
+        mv ~{sample_id}/IGV_inputs ~{sample_id}.IGV_inputs
+        tar -zcvf ~{sample_id}.IGV_inputs.tar.gz ~{sample_id}.IGV_inputs
 
-        mv ${sample_id}/finspector.fusion_inspector_web.html  ${sample_id}.fusion_inspector_web.html
-        mv ${sample_id}/finspector.FusionInspector.fusions.abridged.tsv ${sample_id}.FusionInspector.fusions.abridged.tsv
-        mv ${sample_id}/finspector.FusionInspector.fusions.tsv ${sample_id}.FusionInspector.fusions.abridged.tsv
+        mv ~{sample_id}/finspector.fusion_inspector_web.html  ~{sample_id}.fusion_inspector_web.html
+        mv ~{sample_id}/finspector.FusionInspector.fusions.abridged.tsv ~{sample_id}.FusionInspector.fusions.abridged.tsv
+        mv ~{sample_id}/finspector.FusionInspector.fusions.tsv ~{sample_id}.FusionInspector.fusions.abridged.tsv
         
     
   >>>
