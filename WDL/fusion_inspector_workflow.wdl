@@ -13,7 +13,6 @@ workflow fusion_inspector_workflow {
     File target_fusions_list    
 
     String docker = "trinityctat/fusioninspector:latest"
-
     
     String? additional_flags
 
@@ -77,9 +76,9 @@ task fusion_inspector {
 
 
   output {
-    File fusion_inspector_inspect_web = "${sample_id}/${sample_id}.fusion_inspector_web.html"
-    File fusion_inspector_inspect_fusions_abridged = "${sample_id}/${sample_id}.FusionInspector.fusions.abridged.tsv"
-    File fusion_inspector_inspect_fusions = "${sample_id}/${sample_id}.FusionInspector.fusions.tsv"
+    File fusion_inspector_inspect_web = "${sample_id}.fusion_inspector_web.html"
+    File fusion_inspector_inspect_fusions_abridged = "${sample_id}.FusionInspector.fusions.abridged.tsv"
+    File fusion_inspector_inspect_fusions = "${sample_id}.FusionInspector.fusions.tsv"
     File fusion_inspector_IGV_inputs = "${sample_id}.IGV_inputs.tar.gz"
   }
 
@@ -99,13 +98,16 @@ task fusion_inspector {
         --CPU ~{cpu} \
         --left_fq ~{left_fq} \
         ~{"--right_fq " + right_fq} \
-        --out_prefix ~{sample_id} \
         --vis \
         ~{"" + additional_flags}
 
         mv ${sample_id}/IGV_inputs ${sample_id}.IGV_inputs
         tar -zcvf ${sample_id}.IGV_inputs.tar.gz ${sample_id}.IGV_inputs
 
+        mv ${sample_id}/finspector.fusion_inspector_web.html  ${sample_id}.fusion_inspector_web.html
+        mv ${sample_id}/finspector.FusionInspector.fusions.abridged.tsv ${sample_id}.FusionInspector.fusions.abridged.tsv
+        mv ${sample_id}/finspector.FusionInspector.fusions.tsv ${sample_id}.FusionInspector.fusions.abridged.tsv
+        
     
   >>>
 
