@@ -106,7 +106,7 @@ task fusion_inspector {
 
         mv ~{sample_id}/finspector.fusion_inspector_web.html  ~{sample_id}.fusion_inspector_web.html
         mv ~{sample_id}/finspector.FusionInspector.fusions.abridged.tsv ~{sample_id}.FusionInspector.fusions.abridged.tsv
-        mv ~{sample_id}/finspector.FusionInspector.fusions.tsv ~{sample_id}.FusionInspector.fusions.abridged.tsv
+        mv ~{sample_id}/finspector.FusionInspector.fusions.tsv ~{sample_id}.FusionInspector.fusions.tsv
         
     
   >>>
