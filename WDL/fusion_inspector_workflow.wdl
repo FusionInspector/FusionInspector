@@ -92,7 +92,7 @@ task fusion_inspector {
      
         tar xf ~{genome_plug_n_play_tar_gz} -C genome_dir --strip-components 1
         
-       /usr/local/src/FusionInspector/FusionInspector \
+       FusionInspector \
         --fusions ~{target_fusions_list} \
         --genome_lib_dir `pwd`/genome_dir/ctat_genome_lib_build_dir \
         -O ~{sample_id} \
