@@ -1,6 +1,6 @@
 version: 1.2
 workflows:
-   - name: fusion_inspector_workflow.wdl
+   - name: fusion_inspector
      subclass: WDL
      primaryDescriptorPath: /WDL/fusion_inspector_workflow.wdl
      authors:
