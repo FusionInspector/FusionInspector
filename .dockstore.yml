@@ -1,0 +1,8 @@
+version: 1.2
+workflows:
+   - name: fusion_inspector_workflow.wdl
+     subclass: WDL
+     primaryDescriptorPath: /WDL/fusion_inspector_workflow.wdl
+     authors:
+         - name: Brian Haas
+           email: bhaas@broadinstitute.org
