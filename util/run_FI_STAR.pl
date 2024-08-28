@@ -237,7 +237,6 @@ main: {
         . " --twopassMode None "
         . " --alignSJDBoverhangMin 10 "
         . " --genomeSuffixLengthMax 10000"
-        . " --limitBAMsortRAM $estimated_ram "  #20000000000";
         . " --alignInsertionFlush Right  "
         . " --alignMatesGapMax $max_mate_dist "
         . " --alignIntronMax $max_mate_dist "
@@ -306,6 +305,11 @@ main: {
     
     if ($STAR_xtra_params) {
         $cmd .= " $STAR_xtra_params ";
+    }
+
+
+    unless ($cmd =~ /\-\-limitBAMsortRAM /) {
+        $cmd .= " --limitBAMsortRAM $estimated_ram ";  #20000000000";
     }
     
     $pipeliner->add_commands( new Command($cmd, "star_align.ok") );
