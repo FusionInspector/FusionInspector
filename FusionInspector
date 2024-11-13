@@ -39,7 +39,7 @@ logger.addHandler(ch)
 
 
 # VERSION = "__BLEEDING_EDGE__"
-VERSION = "2.9.0"
+VERSION = "2.10.0"
 
 
 BASEDIR = os.path.dirname(__file__)
@@ -47,7 +47,7 @@ UTILDIR = os.path.join(BASEDIR, "util")
 MISCDIR = os.path.join(UTILDIR, "misc")
 
 # add UTILDIR to PATH setting
-os.environ['PATH'] += ":" + UTILDIR
+os.environ["PATH"] += ":" + UTILDIR
 
 
 TRINITY_HOME = None  # init below if --include_Trinity
@@ -69,7 +69,6 @@ ______         _            _____                          _
                                                                                     
 
 """
-
 
 
 class FusionInspector:
@@ -373,7 +372,6 @@ class FusionInspector:
             help="skip expectation maximization step that fractionally assigns spanning frags across multiple breakpoints",
         )
 
-
         optional.add_argument(
             "--incl_microH_expr_brkpt_plots",
             action="store_true",
@@ -381,35 +379,33 @@ class FusionInspector:
             help=" include microhomology expression breakpoint plots",
         )
 
-        
         optional.add_argument(
             "--predict_cosmic_like",
             action="store_true",
             default=False,
             help="predict if fusion looks COSMIC-like wrt expression and microhomology charachteristics. Automatically disabled if --no_FFPM is set.",
-            )
+        )
 
         optional.add_argument(
             "--STAR_xtra_params",
             type=str,
             default=None,
-            help="extra parameters to pass on to the STAR aligner"
+            help="extra parameters to pass on to the STAR aligner",
         )
-
 
         optional.add_argument(
             "--no_homology_filter",
-            action='store_true',
+            action="store_true",
             default=False,
-            help='no gene symbol-based blast pair homology filter or promiscuity checks to remove potential false positives')
-
+            help="no gene symbol-based blast pair homology filter or promiscuity checks to remove potential false positives",
+        )
 
         optional.add_argument(
             "--no_annot_filter",
-            action='store_true',
+            action="store_true",
             default=False,
-            help="no annotation-based filters applied (ie. removing GTEx normal fusions)")
-
+            help="no annotation-based filters applied (ie. removing GTEx normal fusions)",
+        )
 
         optional.add_argument(
             "--max_sensitivity",
@@ -422,39 +418,38 @@ class FusionInspector:
             "--extreme_sensitivity",
             action="store_true",
             default=False,
-            help="extreme sensitivity. If there are evidence reads, this should ideally find them - however, false positive rate is expected to be maximally high too!. Equivalent to settings:  --max_sensitivity --fusion_contigs_only  --max_mate_dist 10000000")
-        
+            help="extreme sensitivity. If there are evidence reads, this should ideally find them - however, false positive rate is expected to be maximally high too!. Equivalent to settings:  --max_sensitivity --fusion_contigs_only  --max_mate_dist 10000000",
+        )
 
         optional.add_argument(
             "--FI_contigs_gtf",
             type=str,
             default=None,
-            help="provide the fusion inspector contig targets directly instead of making it at runtime.")
+            help="provide the fusion inspector contig targets directly instead of making it at runtime.",
+        )
 
         optional.add_argument(
             "--FI_contigs_fa",
             type=str,
             default=None,
-            help="provide the fusion inspector contigs fasta directly instead of making it at runtime")
-        
-        
+            help="provide the fusion inspector contigs fasta directly instead of making it at runtime",
+        )
 
         # done setting up options menu
 
         args_parsed = arg_parser.parse_args()
 
-
         if not (args_parsed.left_fq_filename or args_parsed.samples_file):
             print("Error, must specify --left_fq or --samples_file", file=sys.stderr)
             sys.exit(1)
-        
 
         if args_parsed.extreme_sensitivity:
-            logger.info("--extreme sensitivity setting chosen! Equivalent to  --max_sensitivity --fusion_contigs_only --max_mate_dist 10000000")
+            logger.info(
+                "--extreme sensitivity setting chosen! Equivalent to  --max_sensitivity --fusion_contigs_only --max_mate_dist 10000000"
+            )
             args_parsed.max_sensitivity = 1
             args_parsed.fusion_contigs_only = True
             args_parsed.max_mate_dist = 10000000
-        
 
         if args_parsed.max_sensitivity:
             logger.info(
@@ -563,21 +558,18 @@ class FusionInspector:
 
         args_parsed.str_out_dir = os.path.abspath(args_parsed.str_out_dir)
 
-
         ## set up work dir
         workdir = args_parsed.str_out_dir + "/fi_workdir"
         workdir = os.path.abspath(workdir)
         if not os.path.exists(workdir):
             os.makedirs(workdir)
 
-
         ## set up igv prep dir
-        igvprep_dir =  args_parsed.str_out_dir + "/IGV_inputs"
+        igvprep_dir = args_parsed.str_out_dir + "/IGV_inputs"
         igvprep_dir = os.path.abspath(igvprep_dir)
         if not os.path.exists(igvprep_dir):
             os.makedirs(igvprep_dir)
 
-                    
         checkpoints_dir = args_parsed.str_out_dir + "/chckpts_dir"
         checkpoints_dir = os.path.abspath(checkpoints_dir)
         if not os.path.exists(checkpoints_dir):
@@ -633,11 +625,9 @@ class FusionInspector:
             + chim_summary_files_list
         )
 
-
         if args_parsed.fusion_contigs_only:
             args_parsed.no_FFPM = True
 
-        
         if args_parsed.no_FFPM:
             # cannot make cosmic-like preds without proper FFPM info
             args_parsed.predict_cosmic_like = False
@@ -656,13 +646,12 @@ class FusionInspector:
 
         chim_summary_files = args_parsed.chim_summary_files.split(",")
 
-
         if args_parsed.FI_contigs_gtf and args_parsed.FI_contigs_fa:
 
             mergedContig_fasta_filename = args_parsed.FI_contigs_fa
-            
+
             mergedContig_gtf_filename = args_parsed.FI_contigs_gtf
-            
+
         else:
 
             cmdstr = str(
@@ -690,7 +679,6 @@ class FusionInspector:
             )
 
             pipeliner.add_commands([Command(cmdstr, "fusion_contigs.ok")])
-
 
         # copy them to the workdir
         workdir_mergedContig_fasta_filename = os.sep.join(
@@ -815,19 +803,15 @@ class FusionInspector:
         if args_parsed.no_splice_score_boost:
             cmdstr += " --no_splice_score_boost "
 
-
         if args_parsed.STAR_xtra_params:
-            cmdstr += f" --STAR_xtra_params \"{args_parsed.STAR_xtra_params}\" "
-        
-            
+            cmdstr += f' --STAR_xtra_params "{args_parsed.STAR_xtra_params}" '
+
         star_bam_file = os.sep.join(
             [workdir, args_parsed.out_prefix + ".star.sortedByCoord.out.bam"]
         )
 
         pipeliner.add_commands([Command(cmdstr, "run_STAR.ok")])
 
-        
-        
         if not args_parsed.no_remove_dups:
 
             # mark duplicate reads
@@ -867,17 +851,13 @@ class FusionInspector:
 
             star_bam_file = star_dups_marked_bam_file
 
-
-        
-
-            
         self.get_fusion_and_spanning_reads(
             args_parsed,
             workdir_mergedContig_gtf_filename,
             workdir_mergedContig_fasta_filename,
             star_bam_file,
             pipeliner,
-            args_parsed.max_sensitivity
+            args_parsed.max_sensitivity,
         )
 
         bam_files_list = [
@@ -918,9 +898,6 @@ class FusionInspector:
 
         pipeliner.add_commands([Command(cmdstr, "coalesce_junc_n_span.ok")])
 
-        
-
-        
         file_to_filter = fusion_summary_file
 
         if not args_parsed.SKIP_EM_FLAG:
@@ -936,9 +913,6 @@ class FusionInspector:
 
             file_to_filter = init_EM_adjusted_counts_fusions_file
 
-
-
-            
         ## need to filter based on remaining fusion support.
         fusion_summary_min_score_thresh_file = file_to_filter + ".min_frag_thresh"
 
@@ -962,8 +936,6 @@ class FusionInspector:
 
         pipeliner.add_commands([Command(cmdstr, "filter_by_frag_threshs.ok")])
 
-
-        
         if args_parsed.include_Trinity or args_parsed.vis:
 
             #################################################################
@@ -1018,7 +990,7 @@ class FusionInspector:
 
             pipeliner.add_commands([Command(cmdstr, "samtools_idx_junc_reads_bam.ok")])
 
-            #if args_parsed.vis:
+            # if args_parsed.vis:
             #    self.bam_to_bed(consolidated_junction_reads_bam, pipeliner)
 
             ## Spanning reads
@@ -1080,7 +1052,7 @@ class FusionInspector:
                 [Command(cmdstr, "samtools_index_span_reads_bam.ok")]
             )
 
-            #if args_parsed.vis:
+            # if args_parsed.vis:
             #    self.bam_to_bed(consolidated_spanning_reads_bam, pipeliner)
 
             # consolidate all fusion-contig aligned reads into a single bam file
@@ -1108,8 +1080,6 @@ class FusionInspector:
             cmdstr = "samtools index {}".format(outdir_consolidated_bam_file)
             pipeliner.add_commands([Command(cmdstr, "index_consol_bam.ok")])
 
-            
-            
             if args_parsed.include_Trinity:
 
                 ############################
@@ -1140,7 +1110,7 @@ class FusionInspector:
                     trinity_fasta_filename,
                     pipeliner,
                     workdir,
-                    igvprep_dir
+                    igvprep_dir,
                 )
 
                 # merge de novo assembly fusion results w/ read-based fusion results:
@@ -1163,33 +1133,31 @@ class FusionInspector:
 
                 fusion_summary_min_score_thresh_file = fusion_summary_w_trinity  ## NOTE, VARIABLE REPLACEMENT HERE INCL TRINITY RESULTS
 
-            
-            
             if args_parsed.vis:
                 ## just make the coords file
 
-                #cmdstr = str(
+                # cmdstr = str(
                 #    UTILDIR
                 #    + "/SAM_to_frag_coords.pl --sam "
                 #    + outdir_consolidated_bam_file
                 #    + " --max_insert_size 10000000 "
-                #)
+                # )
                 #
-                #pipeliner.add_commands(
+                # pipeliner.add_commands(
                 #    [Command(cmdstr, "prep_igv_sam_frag_coordss.ok")]
-                #)
+                # )
 
                 ## Prep IGV fusion junction view
                 #
-                #frag_coords_file = outdir_consolidated_bam_file + ".frag_coords"
-                #igv_junc_view_file = os.sep.join(
+                # frag_coords_file = outdir_consolidated_bam_file + ".frag_coords"
+                # igv_junc_view_file = os.sep.join(
                 #    [
                 #        args_parsed.str_out_dir,
                 #        args_parsed.out_prefix + ".igv.FusionJuncSpan",
                 #    ]
-                #)
+                # )
                 #
-                #cmdstr = str(
+                # cmdstr = str(
                 #    UTILDIR
                 #    + "/fusion_summary_to_igv_JuncSpan_fmt.pl "
                 #    + fusion_summary_file
@@ -1197,13 +1165,13 @@ class FusionInspector:
                 #    + frag_coords_file
                 #    + " > "
                 #    + igv_junc_view_file
-                #)
+                # )
                 #
-                #pipeliner.add_commands([Command(cmdstr, "prep_igv_juncspan_fmt.ok")])
+                # pipeliner.add_commands([Command(cmdstr, "prep_igv_juncspan_fmt.ok")])
 
                 ########## Pfam Matches
                 ## add pfam matches in genome coordinates:
-                
+
                 pfam_igv_gff3_filename = os.sep.join(
                     [workdir, args_parsed.out_prefix + ".igv.Pfam.gff3"]
                 )
@@ -1260,9 +1228,6 @@ class FusionInspector:
                 )
                 pipeliner.add_commands([Command(cmdstr, "prep_igv_seqsim_bed.ok")])
 
-
-
-                
         ####################
         ## Add splicing info
         ####################
@@ -1286,8 +1251,7 @@ class FusionInspector:
         pipeliner.add_commands(
             [Command(cmdstr, "add_splice_info{}.ok".format(trinity_ok_token))]
         )
-        
-        
+
         ################################################
         ## Score and filter the final fusion predictions
         ################################################
@@ -1302,7 +1266,7 @@ class FusionInspector:
                     args_parsed.out_prefix + ".post_blast_and_promiscuity_filter",
                 ]
             )
-            
+
             cmdstr = str(
                 UTILDIR
                 + "/../FusionFilter/blast_and_promiscuity_filter.pl "
@@ -1321,14 +1285,12 @@ class FusionInspector:
             pipeliner.add_commands(
                 [Command(cmdstr, "blast_filter{}.ok".format(trinity_ok_token))]
             )
-            
+
             fusions_file = post_blast_promisc_filter_fusions_file
 
-
         # doesnt make sense for FusionInspector to filter based on annotations. Removed Oct 2023 - bjh
-        
-            
-        #if not args_parsed.no_annot_filter:
+
+        # if not args_parsed.no_annot_filter:
         #
         #    ## Filter based on annotation rules
         #    cmdstr = str(
@@ -1348,8 +1310,6 @@ class FusionInspector:
         #
         #    fusions_file = annot_pass_fusions_file
 
-        
-
         if not args_parsed.SKIP_EM_FLAG:
             ## adjust counts using EM
             EM_adjusted_counts_fusions_file = fusions_file + ".EMadj"
@@ -1362,7 +1322,6 @@ class FusionInspector:
             pipeliner.add_commands([Command(cmdstr, "EM_adj_counts.ok")])
 
             fusions_file = EM_adjusted_counts_fusions_file
-
 
         ## add FFPM calculations
         if (
@@ -1385,7 +1344,6 @@ class FusionInspector:
 
             fusions_file = fusions_file + ".FFPM"
 
-        
         ## microhomology analysis
         fusions_file = run_microhomology_analysis(
             args_parsed,
@@ -1395,17 +1353,20 @@ class FusionInspector:
             workdir,
             pipeliner,
         )
-        
-        if args_parsed.predict_cosmic_like and args_parsed.left_fq_filename and (not args_parsed.no_FFPM) :
+
+        if (
+            args_parsed.predict_cosmic_like
+            and args_parsed.left_fq_filename
+            and (not args_parsed.no_FFPM)
+        ):
             ## predict cosmic-like fusions
             fusions_file = run_cosmic_like_fusion_predictor(
                 args_parsed, fusions_file, workdir, pipeliner
             )
 
-
         ## annotate
         # always annotate now - Oct 2023 bhaas
-        
+
         annotated_fusions_file = fusions_file + ".annotated"
 
         cmdstr = str(
@@ -1450,7 +1411,6 @@ class FusionInspector:
 
             fusions_file = coding_effect_file
 
-
         ## report the final fusions file:
         final_fusions_file = os.sep.join(
             [
@@ -1458,12 +1418,11 @@ class FusionInspector:
                 args_parsed.out_prefix + ".FusionInspector.fusions.tsv",
             ]
         )
-        
+
         cmdstr = str("cp {} {}".format(fusions_file, final_fusions_file))
         pipeliner.add_commands(
             [Command(cmdstr, "cp_final{}.ok".format(trinity_ok_token))]
         )
-
 
         ## make an abridged version that lacks the list of supporting reads.
 
@@ -1490,8 +1449,6 @@ class FusionInspector:
             abridged_final_fusions_file  ## use the abridged version from here on
         )
 
-        
-        
         if args_parsed.vis:
             ## generate the fusion-inspector-web igv report
 
@@ -1502,8 +1459,8 @@ class FusionInspector:
                 ]
             )
 
-            roi_file = os.path.join(igvprep_dir,   args_parsed.out_prefix + ".ROI.bed")
-            
+            roi_file = os.path.join(igvprep_dir, args_parsed.out_prefix + ".ROI.bed")
+
             cmdstr = str(
                 os.path.sep.join([UTILDIR, "create_fusion_inspector_igvjs.py"])
                 + " --fusion_inspector_directory "
@@ -1523,14 +1480,14 @@ class FusionInspector:
                 [BASEDIR, "util", "fusion_html_meta", "tracks.json"]
             )
             tracks_json = os.path.join(igvprep_dir, "tracks.json")
-            cmdstr = f"cp {tracks_json_template} {tracks_json}";
+            cmdstr = f"cp {tracks_json_template} {tracks_json}"
 
             # update tracks_json
             if args_parsed.out_prefix != "finspector":
                 cmdstr += f" && sed -i 's/finspector/{args_parsed.out_prefix}/g' {tracks_json}"
 
             pipeliner.add_commands([Command(cmdstr, "cp_tracks_json.ok")])
-                        
+
             cmdstr = str(
                 f"cd {igvprep_dir} && create_report {json_file} {mergedContig_fasta_filename} --type fusion --track-config {tracks_json} "
                 " --output {}".format(
@@ -1542,12 +1499,11 @@ class FusionInspector:
                     )
                 )
             )
-            
+
             pipeliner.add_commands(
                 [Command(cmdstr, "fusion_reports_html{}.ok".format(trinity_ok_token))]
             )
-            
-        
+
         if args_parsed.extract_fusion_reads_file:
 
             fusion_reads_file = args_parsed.extract_fusion_reads_file
@@ -1600,16 +1556,17 @@ class FusionInspector:
         mergedContig_fasta_filename,
         bam_file,
         pipeliner,
-        max_sensitivity_setting
+        max_sensitivity_setting,
     ):
 
         ## extract the fusion JUNCTION reads
         fusion_junction_reads_sam_file = bam_file + ".fusion_junc_reads.sam"
         fusion_junction_info_file = bam_file + ".fusion_junction_info"
 
+        read_filter_settings = (
+            "--no_seq_sim_filter --ignore_num_hits" if max_sensitivity_setting else ""
+        )
 
-        read_filter_settings = "--no_seq_sim_filter --ignore_num_hits" if max_sensitivity_setting else ""
-        
         cmdstr = str(
             os.sep.join(
                 [UTILDIR, "get_fusion_JUNCTION_reads_from_fusion_contig_bam.pl"]
@@ -1625,7 +1582,7 @@ class FusionInspector:
             + " > "
             + fusion_junction_reads_sam_file
         )
-        
+
         pipeliner.add_commands(
             [Command(cmdstr, "get_fusion_JUNCTION_reads_from_bam.ok")]
         )
@@ -1780,11 +1737,11 @@ class FusionInspector:
         trinity_fasta_filename,
         pipeliner,
         workdir,
-        igvprep_dir
+        igvprep_dir,
     ):
 
         mm2_gff3_output_filename = f"{trinity_fasta_filename}.mm2.bam.gff3"
-                
+
         cmdstr = str(
             TRINITY_HOME
             + "/util/misc/process_minimap2_alignments.pl "
@@ -1793,9 +1750,8 @@ class FusionInspector:
             + f" --gtf {mergedContig_gtf_filename} "
             + f" -o {trinity_fasta_filename}.mm2.bam "
             + " --incl_out_gff3 "
-                        
         )
-        
+
         pipeliner.add_commands([Command(cmdstr, "trinity_mm2_alignment.ok")])
 
         ## extract the Trinity fusion transcripts
@@ -1840,7 +1796,9 @@ class FusionInspector:
         )
 
         # convert fusion trans to bed
-        trinity_fusion_trans_bed_filename = os.path.join(igvprep_dir, args_parsed.out_prefix + ".mm2_trinity_GG.fusions.bed")
+        trinity_fusion_trans_bed_filename = os.path.join(
+            igvprep_dir, args_parsed.out_prefix + ".mm2_trinity_GG.fusions.bed"
+        )
         min_per_id = 95
         cmdstr = str(
             UTILDIR
@@ -1974,7 +1932,7 @@ def run_microhomology_analysis(
             ]
         )
     )
-    
+
     pipeliner.add_commands([Command(cmdstr, "append_microH_info.ok")])
 
     if args_parsed.incl_microH_expr_brkpt_plots:

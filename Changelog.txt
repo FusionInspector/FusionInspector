@@ -1,3 +1,10 @@
+## FusionInspector v2.10.0
+- includes PRs: sarath.murugan@outlook.com fix: added sed command to replace default finspector to out_prefix in tracks.json file  create_report command
+                thomas.harrison@watchmakergenomics.com Adding a bit more granularity to fusion key of fusion_EM_runner.pl
+- FI now on dockstore at: https://dockstore.org/workflows/github.com/FusionInspector/FusionInspector/fusion_inspector:Terra?tab=info
+- updated Trinity to 2.15.2
+
+
 ## FusionInspector v2.9.0
 - upgraded Trinity to 2.15.1 along with minimap2 integration
 - cleaner organization of outputs and IGV-inputs
