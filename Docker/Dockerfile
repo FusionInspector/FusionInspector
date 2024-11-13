@@ -169,8 +169,8 @@ RUN pip install numpy
 
 # FusionInspector
 
-ENV FI_VERSION=2.9.0
-ENV FI_HASH=a43480df8dac6cfae0c01c2b636fd11de0d7bb98
+ENV FI_VERSION=2.10.0
+ENV FI_HASH=91220a1abe6500fa953b3909d4dfdf79c41bd2c0
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
