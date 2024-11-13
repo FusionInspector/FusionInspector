@@ -89,7 +89,7 @@ RUN SAMTOOLS_URL="https://github.com/samtools/samtools/releases/download/${SAMTO
 
 RUN apt-get install -y cmake apt-utils && apt-get clean
 
-ENV TRINITY_VERSION=2.15.2
+ENV TRINITY_VERSION=2.15.1
 
 RUN TRINITY_URL="https://github.com/trinityrnaseq/trinityrnaseq/releases/download/Trinity-v${TRINITY_VERSION}/trinityrnaseq-v${TRINITY_VERSION}.FULL.tar.gz" && \
    cd $SRC && \
