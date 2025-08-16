@@ -19,9 +19,13 @@ RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 RUN apt-get install -y python3-distutils
 
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+#RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+#    python get-pip.py
+
+RUN curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip.py && \
     python get-pip.py
 
+    
 RUN pip install requests igv-reports==1.8.0
 
 
@@ -135,9 +139,13 @@ ENV PICARD_HOME $SRC
 ## Minimap2
 
 WORKDIR $SRC
-RUN curl -L https://github.com/lh3/minimap2/releases/download/v2.26/minimap2-2.26_x64-linux.tar.bz2 | tar -jxvf - && \
+#RUN curl -L https://github.com/lh3/minimap2/releases/download/v2.26/minimap2-2.26_x64-linux.tar.bz2 | tar -jxvf - && \
+#    mv ./minimap2-2.26_x64-linux/minimap2 $BIN/
+
+RUN curl -L https://github.com/lh3/minimap2/releases/download/v2.26/minimap2-2.26_x64-linux.tar.bz2 | tar -jxvf - --no-same-owner && \
     mv ./minimap2-2.26_x64-linux/minimap2 $BIN/
 
+    
 # K8
 RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.2.4.tar.bz2 | tar -jxf - && \
     cp k8-0.2.4/k8-`uname -s` $BIN/k8
