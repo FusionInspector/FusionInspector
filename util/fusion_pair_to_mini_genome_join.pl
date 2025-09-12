@@ -10,6 +10,7 @@ use lib ("$FindBin::Bin/../PerlLib");
 use Nuc_translator;
 use Overlap_piler;
 use Data::Dumper;
+use Fasta_reader;
 
 my $max_intron_length = 1000;
 my $genome_flank_size = 1000;
@@ -83,7 +84,11 @@ main: {
 
     my @chim_pairs;
 
-
+    print STDERR "-loading genome from $genome_fasta_file...";
+    my $fasta_reader = new Fasta_reader($genome_fasta_file);
+    my %genome_seqs = $fasta_reader->retrieve_all_seqs_hash();
+    my $genome_seqs_href = \%genome_seqs;
+    print STDERR "done loading genome.\n\n";
     
   parse_fusion_candidates: {
       
@@ -225,9 +230,9 @@ main: {
         
         eval {
 
-            my ($left_gene_supercontig_gtf, $left_gene_sequence_region) = &get_gene_contig_gtf($left_gene_gtf, $genome_fasta_file);
+            my ($left_gene_supercontig_gtf, $left_gene_sequence_region) = &get_gene_contig_gtf($left_gene_gtf, $genome_seqs_href);
             
-            my ($right_gene_supercontig_gtf, $right_gene_sequence_region) = &get_gene_contig_gtf($right_gene_gtf, $genome_fasta_file);
+            my ($right_gene_supercontig_gtf, $right_gene_sequence_region) = &get_gene_contig_gtf($right_gene_gtf, $genome_seqs_href);
             
             if ($shrink_introns_flag) {
                 ($left_gene_supercontig_gtf, $left_gene_sequence_region) = &shrink_introns($left_gene_supercontig_gtf, $left_gene_sequence_region, $max_intron_length);
@@ -430,7 +435,7 @@ sub set_gtf_scaffold_name {
 
 ####
 sub get_gene_contig_gtf {
-    my ($gene_gtf, $genome_fasta_file) = @_;
+    my ($gene_gtf, $genome_seqs_href) = @_;
 
     
     my ($gene_chr, $gene_lend, $gene_rend, $gene_orient, $revised_gene_gtf) = &get_gene_span_info($gene_gtf);
@@ -442,7 +447,7 @@ sub get_gene_contig_gtf {
     #print STDERR "\n\nGENE_GTF:\n$gene_gtf\n\n";
     
     
-    my $seq_region = &get_genomic_region_sequence($genome_fasta_file,
+    my $seq_region = &get_genomic_region_sequence($genome_seqs_href,
                                                   $gene_chr, 
                                                   $gene_lend - $genome_flank_size, 
                                                   $gene_rend + $genome_flank_size,
@@ -464,20 +469,22 @@ sub get_gene_contig_gtf {
 
 #####
 sub get_genomic_region_sequence {
-    my ($fasta_file, $chr, $lend, $rend, $orient) = @_;
+    my ($genome_seqs_href, $chr, $lend, $rend, $orient) = @_;
 
-    my $cmd = "samtools faidx $fasta_file $chr:$lend-$rend";
-    my $seq = `$cmd`;
-    if ($?) {
-        die "Error, cmd: $cmd died with ret $?";
-    }
-    my $header;
-    ($header, $seq) = split(/\n/, $seq, 2);
-    $seq =~ s/\s//g;
+    #my $cmd = "samtools faidx $fasta_file $chr:$lend-$rend";
+    #my $seq = `$cmd`;
+    #if ($?) {
+    #    die "Error, cmd: $cmd died with ret $?";
+    #}
+    #my $header;
+    #($header, $seq) = split(/\n/, $seq, 2);
+    #$seq =~ s/\s//g;
+
+    my $seq = uc substr($genome_seqs_href->{$chr}, $lend - 1, $rend - $lend + 1);
     
     my $seq_len = $rend - $lend + 1;
     if (length($seq) != $seq_len) {
-        die "Error, didn't extract required sequence from $fasta_file, $chr, $lend, $rend, instead got seq of length " . length($seq);
+        die "Error, didn't extract required sequence len $seq_len for $chr:$lend-$rend, instead got seq of length " . length($seq);
     }
     
     if ($orient eq '-') {
