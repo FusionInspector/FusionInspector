@@ -590,9 +590,9 @@ sub clean_gene_GTFs {
     
     my %ret_gene_to_gtf;
 
-    foreach my $gene_id (keys %$gene_to_gtf_href) {
+    foreach my $gene_id (sort keys %$gene_to_gtf_href) {
         
-        my @gene_tokens = keys %{$gene_to_gtf_href->{$gene_id}};
+        my @gene_tokens = sort keys %{$gene_to_gtf_href->{$gene_id}};
         
         if (scalar(@gene_tokens) == 1) {
             $ret_gene_to_gtf{$gene_id} = $gene_to_gtf_href->{$gene_id}->{$gene_tokens[0]};
@@ -614,7 +614,8 @@ sub clean_gene_GTFs {
                 push (@structs, { gtf_text => $gtf_text,
                                   score => $score } );
             }
-            @structs = reverse sort {$a->{score}<=>$b->{score}} @structs;
+            @structs = reverse sort {$a->{score}<=>$b->{score}
+                                      || $a->{gtf_text} cmp $b->{gtf_text}} @structs;
             
             my $best_struct = $structs[0];
                             
