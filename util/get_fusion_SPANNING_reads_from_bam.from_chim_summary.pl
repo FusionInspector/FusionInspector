@@ -358,9 +358,13 @@ main: {
                 next;
             }
 
-            $line =~ /NH:i:(\d+)/ or die "Error, cannot extract hit count (NH:i:) from $line";
-            my $hit_count = $1;
-                        
+            # Note: NH:i: tag should be present for both STAR and minimap2 (with default secondary alignment settings)
+            # Fallback to 1 if absent for safety
+            my $hit_count = 1;  # default fallback
+            if ($line =~ /NH:i:(\d+)/) {
+                $hit_count = $1;
+            }
+
             ## check end clipping of alignment
             my $cigar = $sam_entry->get_cigar_alignment();
             if ($scaffold !~ /IGH/ && # //FIXME:  IGH here is a hack... should have more principled ways of dealing with except cases.

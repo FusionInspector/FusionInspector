@@ -13,8 +13,13 @@ workflow fusion_inspector_workflow {
     File target_fusions_list    
 
     String docker = "trinityctat/fusioninspector:latest"
-    
+
     String? additional_flags
+
+    # Aligner options
+    String aligner = "STAR"  # STAR or minimap2
+    String read_type = "short"  # short or long
+    String? minimap2_params  # Extra minimap2 parameters (default: "-x splice")
 
     Int num_cpu = 12
     String memory = "50G"
@@ -33,7 +38,7 @@ workflow fusion_inspector_workflow {
       sample_id = sample_id,
       left_fq = left_fq,
       right_fq = right_fq,
-    
+
       preemptible = preemptible,
       docker = docker,
       cpu = num_cpu,
@@ -42,6 +47,9 @@ workflow fusion_inspector_workflow {
       fastq_disk_space_multiplier = fastq_disk_space_multiplier,
       genome_disk_space_multiplier = genome_disk_space_multiplier,
       additional_flags = additional_flags,
+      aligner = aligner,
+      read_type = read_type,
+      minimap2_params = minimap2_params,
       use_ssd = use_ssd
   }
 
@@ -62,7 +70,7 @@ task fusion_inspector {
     String sample_id
     File left_fq
     File? right_fq
-   
+
     Int preemptible
     String docker
     Int cpu
@@ -71,6 +79,9 @@ task fusion_inspector {
     Float fastq_disk_space_multiplier
     Float genome_disk_space_multiplier
     String? additional_flags
+    String aligner
+    String read_type
+    String? minimap2_params
     Boolean use_ssd
   }
 
@@ -98,6 +109,9 @@ task fusion_inspector {
         --CPU ~{cpu} \
         --left_fq ~{left_fq} \
         ~{"--right_fq " + right_fq} \
+        --aligner ~{aligner} \
+        --read_type ~{read_type} \
+        ~{"--minimap2_params \"" + minimap2_params + "\""} \
         --vis \
         ~{"" + additional_flags}
 

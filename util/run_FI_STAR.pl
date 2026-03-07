@@ -37,7 +37,6 @@ my $usage = <<__EOUSAGE__;
 #  --out_dir <string>          output directory (default: current working directory)
 #  --star_path <string>        full path to the STAR program to use.
 #  --prep_reference_only       build the genome index and then stop.
-#  --only_fusion_reads         restrict alignments only to the fusion-supporting reads
 #  --capture_genome_alignments reports alignments to the reference genome in addition to the fusion contigs. (for debugging)
 #  --chim_search               include Chimeric.junction outputs
 #  --max_mate_dist <int>       maximum distance between mates (and individual introns) allowed (default: $max_mate_dist)
@@ -66,7 +65,6 @@ my $ADV = 0;
 my $star_path = "STAR";
 my $patch;
 my $prep_reference_only = 0;
-my $only_fusion_reads_flag = 0;
 my $capture_genome_alignments_flag = 0;
 my $chim_search;
 my $samples_file;
@@ -87,7 +85,6 @@ my $STAR_xtra_params = "";
              'ADV' => \$ADV,
              'star_path=s' => \$star_path,
              'prep_reference_only' => \$prep_reference_only,
-             'only_fusion_reads' => \$only_fusion_reads_flag,
              'capture_genome_alignments' => \$capture_genome_alignments_flag,
              'chim_search' => \$chim_search,
 
@@ -268,20 +265,17 @@ main: {
     }
     
     if ($patch) {
-        
+
         $cmd .= " --genomeFastaFiles $patch ";
-        
-        if ($only_fusion_reads_flag ) {
-            $cmd .= " --outSAMfilter KeepOnlyAddedReferences ";
-        }
-        elsif ($capture_genome_alignments_flag) {
-            # no op
-            # by default, reports all alignments
+
+        if ($capture_genome_alignments_flag) {
+            # Keep all alignments (genome + fusion contigs) for debugging
+            # No filter needed - STAR default reports all alignments
         }
         else {
-            ## ** the FusionInspector default setting ** 
-            # retains all alignments to the contigs, not just the fusion evidence.
-            $cmd .= " --outSAMfilter KeepAllAddedReferences ";
+            ## ** the FusionInspector default setting **
+            # Keep only alignments to fusion contigs (not genome alignments)
+            $cmd .= " --outSAMfilter KeepOnlyAddedReferences ";
         }
     }
     

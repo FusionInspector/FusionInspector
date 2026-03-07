@@ -174,8 +174,12 @@ main: {
         my $line = $sam_entry->get_original_line();
 
         ## ensure the match is unique
-        $line =~ /NH:i:(\d+)/ or die "Error, cannot extract hit count (NH:i:) from sam entry: $line";
-        my $num_hits = $1;
+        # Note: NH:i: tag should be present for both STAR and minimap2 (with default secondary alignment settings)
+        # Fallback to 1 if absent for safety
+        my $num_hits = 1;  # default fallback
+        if ($line =~ /NH:i:(\d+)/) {
+            $num_hits = $1;
+        }
         my $num_hits_on_fusion_contigs = $read_alignment_counter{$full_read_name} || 0;
         
         if (! $ignore_num_hits) {

@@ -143,9 +143,10 @@ WORKDIR $SRC
 #    mv ./minimap2-2.26_x64-linux/minimap2 $BIN/
 
 RUN curl -L https://github.com/lh3/minimap2/releases/download/v2.26/minimap2-2.26_x64-linux.tar.bz2 | tar -jxvf - --no-same-owner && \
-    mv ./minimap2-2.26_x64-linux/minimap2 $BIN/
+    mv ./minimap2-2.26_x64-linux/minimap2 $BIN/ && \
+    mv ./minimap2-2.26_x64-linux/misc/paftools.js $BIN/
 
-    
+
 # K8
 RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.2.4.tar.bz2 | tar -jxf - && \
     cp k8-0.2.4/k8-`uname -s` $BIN/k8
