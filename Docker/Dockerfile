@@ -218,5 +218,5 @@ RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git
     git submodule init && git submodule update && \
     make
 
-ENV PATH $SRC/FusionInspector:$PATH
+ENV PATH $SRC/FusionInspector/util:$SRC/FusionInspector:$PATH
 
