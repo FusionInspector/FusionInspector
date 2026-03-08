@@ -216,5 +216,9 @@ RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git
     git checkout ${FI_HASH} && \
     git submodule init && git submodule update && \
     make && \
-    mv * $BIN
+    cp FusionInspector $BIN/ && \
+    rsync -av --exclude='.*' PerlLib/ $BIN/PerlLib/ && \
+    rsync -av --exclude='.*' PyLib/ $BIN/PyLib/ && \
+    rsync -av --exclude='.*' util/ $BIN/util/ && \
+    rsync -av --exclude='.*' WDL/ $BIN/WDL/
 
