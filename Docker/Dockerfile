@@ -124,6 +124,7 @@ RUN TRINITY_URL="https://github.com/trinityrnaseq/trinityrnaseq/releases/downloa
    tar xvf trinityrnaseq-v${TRINITY_VERSION}.FULL.tar.gz && \
    cd trinityrnaseq-v${TRINITY_VERSION} && \
    rm -rf trinity-plugins/bamsifter && \
+   sed -i 's/ bamsifter_target//' trinity-plugins/Makefile && \
    make
 
 
