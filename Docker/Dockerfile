@@ -133,10 +133,10 @@ RUN git clone --recursive https://github.com/trinityrnaseq/trinityrnaseq.git && 
     git submodule init && git submodule update && \
     git submodule foreach --recursive git submodule init && \
     git submodule foreach --recursive git submodule update && \
-    make && make plugins && \
-    make install
+    make && make plugins
 
-ENV TRINITY_HOME /usr/local/bin
+ENV TRINITY_HOME $SRC/trinityrnaseq
+ENV PATH $TRINITY_HOME:$PATH
 
 
 ## Bowtie2
@@ -211,14 +211,12 @@ RUN pip install --break-system-packages numpy
 ENV FI_VERSION=2.11.0
 ENV FI_HASH=836799ab22ce4289ff1d2431c934175201f0f6d6
 
+WORKDIR $SRC
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
     git checkout ${FI_HASH} && \
     git submodule init && git submodule update && \
-    make && \
-    cp FusionInspector $BIN/ && \
-    rsync -av --exclude='.*' PerlLib/ $BIN/PerlLib/ && \
-    rsync -av --exclude='.*' PyLib/ $BIN/PyLib/ && \
-    rsync -av --exclude='.*' util/ $BIN/util/ && \
-    rsync -av --exclude='.*' WDL/ $BIN/WDL/
+    make
+
+ENV PATH $SRC/FusionInspector:$PATH
 
