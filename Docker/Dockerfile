@@ -114,7 +114,7 @@ RUN SAMTOOLS_URL="https://github.com/samtools/samtools/releases/download/${SAMTO
 ########
 # Trinity
 
-RUN apt-get install -y cmake apt-utils && apt-get clean
+RUN apt-get install -y cmake apt-utils autotools-dev && apt-get clean
 
 ENV TRINITY_VERSION=2.15.2
 
@@ -122,7 +122,9 @@ RUN TRINITY_URL="https://github.com/trinityrnaseq/trinityrnaseq/releases/downloa
    cd $SRC && \
    wget $TRINITY_URL && \
    tar xvf trinityrnaseq-v${TRINITY_VERSION}.FULL.tar.gz && \
-   cd trinityrnaseq-v${TRINITY_VERSION} && make
+   cd trinityrnaseq-v${TRINITY_VERSION} && \
+   cp /usr/share/misc/config.guess /usr/share/misc/config.sub trinity-plugins/bamsifter/htslib/ && \
+   make
 
 
 ENV TRINITY_HOME /usr/local/src/trinityrnaseq-v${TRINITY_VERSION}
