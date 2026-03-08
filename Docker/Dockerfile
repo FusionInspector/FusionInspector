@@ -9,7 +9,8 @@ RUN  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gcc g++
                                        unzip libbz2-dev  liblzma-dev gfortran libreadline-dev libcurl4-openssl-dev libx11-dev \
                        libxt-dev x11-common libcairo2-dev libpng-dev  libjpeg-dev pkg-config \
                        libxml2-dev  libssl-dev libcurl4-openssl-dev pbzip2 git \
-                       libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev && \
+                       libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev \
+                       cmake libgit2-dev libfontconfig1-dev && \
     apt-get clean
 
 
@@ -53,8 +54,15 @@ RUN curl https://cran.r-project.org/src/base/R-4/$R_VERSION.tar.gz -o $R_VERSION
 
 RUN R -e 'install.packages("BiocManager", repos="http://cran.us.r-project.org")'
 RUN R -e 'BiocManager::install("argparse")'
+
+# Install tidyverse with proper system dependencies
+# Set environment variables to help arrow and other packages build
+ENV LIBARROW_MINIMAL=false
+ENV NOT_CRAN=true
+
 RUN R -e 'install.packages("tidyverse", repos="http://cran.us.r-project.org", dependencies=TRUE)' && \
     R -e 'if (!require("tidyverse")) quit(status=1)'
+
 RUN R -e 'BiocManager::install("cowplot")'
 RUN R -e 'BiocManager::install("ranger")'
 
