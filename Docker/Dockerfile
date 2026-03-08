@@ -8,7 +8,7 @@ RUN  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gcc g++
                        python3-setuptools python3-dev build-essential \
                                        unzip libbz2-dev  liblzma-dev gfortran libreadline-dev libcurl4-openssl-dev libx11-dev \
                        libxt-dev x11-common libcairo2-dev libpng-dev  libjpeg-dev pkg-config \
-                       libxml2-dev  libssl-dev libcurl4-openssl-dev pbzip2 git \
+                       libxml2-dev  libssl-dev libcurl4-openssl-dev pbzip2 git rsync \
                        libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev && \
     apt-get clean
 
