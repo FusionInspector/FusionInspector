@@ -114,7 +114,15 @@ RUN SAMTOOLS_URL="https://github.com/samtools/samtools/releases/download/${SAMTO
 ########
 # Trinity
 
-RUN apt-get install -y cmake apt-utils autotools-dev && apt-get clean
+RUN apt-get install -y cmake apt-utils && apt-get clean
+
+## autoconf 2.69 needed for trinity's embedded htslib in bamsifter
+WORKDIR $SRC
+RUN wget http://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz && \
+    tar xf autoconf-2.69.tar.gz && \
+    cd autoconf-2.69 && \
+    ./configure --prefix=/usr/local && \
+    make && make install
 
 ENV TRINITY_VERSION=2.15.2
 
@@ -123,11 +131,7 @@ RUN TRINITY_URL="https://github.com/trinityrnaseq/trinityrnaseq/releases/downloa
    wget $TRINITY_URL && \
    tar xvf trinityrnaseq-v${TRINITY_VERSION}.FULL.tar.gz && \
    cd trinityrnaseq-v${TRINITY_VERSION} && \
-   cp /usr/share/misc/config.guess /usr/share/misc/config.sub trinity-plugins/bamsifter/htslib/ && \
-   cd trinity-plugins/bamsifter && \
-   CFLAGS="-Wno-error=implicit-function-declaration -Wno-error=return-type -O2" make && \
-   cd ../../ && \
-   make
+   make && make plugins
 
 
 ENV TRINITY_HOME /usr/local/src/trinityrnaseq-v${TRINITY_VERSION}
