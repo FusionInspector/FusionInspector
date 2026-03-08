@@ -123,8 +123,10 @@ RUN TRINITY_URL="https://github.com/trinityrnaseq/trinityrnaseq/releases/downloa
    wget $TRINITY_URL && \
    tar xvf trinityrnaseq-v${TRINITY_VERSION}.FULL.tar.gz && \
    cd trinityrnaseq-v${TRINITY_VERSION} && \
-   rm -rf trinity-plugins/bamsifter && \
-   sed -i 's/ bamsifter_target//' trinity-plugins/Makefile && \
+   cp /usr/share/misc/config.guess /usr/share/misc/config.sub trinity-plugins/bamsifter/htslib/ && \
+   cd trinity-plugins/bamsifter && \
+   CFLAGS="-Wno-error=implicit-function-declaration -Wno-error=return-type -O2" make && \
+   cd ../../ && \
    make
 
 
