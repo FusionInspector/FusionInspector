@@ -18,10 +18,10 @@ RUN  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gcc g++
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python get-pip.py
+    python get-pip.py --break-system-packages
 
-    
-RUN pip install requests igv-reports==1.8.0
+
+RUN pip install --break-system-packages requests igv-reports==1.8.0
 
 
 ## set up tool config and deployment area:
@@ -193,7 +193,7 @@ RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v${SALMON_VERSI
 
 COPY sam_readname_cleaner.py $BIN/
 
-RUN pip install numpy
+RUN pip install --break-system-packages numpy
 
 # FusionInspector
 
