@@ -125,16 +125,18 @@ RUN wget http://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz && \
     make && make install
 
 ENV TRINITY_VERSION=2.15.2
+ENV TRINITY_CO=4be803497fd22ce8461a9637eff46bc3b75a594a
 
-RUN TRINITY_URL="https://github.com/trinityrnaseq/trinityrnaseq/releases/download/Trinity-v${TRINITY_VERSION}/trinityrnaseq-v${TRINITY_VERSION}.FULL.tar.gz" && \
-   cd $SRC && \
-   wget $TRINITY_URL && \
-   tar xvf trinityrnaseq-v${TRINITY_VERSION}.FULL.tar.gz && \
-   cd trinityrnaseq-v${TRINITY_VERSION} && \
-   make && make plugins
+RUN git clone --recursive https://github.com/trinityrnaseq/trinityrnaseq.git && \
+    cd trinityrnaseq && \
+    git checkout ${TRINITY_CO} && \
+    git submodule init && git submodule update && \
+    git submodule foreach --recursive git submodule init && \
+    git submodule foreach --recursive git submodule update && \
+    make && make plugins && \
+    make install
 
-
-ENV TRINITY_HOME /usr/local/src/trinityrnaseq-v${TRINITY_VERSION}
+ENV TRINITY_HOME /usr/local/bin
 
 
 ## Bowtie2
