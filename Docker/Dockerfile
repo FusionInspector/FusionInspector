@@ -70,25 +70,17 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     software-properties-common && \
     apt-get clean
 
-# Install Apache Arrow C++ libraries from system packages
-RUN wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && \
-    apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && \
-    apt-get update && \
-    apt-get install -y -V libarrow-dev && \
-    rm apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && \
-    apt-get clean
-
-# Install tidyverse with proper system dependencies
-# Arrow C++ system libraries are now installed above, so R arrow package should link to them
+# Install tidyverse
+# Note: arrow is optional for tidyverse - core tidyverse packages don't require it
+# tidyverse meta-package will install and load successfully even if arrow fails
 ENV NOT_CRAN=true
 
-# Install arrow R package (will use system Arrow C++ libraries)
-RUN R -e 'install.packages("arrow", repos="http://cran.us.r-project.org", dependencies=TRUE)' && \
-    R -e 'if (!require("arrow")) quit(status=1)'
+# Install tidyverse (arrow may fail but that's OK - it's optional)
+RUN R -e 'install.packages("tidyverse", repos="http://cran.us.r-project.org", dependencies=TRUE)'
 
-# Now install full tidyverse (should work since arrow is already installed)
-RUN R -e 'install.packages("tidyverse", repos="http://cran.us.r-project.org", dependencies=TRUE)' && \
-    R -e 'if (!require("tidyverse")) quit(status=1)'
+# Verify that library(tidyverse) works (it should load the core 8 packages)
+RUN R -e 'library(tidyverse); cat("tidyverse version:", as.character(packageVersion("tidyverse")), "\n")' || \
+    (echo "ERROR: library(tidyverse) failed to load" && exit 1)
 
 RUN R -e 'BiocManager::install("cowplot")'
 RUN R -e 'BiocManager::install("ranger")'
