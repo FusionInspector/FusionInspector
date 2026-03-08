@@ -55,6 +55,7 @@ RUN R -e 'install.packages("BiocManager", repos="http://cran.us.r-project.org")'
 RUN R -e 'BiocManager::install("argparse")'
 
 # Install additional system dependencies needed for tidyverse (arrow, ragg, feather)
+# Install Arrow C++ libraries from Apache repository
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     cmake \
     libgit2-dev \
@@ -64,16 +65,24 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     liblz4-dev \
     libzstd-dev \
     libsnappy-dev \
-    libbrotli-dev && \
+    libbrotli-dev \
+    lsb-release \
+    software-properties-common && \
+    apt-get clean
+
+# Install Apache Arrow C++ libraries from system packages
+RUN wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && \
+    apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && \
+    apt-get update && \
+    apt-get install -y -V libarrow-dev && \
+    rm apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && \
     apt-get clean
 
 # Install tidyverse with proper system dependencies
-# Set environment variables to help arrow and other packages build
-# Use pre-built arrow binaries instead of building from source (much faster and more reliable)
-ENV LIBARROW_BINARY=true
+# Arrow C++ system libraries are now installed above, so R arrow package should link to them
 ENV NOT_CRAN=true
 
-# Install arrow first to ensure it works with pre-built binaries
+# Install arrow R package (will use system Arrow C++ libraries)
 RUN R -e 'install.packages("arrow", repos="http://cran.us.r-project.org", dependencies=TRUE)' && \
     R -e 'if (!require("arrow")) quit(status=1)'
 
