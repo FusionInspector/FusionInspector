@@ -73,10 +73,13 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 ENV LIBARROW_BINARY=true
 ENV NOT_CRAN=true
 
-# Try installing tidyverse - if arrow fails, install core packages individually
-RUN R -e 'install.packages("tidyverse", repos="http://cran.us.r-project.org", dependencies=TRUE)' || \
-    R -e 'install.packages(c("ggplot2", "dplyr", "tidyr", "readr", "purrr", "tibble", "stringr", "forcats"), repos="http://cran.us.r-project.org", dependencies=TRUE)' && \
-    R -e 'if (!require("ggplot2")) quit(status=1); if (!require("dplyr")) quit(status=1)'
+# Install arrow first to ensure it works with pre-built binaries
+RUN R -e 'install.packages("arrow", repos="http://cran.us.r-project.org", dependencies=TRUE)' && \
+    R -e 'if (!require("arrow")) quit(status=1)'
+
+# Now install full tidyverse (should work since arrow is already installed)
+RUN R -e 'install.packages("tidyverse", repos="http://cran.us.r-project.org", dependencies=TRUE)' && \
+    R -e 'if (!require("tidyverse")) quit(status=1)'
 
 RUN R -e 'BiocManager::install("cowplot")'
 RUN R -e 'BiocManager::install("ranger")'
