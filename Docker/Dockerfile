@@ -5,7 +5,7 @@ MAINTAINER bhaas@broadinstitute.org
 RUN  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gcc g++ perl python3 automake make \
                                        wget curl libdb-dev \
                                        bzip2 zlibc zlib1g zlib1g-dev  default-jre \
-                       python3-setuptools python3-dev build-essential python3-distutils \
+                       python3-setuptools python3-dev build-essential \
                                        unzip libbz2-dev  liblzma-dev gfortran libreadline-dev libcurl4-openssl-dev libx11-dev \
                        libxt-dev x11-common libcairo2-dev libpng-dev  libjpeg-dev pkg-config \
                        libxml2-dev  libssl-dev libcurl4-openssl-dev pbzip2 git \
@@ -16,8 +16,6 @@ RUN  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gcc g++
 ## Python 3 stuff
 
 RUN ln -sf /usr/bin/python3 /usr/bin/python
-
-RUN apt-get install -y python3-distutils
 
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python get-pip.py
