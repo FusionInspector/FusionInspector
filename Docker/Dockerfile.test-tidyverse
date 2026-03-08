@@ -1,0 +1,35 @@
+FROM ubuntu:20.04
+
+# Minimal Dockerfile to test tidyverse installation
+# Build: docker build -f Dockerfile.test-tidyverse -t test-tidyverse .
+# Run:   docker run -it test-tidyverse /bin/bash
+
+RUN  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gcc g++ perl python3 automake make \
+                                       wget curl libdb-dev \
+                                       bzip2 zlibc zlib1g zlib1g-dev  default-jre \
+                       python3-setuptools python3-dev build-essential python3-distutils \
+                                       unzip libbz2-dev  liblzma-dev gfortran libreadline-dev libcurl4-openssl-dev libx11-dev \
+                       libxt-dev x11-common libcairo2-dev libpng-dev  libjpeg-dev pkg-config \
+                       libxml2-dev  libssl-dev libcurl4-openssl-dev pbzip2 git \
+                       libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev && \
+    apt-get clean
+
+WORKDIR /usr/local/src
+
+ENV R_VERSION=R-4.2.0
+
+RUN curl https://cran.r-project.org/src/base/R-4/$R_VERSION.tar.gz -o $R_VERSION.tar.gz && \
+        tar xvf $R_VERSION.tar.gz && \
+        cd $R_VERSION && \
+        ./configure && make && make install
+
+RUN R -e 'install.packages("BiocManager", repos="http://cran.us.r-project.org")'
+
+# Test tidyverse installation with verbose output
+RUN R -e 'install.packages("tidyverse", repos="http://cran.us.r-project.org", dependencies=TRUE)' && \
+    R -e 'if (!require("tidyverse")) quit(status=1)'
+
+# Verify it loads
+RUN R -e 'library(tidyverse); print(sessionInfo())'
+
+CMD ["/bin/bash"]

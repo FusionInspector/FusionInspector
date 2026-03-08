@@ -53,7 +53,8 @@ RUN curl https://cran.r-project.org/src/base/R-4/$R_VERSION.tar.gz -o $R_VERSION
 
 RUN R -e 'install.packages("BiocManager", repos="http://cran.us.r-project.org")'
 RUN R -e 'BiocManager::install("argparse")'
-RUN R -e 'BiocManager::install("tidyverse")'
+RUN R -e 'install.packages("tidyverse", repos="http://cran.us.r-project.org", dependencies=TRUE)' && \
+    R -e 'if (!require("tidyverse")) quit(status=1)'
 RUN R -e 'BiocManager::install("cowplot")'
 RUN R -e 'BiocManager::install("ranger")'
 
@@ -175,9 +176,6 @@ RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v${SALMON_VERSI
 COPY sam_readname_cleaner.py $BIN/
 
 RUN pip install numpy
-
-
-RUN R -e 'install.packages("tidyverse", repos="https://cloud.r-project.org", dependencies=TRUE)'
 
 # FusionInspector
 
