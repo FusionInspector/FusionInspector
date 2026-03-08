@@ -39,7 +39,7 @@ logger.addHandler(ch)
 
 
 # VERSION = "__BLEEDING_EDGE__"
-VERSION = "2.10.0"
+VERSION = "2.11.0"
 
 
 BASEDIR = os.path.dirname(__file__)
@@ -466,16 +466,23 @@ class FusionInspector:
         if args_parsed.read_type == "long":
             # Long reads are single-end only
             if args_parsed.right_fq_filename and args_parsed.right_fq_filename.strip():
-                print("Error, long reads (--read_type long) are single-end only. Cannot specify --right_fq.", file=sys.stderr)
+                print(
+                    "Error, long reads (--read_type long) are single-end only. Cannot specify --right_fq.",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
 
             # Automatically use minimap2 for long reads if not specified
             if args_parsed.aligner == "STAR":
-                logger.info("--read_type long specified, automatically setting --aligner minimap2")
+                logger.info(
+                    "--read_type long specified, automatically setting --aligner minimap2"
+                )
                 args_parsed.aligner = "minimap2"
 
         if args_parsed.aligner == "minimap2" and args_parsed.read_type == "short":
-            logger.warning("Using minimap2 with short reads is unusual. Long reads (--read_type long) are recommended for minimap2.")
+            logger.warning(
+                "Using minimap2 with short reads is unusual. Long reads (--read_type long) are recommended for minimap2."
+            )
 
         if args_parsed.extreme_sensitivity:
             logger.info(
@@ -874,7 +881,10 @@ class FusionInspector:
 
             # mark duplicate reads
             aligner_dups_marked_bam_file = os.sep.join(
-                [workdir, args_parsed.out_prefix + f".{aligner_name}.cSorted.dupsMarked.bam"]
+                [
+                    workdir,
+                    args_parsed.out_prefix + f".{aligner_name}.cSorted.dupsMarked.bam",
+                ]
             )
 
             # cmdstr = str(
@@ -1116,7 +1126,9 @@ class FusionInspector:
             # consolidate all fusion-contig aligned reads into a single bam file
             # consolidated_bam_file =  os.sep.join([args_parsed.str_out_dir, args_parsed.out_prefix  + ".consolidated"])
 
-            consolidated_bam_file = bam_files_list[0]  # just the primary aligner BAM now.
+            consolidated_bam_file = bam_files_list[
+                0
+            ]  # just the primary aligner BAM now.
 
             ## only using primary aligner now.... just use the existing aligner bam file.
             # cmdstr = str(UTILDIR + "/consolidate_bams_and_uniq_reads.pl " +
@@ -1437,7 +1449,14 @@ class FusionInspector:
         )
 
         pipeliner.add_commands(
-            [Command(cmdstr, "fusion_annotator{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token))]
+            [
+                Command(
+                    cmdstr,
+                    "fusion_annotator{}{}{}.ok".format(
+                        trinity_ok_token, cosmic_ok_token, coding_ok_token
+                    ),
+                )
+            ]
         )
 
         fusions_file = annotated_fusions_file
@@ -1464,7 +1483,9 @@ class FusionInspector:
                 [
                     Command(
                         cmdstr,
-                        "fusion_coding_region_effect{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token),
+                        "fusion_coding_region_effect{}{}{}.ok".format(
+                            trinity_ok_token, cosmic_ok_token, coding_ok_token
+                        ),
                     )
                 ]
             )
@@ -1481,7 +1502,14 @@ class FusionInspector:
 
         cmdstr = str("cp {} {}".format(fusions_file, final_fusions_file))
         pipeliner.add_commands(
-            [Command(cmdstr, "cp_final{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token))]
+            [
+                Command(
+                    cmdstr,
+                    "cp_final{}{}{}.ok".format(
+                        trinity_ok_token, cosmic_ok_token, coding_ok_token
+                    ),
+                )
+            ]
         )
 
         ## make an abridged version that lacks the list of supporting reads.
@@ -1501,7 +1529,14 @@ class FusionInspector:
             + abridged_final_fusions_file
         )
         pipeliner.add_commands(
-            [Command(cmdstr, "final.abridged{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token))]
+            [
+                Command(
+                    cmdstr,
+                    "final.abridged{}{}{}.ok".format(
+                        trinity_ok_token, cosmic_ok_token, coding_ok_token
+                    ),
+                )
+            ]
         )
 
         unabridged_final_fusions_file = final_fusions_file
@@ -1532,7 +1567,14 @@ class FusionInspector:
             )
 
             pipeliner.add_commands(
-                [Command(cmdstr, "create_fi_igvjs{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token))]
+                [
+                    Command(
+                        cmdstr,
+                        "create_fi_igvjs{}{}{}.ok".format(
+                            trinity_ok_token, cosmic_ok_token, coding_ok_token
+                        ),
+                    )
+                ]
             )
 
             ## make igv-report fusion report
@@ -1561,7 +1603,14 @@ class FusionInspector:
             )
 
             pipeliner.add_commands(
-                [Command(cmdstr, "fusion_reports_html{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token))]
+                [
+                    Command(
+                        cmdstr,
+                        "fusion_reports_html{}{}{}.ok".format(
+                            trinity_ok_token, cosmic_ok_token, coding_ok_token
+                        ),
+                    )
+                ]
             )
 
         if args_parsed.extract_fusion_reads_file:
@@ -1589,7 +1638,10 @@ class FusionInspector:
             pipeliner.add_commands(
                 [
                     Command(
-                        cmdstr, "get_fusion_evidence_fqs{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token)
+                        cmdstr,
+                        "get_fusion_evidence_fqs{}{}{}.ok".format(
+                            trinity_ok_token, cosmic_ok_token, coding_ok_token
+                        ),
                     )
                 ]
             )
@@ -1603,7 +1655,14 @@ class FusionInspector:
             cmdstr = "/bin/rm -rf " + workdir
 
             pipeliner.add_commands(
-                [Command(cmdstr, "final_cleanup{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token))]
+                [
+                    Command(
+                        cmdstr,
+                        "final_cleanup{}{}{}.ok".format(
+                            trinity_ok_token, cosmic_ok_token, coding_ok_token
+                        ),
+                    )
+                ]
             )
 
         ## Run it

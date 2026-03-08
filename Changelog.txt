@@ -1,12 +1,9 @@
-## FusionInspector v2.11.0 (devel)
+## FusionInspector v2.11.0
 
 ### Long Read Support
 - Added minimap2 aligner support for PacBio HiFi, CLR, and Oxford Nanopore long reads
 - New parameters: --aligner [STAR|minimap2], --read_type [short|long], --minimap2_params
 - Automatic aligner selection when --read_type long is specified
-- GTF to BED conversion using paftools.js for splice junction hints
-- Secondary alignments enabled by default for proper multi-mapping behavior
-- NH:i: tag fallback logic added to downstream scripts for robustness
 
 ### Performance Optimizations
 - Pre-sort filtering: alignments filtered to fusion contigs BEFORE sorting (10-100x less data to sort)
@@ -15,24 +12,6 @@
 - Removed redundant --only_fusion_reads flag (now default behavior)
 - Retained --capture_genome_alignments flag for debugging (keeps all alignments)
 
-### Bug Fixes
-- Fixed critical checkpoint dependency bug for --predict_cosmic_like and --examine_coding_effect
-- Checkpoint filenames now include tokens (wCosmic, wCoding, wTrinity) to prevent stale outputs on reruns
-- Prevents incomplete results when rerunning with different optional analysis flags
-
-### WDL Workflow Enhancements
-- Added explicit parameters: predict_cosmic_like, examine_coding_effect, incl_microH_expr_brkpt_plots
-- Added aligner and read_type parameters for long read support
-- Fixed shellcheck warnings: use $(pwd) instead of backticks, added quotes
-- Improves parameter discoverability vs using additional_flags string
-
-### Documentation
-- Comprehensive long read support documentation in docs/LONG_READ_SUPPORT.md
-- Release notes in docs/RELEASE_NOTES_LONG_READ_SUPPORT.md
-- Implementation details in docs/IMPLEMENTATION_SUMMARY.md
-- Bug fix documentation in docs/BUGFIX_SECONDARY_ALIGNMENTS.md
-
-For detailed usage and examples, see docs/LONG_READ_SUPPORT.md
 
 
 ## FusionInspector v2.10.0
