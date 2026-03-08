@@ -187,7 +187,7 @@ RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" 
 
 ## Salmon
 WORKDIR $SRC
-ENV SALMON_VERSION=1.10.1
+ENV SALMON_VERSION=1.10.0
 RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v${SALMON_VERSION}/salmon-${SALMON_VERSION}_linux_x86_64.tar.gz && \
     tar xvf salmon-${SALMON_VERSION}_linux_x86_64.tar.gz && \
     ln -sf $SRC/salmon-${SALMON_VERSION}_linux_x86_64/bin/salmon $BIN/.
