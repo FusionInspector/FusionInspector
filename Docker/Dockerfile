@@ -144,7 +144,7 @@ WORKDIR $SRC
 
 RUN curl -L https://github.com/lh3/minimap2/releases/download/v2.26/minimap2-2.26_x64-linux.tar.bz2 | tar -jxvf - --no-same-owner && \
     mv ./minimap2-2.26_x64-linux/minimap2 $BIN/ && \
-    mv ./minimap2-2.26_x64-linux/misc/paftools.js $BIN/
+    mv ./minimap2-2.26_x64-linux/paftools.js $BIN/
 
 
 # K8
@@ -178,8 +178,8 @@ RUN pip install numpy
 
 # FusionInspector
 
-ENV FI_VERSION=2.10.0
-ENV FI_HASH=91220a1abe6500fa953b3909d4dfdf79c41bd2c0
+ENV FI_VERSION=2.11.0
+ENV FI_HASH=836799ab22ce4289ff1d2431c934175201f0f6d6
 
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
     cd FusionInspector/ && \
