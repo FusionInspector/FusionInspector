@@ -58,7 +58,13 @@ RUN R -e 'BiocManager::install("argparse")'
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     cmake \
     libgit2-dev \
-    libfontconfig1-dev && \
+    libfontconfig1-dev \
+    libwebp-dev \
+    libutf8proc-dev \
+    liblz4-dev \
+    libzstd-dev \
+    libsnappy-dev \
+    libbrotli-dev && \
     apt-get clean
 
 # Install tidyverse with proper system dependencies
