@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
 MAINTAINER bhaas@broadinstitute.org
 
@@ -19,10 +19,7 @@ RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 RUN apt-get install -y python3-distutils
 
-#RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-#    python get-pip.py
-
-RUN curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip.py && \
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python get-pip.py
 
     
@@ -43,7 +40,7 @@ RUN mkdir $DATA
 
 WORKDIR $SRC
 
-ENV R_VERSION=R-4.2.0
+ENV R_VERSION=R-4.4.2
 
 RUN curl https://cran.r-project.org/src/base/R-4/$R_VERSION.tar.gz -o $R_VERSION.tar.gz && \
         tar xvf $R_VERSION.tar.gz && \
@@ -106,7 +103,7 @@ RUN cpanm install JSON::XS.pm
 ########
 # Samtools
 
-ENV SAMTOOLS_VERSION=1.9
+ENV SAMTOOLS_VERSION=1.20
 
 RUN SAMTOOLS_URL="https://github.com/samtools/samtools/releases/download/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2" && \
    cd $SRC && \
@@ -135,11 +132,12 @@ ENV TRINITY_HOME /usr/local/src/trinityrnaseq-v${TRINITY_VERSION}
 
 ## Bowtie2
 WORKDIR $SRC
-RUN wget https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.3.3.1/bowtie2-2.3.3.1-linux-x86_64.zip/download -O bowtie2-2.3.3.1-linux-x86_64.zip && \
-    unzip bowtie2-2.3.3.1-linux-x86_64.zip && \
-    mv bowtie2-2.3.3.1-linux-x86_64/bowtie2* $BIN && \
+ENV BOWTIE2_VERSION=2.5.4
+RUN wget https://github.com/BenLangmead/bowtie2/releases/download/v${BOWTIE2_VERSION}/bowtie2-${BOWTIE2_VERSION}-linux-x86_64.zip && \
+    unzip bowtie2-${BOWTIE2_VERSION}-linux-x86_64.zip && \
+    mv bowtie2-${BOWTIE2_VERSION}-linux-x86_64/bowtie2* $BIN && \
     rm *.zip && \
-    rm -r bowtie2-2.3.3.1-linux-x86_64
+    rm -r bowtie2-${BOWTIE2_VERSION}-linux-x86_64
 
 ## Jellyfish
 WORKDIR $SRC
@@ -147,18 +145,13 @@ RUN wget https://github.com/gmarcais/Jellyfish/releases/download/v2.2.7/jellyfis
     tar xvf jellyfish-2.2.7.tar.gz && \
     cd jellyfish-2.2.7/ && \
     ./configure && make && make install
-            
-## Salmon
-WORKDIR $SRC
-RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v0.9.1/Salmon-0.9.1_linux_x86_64.tar.gz && \
-    tar xvf Salmon-0.9.1_linux_x86_64.tar.gz && \
-    ln -s $SRC/Salmon-latest_linux_x86_64/bin/salmon $BIN/.
 
 
 ## Picard tools
 
 WORKDIR $SRC
-RUN wget https://github.com/broadinstitute/picard/releases/download/2.20.3/picard.jar
+ENV PICARD_VERSION=3.2.0
+RUN wget https://github.com/broadinstitute/picard/releases/download/${PICARD_VERSION}/picard.jar
 ENV PICARD_HOME $SRC
 
 
@@ -184,7 +177,7 @@ RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.
 ##############
 ## STAR
 
-ENV STAR_VERSION=2.7.11a
+ENV STAR_VERSION=2.7.11b
 RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" &&\
     wget -P $SRC $STAR_URL &&\
     tar -xvf $SRC/${STAR_VERSION}.tar.gz -C $SRC && \
@@ -193,9 +186,9 @@ RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" 
 
 ## Salmon
 WORKDIR $SRC
-ENV SALMON_VERSION=1.5.2
-RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v${SALMON_VERSION}/Salmon-${SALMON_VERSION}_linux_x86_64.tar.gz && \
-    tar xvf Salmon-${SALMON_VERSION}_linux_x86_64.tar.gz && \
+ENV SALMON_VERSION=1.10.3
+RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v${SALMON_VERSION}/salmon-${SALMON_VERSION}_linux_x86_64.tar.gz && \
+    tar xvf salmon-${SALMON_VERSION}_linux_x86_64.tar.gz && \
     ln -sf $SRC/salmon-${SALMON_VERSION}_linux_x86_64/bin/salmon $BIN/.
 
 
