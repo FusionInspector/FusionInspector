@@ -124,7 +124,7 @@ RUN TRINITY_URL="https://github.com/trinityrnaseq/trinityrnaseq/releases/downloa
    tar xvf trinityrnaseq-v${TRINITY_VERSION}.FULL.tar.gz && \
    cd trinityrnaseq-v${TRINITY_VERSION} && \
    cp /usr/share/misc/config.guess /usr/share/misc/config.sub trinity-plugins/bamsifter/htslib/ && \
-   sed -i 's/trinity_essentials: .*/trinity_essentials: jellyfish_target parafly_target/' Makefile && \
+   sed -i 's/bamsifter_target //' trinity-plugins/Makefile && \
    make
 
 
