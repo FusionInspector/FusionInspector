@@ -1291,6 +1291,8 @@ class FusionInspector:
         ####################
 
         trinity_ok_token = "wTrinity" if args_parsed.include_Trinity else ""
+        cosmic_ok_token = "wCosmic" if args_parsed.predict_cosmic_like else ""
+        coding_ok_token = "wCoding" if args_parsed.examine_coding_effect else ""
 
         preds_including_splice_info_file = (
             fusion_summary_min_score_thresh_file + ".wSpliceInfo"
@@ -1435,7 +1437,7 @@ class FusionInspector:
         )
 
         pipeliner.add_commands(
-            [Command(cmdstr, "fusion_annotator{}.ok".format(trinity_ok_token))]
+            [Command(cmdstr, "fusion_annotator{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token))]
         )
 
         fusions_file = annotated_fusions_file
@@ -1462,7 +1464,7 @@ class FusionInspector:
                 [
                     Command(
                         cmdstr,
-                        "fusion_coding_region_effect{}.ok".format(trinity_ok_token),
+                        "fusion_coding_region_effect{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token),
                     )
                 ]
             )
@@ -1479,7 +1481,7 @@ class FusionInspector:
 
         cmdstr = str("cp {} {}".format(fusions_file, final_fusions_file))
         pipeliner.add_commands(
-            [Command(cmdstr, "cp_final{}.ok".format(trinity_ok_token))]
+            [Command(cmdstr, "cp_final{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token))]
         )
 
         ## make an abridged version that lacks the list of supporting reads.
@@ -1499,7 +1501,7 @@ class FusionInspector:
             + abridged_final_fusions_file
         )
         pipeliner.add_commands(
-            [Command(cmdstr, "final.abridged{}.ok".format(trinity_ok_token))]
+            [Command(cmdstr, "final.abridged{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token))]
         )
 
         unabridged_final_fusions_file = final_fusions_file
@@ -1530,7 +1532,7 @@ class FusionInspector:
             )
 
             pipeliner.add_commands(
-                [Command(cmdstr, "create_fi_igvjs{}.ok".format(trinity_ok_token))]
+                [Command(cmdstr, "create_fi_igvjs{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token))]
             )
 
             ## make igv-report fusion report
@@ -1559,7 +1561,7 @@ class FusionInspector:
             )
 
             pipeliner.add_commands(
-                [Command(cmdstr, "fusion_reports_html{}.ok".format(trinity_ok_token))]
+                [Command(cmdstr, "fusion_reports_html{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token))]
             )
 
         if args_parsed.extract_fusion_reads_file:
@@ -1587,7 +1589,7 @@ class FusionInspector:
             pipeliner.add_commands(
                 [
                     Command(
-                        cmdstr, "get_fusion_evidence_fqs{}.ok".format(trinity_ok_token)
+                        cmdstr, "get_fusion_evidence_fqs{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token)
                     )
                 ]
             )
@@ -1601,7 +1603,7 @@ class FusionInspector:
             cmdstr = "/bin/rm -rf " + workdir
 
             pipeliner.add_commands(
-                [Command(cmdstr, "final_cleanup{}.ok".format(trinity_ok_token))]
+                [Command(cmdstr, "final_cleanup{}{}{}.ok".format(trinity_ok_token, cosmic_ok_token, coding_ok_token))]
             )
 
         ## Run it

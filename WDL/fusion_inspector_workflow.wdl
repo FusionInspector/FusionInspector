@@ -21,6 +21,11 @@ workflow fusion_inspector_workflow {
     String read_type = "short"  # short or long
     String? minimap2_params  # Extra minimap2 parameters (default: "-x splice")
 
+    # Analysis options
+    Boolean predict_cosmic_like = false  # Predict if fusion looks COSMIC-like
+    Boolean examine_coding_effect = false  # Examine coding region effects
+    Boolean incl_microH_expr_brkpt_plots = false  # Include microhomology and expression breakpoint plots
+
     Int num_cpu = 12
     String memory = "50G"
     Boolean use_ssd = true
@@ -50,6 +55,9 @@ workflow fusion_inspector_workflow {
       aligner = aligner,
       read_type = read_type,
       minimap2_params = minimap2_params,
+      predict_cosmic_like = predict_cosmic_like,
+      examine_coding_effect = examine_coding_effect,
+      incl_microH_expr_brkpt_plots = incl_microH_expr_brkpt_plots,
       use_ssd = use_ssd
   }
 
@@ -82,6 +90,9 @@ task fusion_inspector {
     String aligner
     String read_type
     String? minimap2_params
+    Boolean predict_cosmic_like
+    Boolean examine_coding_effect
+    Boolean incl_microH_expr_brkpt_plots
     Boolean use_ssd
   }
 
@@ -104,7 +115,7 @@ task fusion_inspector {
         
        FusionInspector \
         --fusions ~{target_fusions_list} \
-        --genome_lib_dir `pwd`/genome_dir/ctat_genome_lib_build_dir \
+        --genome_lib_dir "$(pwd)/genome_dir/ctat_genome_lib_build_dir" \
         -O ~{sample_id} \
         --CPU ~{cpu} \
         --left_fq ~{left_fq} \
@@ -112,6 +123,9 @@ task fusion_inspector {
         --aligner ~{aligner} \
         --read_type ~{read_type} \
         ~{"--minimap2_params \"" + minimap2_params + "\""} \
+        ~{if predict_cosmic_like then "--predict_cosmic_like" else ""} \
+        ~{if examine_coding_effect then "--examine_coding_effect" else ""} \
+        ~{if incl_microH_expr_brkpt_plots then "--incl_microH_expr_brkpt_plots" else ""} \
         --vis \
         ~{"" + additional_flags}
 
