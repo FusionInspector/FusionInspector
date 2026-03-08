@@ -176,6 +176,9 @@ COPY sam_readname_cleaner.py $BIN/
 
 RUN pip install numpy
 
+
+RUN R -e 'install.packages("tidyverse", repos="https://cloud.r-project.org", dependencies=TRUE)'
+
 # FusionInspector
 
 ENV FI_VERSION=2.11.0
