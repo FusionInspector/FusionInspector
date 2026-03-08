@@ -118,6 +118,10 @@ RUN apt-get install -y cmake apt-utils autotools-dev && apt-get clean
 
 ENV TRINITY_VERSION=2.15.2
 
+# Set compiler flags to work with gcc 13 (treat -Wreturn-type as warning not error)
+ENV CFLAGS="-Wno-error=return-type"
+ENV CXXFLAGS="-Wno-error=return-type"
+
 RUN TRINITY_URL="https://github.com/trinityrnaseq/trinityrnaseq/releases/download/Trinity-v${TRINITY_VERSION}/trinityrnaseq-v${TRINITY_VERSION}.FULL.tar.gz" && \
    cd $SRC && \
    wget $TRINITY_URL && \
@@ -125,6 +129,10 @@ RUN TRINITY_URL="https://github.com/trinityrnaseq/trinityrnaseq/releases/downloa
    cd trinityrnaseq-v${TRINITY_VERSION} && \
    cp /usr/share/misc/config.guess /usr/share/misc/config.sub trinity-plugins/bamsifter/htslib/ && \
    make
+
+# Unset compiler flags after Trinity build
+ENV CFLAGS=""
+ENV CXXFLAGS=""
 
 
 ENV TRINITY_HOME /usr/local/src/trinityrnaseq-v${TRINITY_VERSION}
