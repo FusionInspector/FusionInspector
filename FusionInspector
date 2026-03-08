@@ -85,7 +85,7 @@ class FusionInspector:
             type=str,
             default="",
             required=True,
-            help="fusions summary files (list, comma-delimited and no spaces)",
+            help="fusion targets: simple list (geneA--geneB format) or STAR-Fusion/CTAT-LR-Fusion output file (with #FusionName column). Multiple files can be comma-delimited (no spaces).",
         )
 
         required.add_argument(
@@ -665,6 +665,23 @@ class FusionInspector:
             [args_parsed.gtf_filename, args_parsed.genome_fasta_filename]
             + chim_summary_files_list
         )
+
+        ## Preprocess fusion files to handle STAR-Fusion/CTAT-LR-Fusion output format
+        preprocessed_fusion_files = []
+        for fusion_file in chim_summary_files_list:
+            processed_file = preprocess_fusion_file(fusion_file, workdir)
+            if processed_file:
+                preprocessed_fusion_files.append(processed_file)
+
+        if not preprocessed_fusion_files:
+            print(
+                "No valid fusions found after preprocessing input files.",
+                file=sys.stderr,
+            )
+            sys.exit(0)
+
+        # Update args to use preprocessed files
+        args_parsed.chim_summary_files = ",".join(preprocessed_fusion_files)
 
         if args_parsed.fusion_contigs_only:
             args_parsed.no_FFPM = True
@@ -1951,6 +1968,10 @@ def check_files_exist(files_lst):
 
 
 def contains_fusions(fusion_files):
+    """
+    Check if fusion file(s) contain at least one fusion.
+    Handles both simple list format and STAR-Fusion/CTAT-LR-Fusion output format.
+    """
 
     # just need to find one file that contains at least one fusion.
 
@@ -1962,14 +1983,120 @@ def contains_fusions(fusion_files):
         else:
             fh = open(fusion_file, "rt")
 
-        for line in fh:
-            if line[0] != "#" and re.search("--", line):
+        # Check for STAR-Fusion/CTAT-LR-Fusion format (has #FusionName column)
+        first_line = fh.readline()
+        if first_line.startswith("#") and "#FusionName" in first_line:
+            # Parse as tabular format with #FusionName column
+            headers = first_line.strip().split("\t")
+            fusion_name_col = None
+            for i, header in enumerate(headers):
+                if header == "#FusionName":
+                    fusion_name_col = i
+                    break
+
+            if fusion_name_col is not None:
+                for line in fh:
+                    if not line.startswith("#"):
+                        parts = line.strip().split("\t")
+                        if len(parts) > fusion_name_col:
+                            fusion_name = parts[fusion_name_col]
+                            if re.search("--", fusion_name) or re.search("::", fusion_name):
+                                fh.close()
+                                return True
+        else:
+            # Simple list format - check this line and subsequent lines
+            if first_line and first_line[0] != "#" and re.search("--", first_line):
                 fh.close()
                 return True
+
+            for line in fh:
+                if line[0] != "#" and re.search("--", line):
+                    fh.close()
+                    return True
 
         fh.close()
 
     return False  # no fusions listed
+
+
+def preprocess_fusion_file(fusion_file, workdir):
+    """
+    Preprocess fusion input file to handle both simple list and STAR-Fusion/CTAT-LR-Fusion output formats.
+
+    If the file contains a #FusionName column (STAR-Fusion/CTAT-LR-Fusion output),
+    extract unique fusion names from that column.
+    Otherwise, return the original file path (already a simple list).
+
+    Returns: path to processed fusion list file
+    """
+
+    # Handle gzipped files
+    fh = None
+    if re.search("\\.gz$", fusion_file):
+        fh = gzip.open(fusion_file, "rt")
+    else:
+        fh = open(fusion_file, "rt")
+
+    # Read first few lines to detect format
+    first_line = fh.readline().strip()
+    fh.close()
+
+    # Check if it's a STAR-Fusion/CTAT-LR-Fusion output file (has #FusionName column)
+    if first_line.startswith("#") and "#FusionName" in first_line:
+        # Parse as tabular format with #FusionName column
+        logger.info(f"Detected STAR-Fusion/CTAT-LR-Fusion output format in {fusion_file}")
+
+        # Find the #FusionName column index
+        headers = first_line.split("\t")
+        fusion_name_col = None
+        for i, header in enumerate(headers):
+            if header == "#FusionName":
+                fusion_name_col = i
+                break
+
+        if fusion_name_col is None:
+            raise RuntimeError(f"Error: Could not find #FusionName column in {fusion_file}")
+
+        # Extract unique fusion names
+        fusions_seen = set()
+
+        if re.search("\\.gz$", fusion_file):
+            fh = gzip.open(fusion_file, "rt")
+        else:
+            fh = open(fusion_file, "rt")
+
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+
+            parts = line.split("\t")
+            if len(parts) > fusion_name_col:
+                fusion_name = parts[fusion_name_col]
+                if "--" in fusion_name or "::" in fusion_name:
+                    fusions_seen.add(fusion_name)
+
+        fh.close()
+
+        if not fusions_seen:
+            logger.warning(f"No fusions found in #FusionName column of {fusion_file}")
+            return None
+
+        # Write simple list file
+        simple_list_file = os.path.join(workdir, "fusion_targets.txt")
+        with open(simple_list_file, "wt") as out_fh:
+            for fusion_name in sorted(fusions_seen):
+                out_fh.write(f"{fusion_name}\n")
+
+        logger.info(f"Extracted {len(fusions_seen)} unique fusions from {fusion_file}")
+        logger.info(f"Wrote simple fusion list to {simple_list_file}")
+
+        return simple_list_file
+
+    else:
+        # Already a simple list format
+        logger.info(f"Using fusion file {fusion_file} as-is (simple list format)")
+        return fusion_file
 
 
 def run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipeliner):
