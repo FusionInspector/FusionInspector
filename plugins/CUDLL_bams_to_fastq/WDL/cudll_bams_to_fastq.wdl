@@ -5,6 +5,8 @@ workflow CUDLLBamsToFastq {
         File cudll_main_bam
         File cudll_supp_bam
         String sample_name
+        String cb_tag = "CB"
+        String umi_tag = "XM"
         String docker = "trinityctat/cudll-to-fastq"
         Int cpu = 4
         Int memory_gb = 16
@@ -16,6 +18,8 @@ workflow CUDLLBamsToFastq {
             main_bam = cudll_main_bam,
             supp_bam = cudll_supp_bam,
             sample_name = sample_name,
+            cb_tag = cb_tag,
+            umi_tag = umi_tag,
             docker = docker,
             cpu = cpu,
             memory_gb = memory_gb,
@@ -33,6 +37,8 @@ task BamsToFastq {
         File main_bam
         File supp_bam
         String sample_name
+        String cb_tag
+        String umi_tag
         String docker
         Int cpu
         Int memory_gb
@@ -51,6 +57,8 @@ task BamsToFastq {
         echo "Main BAM: ~{main_bam}" | tee -a ~{log_file_name}
         echo "Supp BAM: ~{supp_bam}" | tee -a ~{log_file_name}
         echo "Output: ~{output_fastq}" | tee -a ~{log_file_name}
+        echo "CB Tag: ~{cb_tag}" | tee -a ~{log_file_name}
+        echo "UMI Tag: ~{umi_tag}" | tee -a ~{log_file_name}
         echo "---" | tee -a ~{log_file_name}
 
         # Run the conversion script
@@ -58,6 +66,8 @@ task BamsToFastq {
             --main-bam ~{main_bam} \
             --supp-bam ~{supp_bam} \
             --output ~{output_fastq} \
+            --cb-tag ~{cb_tag} \
+            --umi-tag ~{umi_tag} \
             2>&1 | tee -a ~{log_file_name}
 
         echo "---" | tee -a ~{log_file_name}
