@@ -29,6 +29,13 @@ workflow fusion_inspector_workflow {
     Int num_cpu = 12
     String memory = "50G"
     Boolean use_ssd = true
+
+    # Disk space multipliers
+    # NOTE: These defaults are for short reads. Long reads automatically get higher values:
+    # - genome_disk_space_multiplier: 5.0 (vs 2.5 for short)
+    # - fastq_disk_space_multiplier: 15.0 (vs 3.25 for short)
+    # - extra_disk_space: 100 (vs 10 for short)
+    # Override these parameters if you need custom values
     Float genome_disk_space_multiplier = 2.5
     Float fastq_disk_space_multiplier = 3.25
     Int preemptible = 1
@@ -142,7 +149,15 @@ task fusion_inspector {
   
   runtime {
     preemptible: "${preemptible}"
-    disks: "local-disk " + ceil((fastq_disk_space_multiplier * (size(left_fq, "GB") + size(right_fq, "GB"))) + size(genome_plug_n_play_tar_gz, "GB") * genome_disk_space_multiplier + extra_disk_space) + " " + (if use_ssd then "SSD" else "HDD")
+    # Long reads require much more space: FASTQs are larger, BAMs are 10-20x FASTQ size (vs 2-3x for short reads)
+    # Use read_type-aware multipliers if defaults are used, otherwise respect user overrides
+    disks: "local-disk " + ceil(
+      (if read_type == "long" && fastq_disk_space_multiplier < 10.0 then 15.0 else fastq_disk_space_multiplier) *
+        (size(left_fq, "GB") + size(right_fq, "GB")) +
+      size(genome_plug_n_play_tar_gz, "GB") *
+        (if read_type == "long" && genome_disk_space_multiplier < 4.0 then 5.0 else genome_disk_space_multiplier) +
+      (if read_type == "long" && extra_disk_space < 50 then 100 else extra_disk_space)
+    ) + " " + (if use_ssd then "SSD" else "HDD")
     docker: "${docker}"
     cpu: "${cpu}"
     memory: "${memory}"
