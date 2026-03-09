@@ -6,3 +6,9 @@ workflows:
      authors:
          - name: Brian Haas
            email: bhaas@broadinstitute.org
+   - name: cudll_bams_to_fastq
+     subclass: WDL
+     primaryDescriptorPath: /plugins/CUDLL_bams_to_fastq/WDL/cudll_bams_to_fastq.wdl
+     authors:
+         - name: Brian Haas
+           email: bhaas@broadinstitute.org
