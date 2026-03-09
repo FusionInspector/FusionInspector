@@ -12,6 +12,16 @@
 - Removed redundant --only_fusion_reads flag (now default behavior)
 - Retained --capture_genome_alignments flag for debugging (keeps all alignments)
 
+### Docker Infrastructure Updates
+- Upgraded base image from Ubuntu 20.04 to Ubuntu 24.04 LTS
+- Upgraded R from 4.2.0 to 4.4.2 (latest stable)
+- Full tidyverse installation with system dependencies (arrow C++ libs, fontconfig, webp, etc.)
+- Python 3.12 compatibility with PEP 668 externally-managed-environment handling
+- Trinity 2.15.2 build with autoconf 2.69 for bamsifter plugin compatibility
+- Tool version updates: Samtools 1.20, Bowtie2 2.5.4, Salmon 1.10.0, Picard 3.2.0, STAR 2.7.11b, minimap2 2.26
+- Fixed PATH ordering to use FusionInspector's patched paftools.js (handles fusion transcript CDS coordinates)
+- Trinity and FusionInspector kept in source directories with PATH updates (avoids PerlLib/PyLib conflicts)
+
 
 
 ## FusionInspector v2.10.0
