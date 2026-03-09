@@ -11,16 +11,33 @@ import argparse
 import sys
 import gzip
 import pysam
+import time
 
 
 def extract_read_names(bam_path):
     """Extract all primary read names from a BAM file."""
     read_names = set()
+    start_time = time.time()
+    total_reads = 0
+    report_interval = 1000000  # Report every 1M reads
+
     with pysam.AlignmentFile(bam_path, "rb") as bam:
         for read in bam:
+            total_reads += 1
             # Only process primary alignments
             if not read.is_secondary and not read.is_supplementary:
                 read_names.add(read.query_name)
+
+            # Progress reporting
+            if total_reads % report_interval == 0:
+                elapsed = time.time() - start_time
+                rate = total_reads / elapsed
+                print(f"  Progress: {total_reads:,} reads processed ({rate:,.0f} reads/sec)",
+                      file=sys.stderr, flush=True)
+
+    elapsed = time.time() - start_time
+    print(f"  Completed: {total_reads:,} total reads in {elapsed:.1f}s",
+          file=sys.stderr, flush=True)
     return read_names
 
 
@@ -63,6 +80,9 @@ def process_bams(main_bam, supp_bam, output_file, cb_tag, umi_tag):
         supp_count = 0
         supp_missing_cb = 0
         supp_missing_umi = 0
+        start_time = time.time()
+        report_interval = 1000000  # Report every 1M reads
+
         with pysam.AlignmentFile(supp_bam, "rb") as bam:
             for read in bam:
                 if not read.is_secondary and not read.is_supplementary:
@@ -74,7 +94,15 @@ def process_bams(main_bam, supp_bam, output_file, cb_tag, umi_tag):
                     if not read.has_tag(umi_tag):
                         supp_missing_umi += 1
 
-        print(f"Wrote {supp_count} reads from supplemental BAM", file=sys.stderr)
+                    # Progress reporting
+                    if supp_count % report_interval == 0:
+                        elapsed = time.time() - start_time
+                        rate = supp_count / elapsed
+                        print(f"  Progress: {supp_count:,} reads written ({rate:,.0f} reads/sec)",
+                              file=sys.stderr, flush=True)
+
+        elapsed = time.time() - start_time
+        print(f"Wrote {supp_count:,} reads from supplemental BAM in {elapsed:.1f}s", file=sys.stderr)
         if supp_missing_cb > 0:
             print(f"  Warning: {supp_missing_cb} reads missing {cb_tag} tag", file=sys.stderr)
         if supp_missing_umi > 0:
@@ -86,9 +114,13 @@ def process_bams(main_bam, supp_bam, output_file, cb_tag, umi_tag):
         excluded_count = 0
         main_missing_cb = 0
         main_missing_umi = 0
+        main_total_processed = 0
+        start_time = time.time()
+
         with pysam.AlignmentFile(main_bam, "rb") as bam:
             for read in bam:
                 if not read.is_secondary and not read.is_supplementary:
+                    main_total_processed += 1
                     if read.query_name not in supp_read_names:
                         write_cb_umi_record(outfile, read, cb_tag, umi_tag)
                         main_count += 1
@@ -100,7 +132,16 @@ def process_bams(main_bam, supp_bam, output_file, cb_tag, umi_tag):
                     else:
                         excluded_count += 1
 
-        print(f"Wrote {main_count} reads from main BAM", file=sys.stderr)
+                    # Progress reporting
+                    if main_total_processed % report_interval == 0:
+                        elapsed = time.time() - start_time
+                        rate = main_total_processed / elapsed
+                        print(f"  Progress: {main_total_processed:,} reads processed, "
+                              f"{main_count:,} written, {excluded_count:,} excluded ({rate:,.0f} reads/sec)",
+                              file=sys.stderr, flush=True)
+
+        elapsed = time.time() - start_time
+        print(f"Wrote {main_count:,} reads from main BAM in {elapsed:.1f}s", file=sys.stderr)
         if main_missing_cb > 0:
             print(f"  Warning: {main_missing_cb} reads missing {cb_tag} tag", file=sys.stderr)
         if main_missing_umi > 0:
