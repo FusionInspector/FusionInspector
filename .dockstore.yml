@@ -12,3 +12,9 @@ workflows:
      authors:
          - name: Brian Haas
            email: bhaas@broadinstitute.org
+   - name: cudll_bams_to_cb_umi
+     subclass: WDL
+     primaryDescriptorPath: /plugins/CUDLL_bams_to_CB_UMI/WDL/cudll_bams_to_cb_umi.wdl
+     authors:
+         - name: Brian Haas
+           email: bhaas@broadinstitute.org
