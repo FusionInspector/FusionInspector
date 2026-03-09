@@ -5,7 +5,7 @@ workflow CUDLLBamsToFastq {
         File cudll_main_bam
         File cudll_supp_bam
         String sample_name
-        String docker = "trinityctat/fusioninspector-cudll:latest"
+        String docker = "trinityctat/cudll-to-fastq"
         Int cpu = 4
         Int memory_gb = 16
         Int disk_gb = 100
