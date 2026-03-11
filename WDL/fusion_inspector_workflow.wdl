@@ -72,6 +72,8 @@ workflow fusion_inspector_workflow {
   output {
     File fusion_inspector_inspect_web = fusion_inspector.fusion_inspector_inspect_web
     File fusion_inspector_inspect_fusions_abridged = fusion_inspector.fusion_inspector_inspect_fusions_abridged
+    File fusion_inspector_inspect_fusions = fusion_inspector.fusion_inspector_inspect_fusions
+    File fusion_inspector_IGV_inputs = fusion_inspector.fusion_inspector_IGV_inputs
   }
 }
 
