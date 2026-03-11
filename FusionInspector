@@ -1408,7 +1408,7 @@ class FusionInspector:
                     fusions_file, EM_adjusted_counts_fusions_file
                 )
             )
-            pipeliner.add_commands([Command(cmdstr, "EM_adj_counts.ok")])
+            pipeliner.add_commands([Command(cmdstr, "EM_adj_counts{}.ok".format(trinity_ok_token))])
 
             fusions_file = EM_adjusted_counts_fusions_file
 
@@ -1441,6 +1441,7 @@ class FusionInspector:
             mergedContig_gtf_filename,
             workdir,
             pipeliner,
+            trinity_ok_token,
         )
 
         if (
@@ -1450,7 +1451,7 @@ class FusionInspector:
         ):
             ## predict cosmic-like fusions
             fusions_file = run_cosmic_like_fusion_predictor(
-                args_parsed, fusions_file, workdir, pipeliner
+                args_parsed, fusions_file, workdir, pipeliner, trinity_ok_token
             )
 
         ## annotate
@@ -2099,7 +2100,7 @@ def preprocess_fusion_file(fusion_file, workdir):
         return fusion_file
 
 
-def run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipeliner):
+def run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipeliner, trinity_ok_token=""):
 
     # prep for prediction (adds counter ffpm and booleans for splice types)
     fusions_prepped_for_pred_file = os.path.join(
@@ -2117,7 +2118,7 @@ def run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipelin
         )
     )
 
-    pipeliner.add_commands([Command(cmdstr, "prepped-cosmic-like.ok")])
+    pipeliner.add_commands([Command(cmdstr, "prepped-cosmic-like{}.ok".format(trinity_ok_token))])
 
     # run predictor
     fusions_incl_cosmic_like_preds_file = os.path.join(
@@ -2135,7 +2136,7 @@ def run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipelin
         )
     )
 
-    pipeliner.add_commands([Command(cmdstr, "pred-cosmic-like.ok")])
+    pipeliner.add_commands([Command(cmdstr, "pred-cosmic-like{}.ok".format(trinity_ok_token))])
 
     return fusions_incl_cosmic_like_preds_file
 
@@ -2147,6 +2148,7 @@ def run_microhomology_analysis(
     mergedContig_gtf_filename,
     workdir,
     pipeliner,
+    trinity_ok_token="",
 ):
 
     # compute microhomologies:
@@ -2179,7 +2181,7 @@ def run_microhomology_analysis(
         )
     )
 
-    pipeliner.add_commands([Command(cmdstr, "append_microH_info.ok")])
+    pipeliner.add_commands([Command(cmdstr, "append_microH_info{}.ok".format(trinity_ok_token))])
 
     if args_parsed.incl_microH_expr_brkpt_plots:
 
