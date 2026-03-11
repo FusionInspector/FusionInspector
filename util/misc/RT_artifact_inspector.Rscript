@@ -64,6 +64,8 @@ grouped_microhomologies = split(x=microhomologies, f=microhomologies$contig)
 
 for (fusion_name in fusion_names) {
 
+    graphics.off()
+    
     message("processing: ", fusion_name)
 
     fusion_name_for_file = str_replace_all(fusion_name, "[^\\w\\-]", "_")
