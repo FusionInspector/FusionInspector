@@ -215,27 +215,11 @@ main: {
         $splice_bed = "$combined_gtf.splice.bed";
 
         unless (-e "$splice_bed.ok") {
-            # Use paftools.js to convert GTF to BED format
-            my $paftools = "paftools.js";
-            my $paftools_prog = `which $paftools`;
-            chomp $paftools_prog;
-
-            # Try k8 paftools.js if direct paftools.js not found
-            if (! $paftools_prog) {
-                $paftools = "k8 paftools.js";
-                $paftools_prog = `which k8`;
-                chomp $paftools_prog;
-            }
-
-            if ($paftools_prog) {
-                my $cmd = "$paftools gff2bed $combined_gtf > $splice_bed";
-                &process_cmd($cmd);
-                &process_cmd("touch $splice_bed.ok");
-            }
-            else {
-                print STDERR "Warning: paftools.js not found. Skipping junction BED creation.\n";
-                $splice_bed = "";
-            }
+            # Use paftools.js bundled in util/ alongside this script
+            my $paftools = "k8 $FindBin::RealBin/paftools.js";
+            my $cmd = "$paftools gff2bed $combined_gtf > $splice_bed";
+            &process_cmd($cmd);
+            &process_cmd("touch $splice_bed.ok");
         }
     }
 
