@@ -954,6 +954,10 @@ class FusionInspector:
 
             aligner_bam_file = aligner_dups_marked_bam_file
 
+        bam_files_list = [
+            aligner_bam_file
+        ]  # used to have more than one... leaving it like this for now.
+
         if args_parsed.read_type == "long":
             fusion_summary_file = self.get_long_read_fusion_summary(
                 args_parsed,
@@ -972,10 +976,6 @@ class FusionInspector:
                 pipeliner,
                 args_parsed.max_sensitivity,
             )
-
-            bam_files_list = [
-                aligner_bam_file
-            ]  # used to have more than one... leaving it like this for now.
 
             ###########################
             ## coalesce the fusion info
@@ -1070,115 +1070,139 @@ class FusionInspector:
             ## consolidate the Fusion Inspector reads into a single bam files
             #################################################################
 
-            ## Junction reads
-
-            summary_junctions_reads_list_filename = (
-                fusion_summary_file + ".fusion_junction_read_accs"
-            )
-            cmdstr = str(
-                os.sep.join([UTILDIR, "column_extractions.pl"])
-                + " "
-                + fusion_summary_file
-                + " LeftGene,RightGene,JunctionReads "
-                + " > "
-                + summary_junctions_reads_list_filename
-            )
-
-            pipeliner.add_commands([Command(cmdstr, "prep_igv_extract_junc_reads.ok")])
-
-            ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
-
             consolidated_junction_reads_bam = os.sep.join(
                 [
                     igvprep_dir,
                     args_parsed.out_prefix + ".junction_reads.bam",
                 ]
             )
-            cmdstr = str(
-                UTILDIR
-                + "/retrieve_fusion_junction_reads_by_accession.pl "
-                + summary_junctions_reads_list_filename
-                + " "
-                + ",".join(fusion_junction_sam_files_list)
-                + " | samtools view -@ "
-                + str(args_parsed.CPU)
-                + " -bT "
-                + mergedContig_fasta_filename
-                + " - "
-                + " | samtools sort -@ "
-                + str(args_parsed.CPU)
-                + " - -o "
-                + consolidated_junction_reads_bam
-            )
-            cmdstr = 'bash -c "set -eof pipefail; {}"'.format(cmdstr)
-
-            pipeliner.add_commands([Command(cmdstr, "prep_igv_junc_reads_bam.ok")])
-
-            cmdstr = "samtools index " + consolidated_junction_reads_bam
-
-            pipeliner.add_commands([Command(cmdstr, "samtools_idx_junc_reads_bam.ok")])
-
-            # if args_parsed.vis:
-            #    self.bam_to_bed(consolidated_junction_reads_bam, pipeliner)
-
-            ## Spanning reads
-
-            summary_spanning_reads_list_filename = (
-                fusion_summary_file + ".fusion_spanning_read_accs"
-            )
-            cmdstr = str(
-                os.sep.join([UTILDIR, "column_extractions.pl"])
-                + " "
-                + fusion_summary_file
-                + " LeftGene,RightGene,SpanningFrags "
-                + " > "
-                + summary_spanning_reads_list_filename
-            )
-
-            pipeliner.add_commands([Command(cmdstr, "span_reads_acc.ok")])
-
-            ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
-
             consolidated_spanning_reads_bam = os.sep.join(
                 [
                     igvprep_dir,
                     args_parsed.out_prefix + ".spanning_reads.bam",
                 ]
             )
+            if args_parsed.read_type == "long":
+                # Long-read runs currently lack dedicated junction/spanning retrieval
+                # SAMs, so provide empty evidence BAMs for the IGV report tracks.
+                for evidence_bam, ok_token in [
+                    (consolidated_junction_reads_bam, "prep_igv_junc_reads_bam.ok"),
+                    (consolidated_spanning_reads_bam, "prep_spanning_reads.ok"),
+                ]:
+                    cmdstr = "samtools view -H {} -b -o {}".format(
+                        aligner_bam_file, evidence_bam
+                    )
+                    pipeliner.add_commands([Command(cmdstr, ok_token)])
 
-            # hack for now to avoid errors in single-end mode.
-            # initialize an empty bam
-            cmdstr = str(
-                "samtools view -H {} -b -o {}".format(
-                    aligner_bam_file, consolidated_spanning_reads_bam
+                pipeliner.add_commands(
+                    [
+                        Command(
+                            "samtools index " + consolidated_junction_reads_bam,
+                            "samtools_idx_junc_reads_bam.ok",
+                        ),
+                        Command(
+                            "samtools index " + consolidated_spanning_reads_bam,
+                            "samtools_index_span_reads_bam.ok",
+                        ),
+                    ]
                 )
-            )
-            pipeliner.add_commands([Command(cmdstr, "init_spanning_reads_bam.ok")])
+            else:
+                ## Junction reads
 
-            cmdstr = str(
-                UTILDIR
-                + "/retrieve_fusion_spanning_reads_by_accession.pl "
-                + summary_spanning_reads_list_filename
-                + " "
-                + ",".join(fusion_spanning_sam_files_list)
-                + " | samtools view -@ "
-                + str(args_parsed.CPU)
-                + " -bT "
-                + mergedContig_fasta_filename
-                + " - "
-                + " | samtools sort -@ "
-                + str(args_parsed.CPU)
-                + " - -o "
-                + consolidated_spanning_reads_bam
-                + " || : "
-            )  # again, cant afford for this to fail due to lack of evidence reads.
+                summary_junctions_reads_list_filename = (
+                    fusion_summary_file + ".fusion_junction_read_accs"
+                )
+                cmdstr = str(
+                    os.sep.join([UTILDIR, "column_extractions.pl"])
+                    + " "
+                    + fusion_summary_file
+                    + " LeftGene,RightGene,JunctionReads "
+                    + " > "
+                    + summary_junctions_reads_list_filename
+                )
 
-            pipeliner.add_commands([Command(cmdstr, "prep_spanning_reads.ok")])
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_extract_junc_reads.ok")])
 
-            cmdstr = "samtools index " + consolidated_spanning_reads_bam
-            pipeliner.add_commands(
-                [Command(cmdstr, "samtools_index_span_reads_bam.ok")]
-            )
+                ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
+
+                cmdstr = str(
+                    UTILDIR
+                    + "/retrieve_fusion_junction_reads_by_accession.pl "
+                    + summary_junctions_reads_list_filename
+                    + " "
+                    + ",".join(fusion_junction_sam_files_list)
+                    + " | samtools view -@ "
+                    + str(args_parsed.CPU)
+                    + " -bT "
+                    + mergedContig_fasta_filename
+                    + " - "
+                    + " | samtools sort -@ "
+                    + str(args_parsed.CPU)
+                    + " - -o "
+                    + consolidated_junction_reads_bam
+                )
+                cmdstr = 'bash -c "set -eof pipefail; {}"'.format(cmdstr)
+
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_junc_reads_bam.ok")])
+
+                cmdstr = "samtools index " + consolidated_junction_reads_bam
+
+                pipeliner.add_commands([Command(cmdstr, "samtools_idx_junc_reads_bam.ok")])
+
+                # if args_parsed.vis:
+                #    self.bam_to_bed(consolidated_junction_reads_bam, pipeliner)
+
+                ## Spanning reads
+
+                summary_spanning_reads_list_filename = (
+                    fusion_summary_file + ".fusion_spanning_read_accs"
+                )
+                cmdstr = str(
+                    os.sep.join([UTILDIR, "column_extractions.pl"])
+                    + " "
+                    + fusion_summary_file
+                    + " LeftGene,RightGene,SpanningFrags "
+                    + " > "
+                    + summary_spanning_reads_list_filename
+                )
+
+                pipeliner.add_commands([Command(cmdstr, "span_reads_acc.ok")])
+
+                ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
+
+                # hack for now to avoid errors in single-end mode.
+                # initialize an empty bam
+                cmdstr = str(
+                    "samtools view -H {} -b -o {}".format(
+                        aligner_bam_file, consolidated_spanning_reads_bam
+                    )
+                )
+                pipeliner.add_commands([Command(cmdstr, "init_spanning_reads_bam.ok")])
+
+                cmdstr = str(
+                    UTILDIR
+                    + "/retrieve_fusion_spanning_reads_by_accession.pl "
+                    + summary_spanning_reads_list_filename
+                    + " "
+                    + ",".join(fusion_spanning_sam_files_list)
+                    + " | samtools view -@ "
+                    + str(args_parsed.CPU)
+                    + " -bT "
+                    + mergedContig_fasta_filename
+                    + " - "
+                    + " | samtools sort -@ "
+                    + str(args_parsed.CPU)
+                    + " - -o "
+                    + consolidated_spanning_reads_bam
+                    + " || : "
+                )  # again, cant afford for this to fail due to lack of evidence reads.
+
+                pipeliner.add_commands([Command(cmdstr, "prep_spanning_reads.ok")])
+
+                cmdstr = "samtools index " + consolidated_spanning_reads_bam
+                pipeliner.add_commands(
+                    [Command(cmdstr, "samtools_index_span_reads_bam.ok")]
+                )
 
             # if args_parsed.vis:
             #    self.bam_to_bed(consolidated_spanning_reads_bam, pipeliner)

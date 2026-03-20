@@ -16,8 +16,7 @@ workflow fusion_inspector_workflow {
 
     String? additional_flags
 
-    # Aligner options
-    String aligner = "STAR"  # STAR or minimap2
+    # Read configuration
     String read_type = "short"  # short or long
     String? minimap2_params  # Extra minimap2 parameters (default: "-x splice")
 
@@ -59,7 +58,6 @@ workflow fusion_inspector_workflow {
       fastq_disk_space_multiplier = fastq_disk_space_multiplier,
       genome_disk_space_multiplier = genome_disk_space_multiplier,
       additional_flags = additional_flags,
-      aligner = aligner,
       read_type = read_type,
       minimap2_params = minimap2_params,
       predict_cosmic_like = predict_cosmic_like,
@@ -96,7 +94,6 @@ task fusion_inspector {
     Float fastq_disk_space_multiplier
     Float genome_disk_space_multiplier
     String? additional_flags
-    String aligner
     String read_type
     String? minimap2_params
     Boolean predict_cosmic_like
@@ -129,7 +126,7 @@ task fusion_inspector {
         --CPU ~{cpu} \
         --left_fq ~{left_fq} \
         ~{"--right_fq " + right_fq} \
-        --aligner ~{aligner} \
+        --aligner ~{if read_type == "long" then "minimap2" else "STAR"} \
         --read_type ~{read_type} \
         ~{"--minimap2_params \"" + minimap2_params + "\""} \
         ~{if predict_cosmic_like then "--predict_cosmic_like" else ""} \
@@ -166,4 +163,3 @@ task fusion_inspector {
   }
 
 }
-
