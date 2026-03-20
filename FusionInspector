@@ -214,6 +214,24 @@ class FusionInspector:
         )
 
         optional.add_argument(
+            "--min_LR_reads",
+            dest="min_LR_reads",
+            type=int,
+            required=False,
+            default=1,
+            help="minimum number of long reads required for reference-spliced fusion support (default: 1). Only used with --read_type long.",
+        )
+
+        optional.add_argument(
+            "--min_LR_novel_reads",
+            dest="min_LR_novel_reads",
+            type=int,
+            required=False,
+            default=2,
+            help="minimum number of long reads required for non-reference-spliced fusion support (default: 2). Only used with --read_type long.",
+        )
+
+        optional.add_argument(
             "--max_mate_dist",
             dest="max_mate_dist",
             type=int,
@@ -936,56 +954,68 @@ class FusionInspector:
 
             aligner_bam_file = aligner_dups_marked_bam_file
 
-        self.get_fusion_and_spanning_reads(
-            args_parsed,
-            workdir_mergedContig_gtf_filename,
-            workdir_mergedContig_fasta_filename,
-            aligner_bam_file,
-            pipeliner,
-            args_parsed.max_sensitivity,
-        )
+        if args_parsed.read_type == "long":
+            fusion_summary_file = self.get_long_read_fusion_summary(
+                args_parsed,
+                workdir,
+                workdir_mergedContig_gtf_filename,
+                workdir_mergedContig_fasta_filename,
+                aligner_bam_file,
+                pipeliner,
+            )
+        else:
+            self.get_fusion_and_spanning_reads(
+                args_parsed,
+                workdir_mergedContig_gtf_filename,
+                workdir_mergedContig_fasta_filename,
+                aligner_bam_file,
+                pipeliner,
+                args_parsed.max_sensitivity,
+            )
 
-        bam_files_list = [
-            aligner_bam_file
-        ]  # used to have more than one... leaving it like this for now.
+            bam_files_list = [
+                aligner_bam_file
+            ]  # used to have more than one... leaving it like this for now.
 
-        ###########################
-        ## coalesce the fusion info
-        ###########################
+            ###########################
+            ## coalesce the fusion info
+            ###########################
 
-        fusion_junction_info_files_list = []
-        fusion_junction_sam_files_list = []
+            fusion_junction_info_files_list = []
+            fusion_junction_sam_files_list = []
 
-        fusion_spanning_info_files_list = []
-        fusion_spanning_sam_files_list = []
+            fusion_spanning_info_files_list = []
+            fusion_spanning_sam_files_list = []
 
-        for bam_file in bam_files_list:
-            fusion_junction_info_files_list.append(bam_file + ".fusion_junction_info")
-            fusion_junction_sam_files_list.append(bam_file + ".fusion_junc_reads.sam")
+            for bam_file in bam_files_list:
+                fusion_junction_info_files_list.append(bam_file + ".fusion_junction_info")
+                fusion_junction_sam_files_list.append(bam_file + ".fusion_junc_reads.sam")
 
-            fusion_spanning_info_files_list.append(bam_file + ".fusion_spanning_info")
-            fusion_spanning_sam_files_list.append(bam_file + ".fusion_span_reads.sam")
+                fusion_spanning_info_files_list.append(bam_file + ".fusion_spanning_info")
+                fusion_spanning_sam_files_list.append(bam_file + ".fusion_span_reads.sam")
 
-        fusion_summary_file = os.sep.join(
-            [workdir, args_parsed.out_prefix + ".fusion_preds.coalesced.summary"]
-        )
+            fusion_summary_file = os.sep.join(
+                [workdir, args_parsed.out_prefix + ".fusion_preds.coalesced.summary"]
+            )
 
-        cmdstr = str(
-            os.sep.join([UTILDIR, "coalesce_junction_and_spanning_info.pl"])
-            + " "
-            + ",".join(fusion_junction_info_files_list)
-            + " "
-            + ",".join(fusion_spanning_info_files_list)
-            + " {} ".format(FAR_PSEUDOCOUNT)
-            + " > "
-            + fusion_summary_file
-        )
+            cmdstr = str(
+                os.sep.join([UTILDIR, "coalesce_junction_and_spanning_info.pl"])
+                + " "
+                + ",".join(fusion_junction_info_files_list)
+                + " "
+                + ",".join(fusion_spanning_info_files_list)
+                + " {} ".format(FAR_PSEUDOCOUNT)
+                + " > "
+                + fusion_summary_file
+            )
 
-        pipeliner.add_commands([Command(cmdstr, "coalesce_junc_n_span.ok")])
+            pipeliner.add_commands([Command(cmdstr, "coalesce_junc_n_span.ok")])
 
         file_to_filter = fusion_summary_file
 
-        if not args_parsed.SKIP_EM_FLAG:
+        run_em = (not args_parsed.SKIP_EM_FLAG) and args_parsed.read_type != "long"
+
+        if run_em:
             ## adjust counts using EM
             init_EM_adjusted_counts_fusions_file = fusion_summary_file + ".EMadj"
             cmdstr = str(
@@ -1001,23 +1031,36 @@ class FusionInspector:
         ## need to filter based on remaining fusion support.
         fusion_summary_min_score_thresh_file = file_to_filter + ".min_frag_thresh"
 
-        cmdstr = str(
-            os.sep.join([UTILDIR, "filter_fusions_by_frag_thresholds.pl"])
-            + " --min_junction_reads "
-            + str(args_parsed.min_junction_reads)
-            + " --min_sum_frags "
-            + str(args_parsed.min_sum_frags)
-            + " --min_novel_junction_support "
-            + str(args_parsed.min_novel_junction_support)
-            + " --min_spanning_frags_only "
-            + str(args_parsed.min_spanning_frags_only)
-            + " --fusion_preds "
-            + file_to_filter
-            + " --require_LDAS "
-            + str(args_parsed.require_LDAS)
-            + " > "
-            + fusion_summary_min_score_thresh_file
-        )
+        if args_parsed.read_type == "long":
+            cmdstr = str(
+                os.sep.join([UTILDIR, "LR_filter_fusions_by_evidence_abundance.py"])
+                + " --min_LR_reads "
+                + str(args_parsed.min_LR_reads)
+                + " --min_LR_novel_reads "
+                + str(args_parsed.min_LR_novel_reads)
+                + " --fusion_preds "
+                + file_to_filter
+                + " > "
+                + fusion_summary_min_score_thresh_file
+            )
+        else:
+            cmdstr = str(
+                os.sep.join([UTILDIR, "filter_fusions_by_frag_thresholds.pl"])
+                + " --min_junction_reads "
+                + str(args_parsed.min_junction_reads)
+                + " --min_sum_frags "
+                + str(args_parsed.min_sum_frags)
+                + " --min_novel_junction_support "
+                + str(args_parsed.min_novel_junction_support)
+                + " --min_spanning_frags_only "
+                + str(args_parsed.min_spanning_frags_only)
+                + " --fusion_preds "
+                + file_to_filter
+                + " --require_LDAS "
+                + str(args_parsed.require_LDAS)
+                + " > "
+                + fusion_summary_min_score_thresh_file
+            )
 
         pipeliner.add_commands([Command(cmdstr, "filter_by_frag_threshs.ok")])
 
@@ -1399,7 +1442,7 @@ class FusionInspector:
         #
         #    fusions_file = annot_pass_fusions_file
 
-        if not args_parsed.SKIP_EM_FLAG:
+        if run_em:
             ## adjust counts using EM
             EM_adjusted_counts_fusions_file = fusions_file + ".EMadj"
             cmdstr = str(
@@ -1791,6 +1834,56 @@ class FusionInspector:
             )
 
             self.sort_and_index_bed(fusion_spanning_reads_bed_file, pipeliner)
+
+    def get_long_read_fusion_summary(
+        self,
+        args_parsed,
+        workdir,
+        mergedContig_gtf_filename,
+        mergedContig_fasta_filename,
+        bam_file,
+        pipeliner,
+    ):
+        lr_gff3_file = bam_file + ".LR.gff3"
+        seqsimilar_gff3_file = bam_file + ".LR.seqsimilar_regions.gff3"
+        fusion_summary_file = os.sep.join(
+            [workdir, args_parsed.out_prefix + ".fusion_preds.coalesced.summary"]
+        )
+
+        cmdstr = str(
+            os.sep.join([UTILDIR, "LR_SAM_to_gff3.pl"])
+            + " --sam "
+            + bam_file
+            + " --allow_non_primary > "
+            + lr_gff3_file
+        )
+        pipeliner.add_commands([Command(cmdstr, "LR_sam_to_gff3.ok")])
+
+        cmdstr = str(
+            os.sep.join([UTILDIR, "get_seq_similar_region_FI_coordinates.pl"])
+            + " --finspector_gtf "
+            + mergedContig_gtf_filename
+            + " --genome_lib_dir "
+            + args_parsed.genome_lib_dir
+            + " > "
+            + seqsimilar_gff3_file
+        )
+        pipeliner.add_commands([Command(cmdstr, "LR_seqsimilar_gff3.ok")])
+
+        cmdstr = str(
+            os.sep.join([UTILDIR, "LR_capture_fusion_support_from_gff3.pl"])
+            + " --FI_gtf "
+            + mergedContig_gtf_filename
+            + " --LR_gff3 "
+            + lr_gff3_file
+            + " --seq_similar_gff3 "
+            + seqsimilar_gff3_file
+            + " --snap_dist 3 --min_trans_overlap_length 100 > "
+            + fusion_summary_file
+        )
+        pipeliner.add_commands([Command(cmdstr, "LR_capture_fusions.ok")])
+
+        return fusion_summary_file
 
     def sort_and_index_bed(self, bed_file, pipeliner, checkpoint_token_prefix=None):
 
