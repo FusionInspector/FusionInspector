@@ -1,7 +1,7 @@
 # FusionInspector Docker Image
 
 ## Current Version
-- **Image**: `trinityctat/fusioninspector:2.11.0`
+- **Image**: `trinityctat/fusioninspector:2.11.1`
 - **Base**: Ubuntu 24.04 LTS
 - **Build Date**: March 2026
 
@@ -51,7 +51,7 @@ cd Docker
 ```
 
 This builds both versioned and latest tags:
-- `trinityctat/fusioninspector:2.11.0`
+- `trinityctat/fusioninspector:2.11.1`
 - `trinityctat/fusioninspector:latest`
 
 ## Pushing to Docker Hub

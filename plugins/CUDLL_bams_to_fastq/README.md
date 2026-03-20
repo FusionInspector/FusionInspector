@@ -25,7 +25,7 @@ The main processing script that:
 
 ### Dockerfile (`Docker/Dockerfile`)
 
-Extends the FusionInspector Docker image (`trinityctat/fusioninspector:2.11.0`) and adds:
+Extends the FusionInspector Docker image (`trinityctat/fusioninspector:2.11.1`) and adds:
 - `pysam` Python library for BAM file processing
 - The `cudll_bams_to_fastq.py` script
 
