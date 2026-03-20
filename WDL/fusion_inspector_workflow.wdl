@@ -102,6 +102,13 @@ task fusion_inspector {
     Boolean use_ssd
   }
 
+  String aligner = if read_type == "long" then "minimap2" else "STAR"
+  String minimap2_params_arg = if defined(minimap2_params) then '--minimap2_params "' + select_first([minimap2_params]) + '"' else ""
+  String predict_cosmic_like_arg = if predict_cosmic_like then "--predict_cosmic_like" else ""
+  String examine_coding_effect_arg = if examine_coding_effect then "--examine_coding_effect" else ""
+  String incl_microH_expr_brkpt_plots_arg = if incl_microH_expr_brkpt_plots then "--incl_microH_expr_brkpt_plots" else ""
+  String additional_flags_arg = select_first([additional_flags, ""])
+
 
   output {
     File fusion_inspector_inspect_web = "~{sample_id}.fusion_inspector_web.html"
@@ -126,14 +133,14 @@ task fusion_inspector {
         --CPU ~{cpu} \
         --left_fq ~{left_fq} \
         ~{"--right_fq " + right_fq} \
-        --aligner ~{if read_type == "long" then "minimap2" else "STAR"} \
+        --aligner ~{aligner} \
         --read_type ~{read_type} \
-        ~{"--minimap2_params \"" + minimap2_params + "\""} \
-        ~{if predict_cosmic_like then "--predict_cosmic_like" else ""} \
-        ~{if examine_coding_effect then "--examine_coding_effect" else ""} \
-        ~{if incl_microH_expr_brkpt_plots then "--incl_microH_expr_brkpt_plots" else ""} \
+        ~{minimap2_params_arg} \
+        ~{predict_cosmic_like_arg} \
+        ~{examine_coding_effect_arg} \
+        ~{incl_microH_expr_brkpt_plots_arg} \
         --vis \
-        ~{"" + additional_flags}
+        ~{additional_flags_arg}
 
         mv ~{sample_id}/IGV_inputs ~{sample_id}.IGV_inputs
         tar -zcvf ~{sample_id}.IGV_inputs.tar.gz ~{sample_id}.IGV_inputs
