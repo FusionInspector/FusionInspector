@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
 # encoding: utf-8
 
-
-# from __future__ import (absolute_import, division,
-#                        print_function, unicode_literals)
-
-
 import os, re, sys
 import argparse
 import subprocess
 import gzip
+
+VERSION = "2.11.2"
 
 if sys.version_info[0] < 3:
     raise Exception("This script requires Python 3")
@@ -23,7 +20,6 @@ from Pipeliner import Pipeliner, Command
 __example__ = "FusionInspector --left_fq ../BT474--ACACA--STAC2.left.fq --right_fq ../BT474--ACACA--STAC2.right.fq \
               --fusions fusion_gene_candidates.dat --output_dir myoutdir --out_prefix ladeda"
 
-
 import logging
 
 FORMAT = "%(asctime)-15s %(levelname)s %(module)s.%(name)s.%(funcName)s at %(lineno)d :\n\t%(message)s\n"
@@ -36,10 +32,6 @@ logging.basicConfig(
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.INFO)
 logger.addHandler(ch)
-
-
-# VERSION = "__BLEEDING_EDGE__"
-VERSION = "2.11.1"
 
 
 BASEDIR = os.path.dirname(__file__)
@@ -988,11 +980,19 @@ class FusionInspector:
             fusion_spanning_sam_files_list = []
 
             for bam_file in bam_files_list:
-                fusion_junction_info_files_list.append(bam_file + ".fusion_junction_info")
-                fusion_junction_sam_files_list.append(bam_file + ".fusion_junc_reads.sam")
+                fusion_junction_info_files_list.append(
+                    bam_file + ".fusion_junction_info"
+                )
+                fusion_junction_sam_files_list.append(
+                    bam_file + ".fusion_junc_reads.sam"
+                )
 
-                fusion_spanning_info_files_list.append(bam_file + ".fusion_spanning_info")
-                fusion_spanning_sam_files_list.append(bam_file + ".fusion_span_reads.sam")
+                fusion_spanning_info_files_list.append(
+                    bam_file + ".fusion_spanning_info"
+                )
+                fusion_spanning_sam_files_list.append(
+                    bam_file + ".fusion_span_reads.sam"
+                )
 
             fusion_summary_file = os.sep.join(
                 [workdir, args_parsed.out_prefix + ".fusion_preds.coalesced.summary"]
@@ -1121,7 +1121,9 @@ class FusionInspector:
                     + summary_junctions_reads_list_filename
                 )
 
-                pipeliner.add_commands([Command(cmdstr, "prep_igv_extract_junc_reads.ok")])
+                pipeliner.add_commands(
+                    [Command(cmdstr, "prep_igv_extract_junc_reads.ok")]
+                )
 
                 ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
 
@@ -1147,7 +1149,9 @@ class FusionInspector:
 
                 cmdstr = "samtools index " + consolidated_junction_reads_bam
 
-                pipeliner.add_commands([Command(cmdstr, "samtools_idx_junc_reads_bam.ok")])
+                pipeliner.add_commands(
+                    [Command(cmdstr, "samtools_idx_junc_reads_bam.ok")]
+                )
 
                 # if args_parsed.vis:
                 #    self.bam_to_bed(consolidated_junction_reads_bam, pipeliner)
@@ -1475,7 +1479,9 @@ class FusionInspector:
                     fusions_file, EM_adjusted_counts_fusions_file
                 )
             )
-            pipeliner.add_commands([Command(cmdstr, "EM_adj_counts{}.ok".format(trinity_ok_token))])
+            pipeliner.add_commands(
+                [Command(cmdstr, "EM_adj_counts{}.ok".format(trinity_ok_token))]
+            )
 
             fusions_file = EM_adjusted_counts_fusions_file
 
@@ -2118,7 +2124,9 @@ def contains_fusions(fusion_files):
                         parts = line.strip().split("\t")
                         if len(parts) > fusion_name_col:
                             fusion_name = parts[fusion_name_col]
-                            if re.search("--", fusion_name) or re.search("::", fusion_name):
+                            if re.search("--", fusion_name) or re.search(
+                                "::", fusion_name
+                            ):
                                 fh.close()
                                 return True
         else:
@@ -2162,7 +2170,9 @@ def preprocess_fusion_file(fusion_file, workdir):
     # Check if it's a STAR-Fusion/CTAT-LR-Fusion output file (has #FusionName column)
     if first_line.startswith("#") and "#FusionName" in first_line:
         # Parse as tabular format with #FusionName column
-        logger.info(f"Detected STAR-Fusion/CTAT-LR-Fusion output format in {fusion_file}")
+        logger.info(
+            f"Detected STAR-Fusion/CTAT-LR-Fusion output format in {fusion_file}"
+        )
 
         # Find the #FusionName column index
         headers = first_line.split("\t")
@@ -2173,7 +2183,9 @@ def preprocess_fusion_file(fusion_file, workdir):
                 break
 
         if fusion_name_col is None:
-            raise RuntimeError(f"Error: Could not find #FusionName column in {fusion_file}")
+            raise RuntimeError(
+                f"Error: Could not find #FusionName column in {fusion_file}"
+            )
 
         # Extract unique fusion names
         fusions_seen = set()
@@ -2217,7 +2229,9 @@ def preprocess_fusion_file(fusion_file, workdir):
         return fusion_file
 
 
-def run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipeliner, trinity_ok_token=""):
+def run_cosmic_like_fusion_predictor(
+    args_parsed, fusions_file, workdir, pipeliner, trinity_ok_token=""
+):
 
     # prep for prediction (adds counter ffpm and booleans for splice types)
     fusions_prepped_for_pred_file = os.path.join(
@@ -2235,7 +2249,9 @@ def run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipelin
         )
     )
 
-    pipeliner.add_commands([Command(cmdstr, "prepped-cosmic-like{}.ok".format(trinity_ok_token))])
+    pipeliner.add_commands(
+        [Command(cmdstr, "prepped-cosmic-like{}.ok".format(trinity_ok_token))]
+    )
 
     # run predictor
     fusions_incl_cosmic_like_preds_file = os.path.join(
@@ -2253,7 +2269,9 @@ def run_cosmic_like_fusion_predictor(args_parsed, fusions_file, workdir, pipelin
         )
     )
 
-    pipeliner.add_commands([Command(cmdstr, "pred-cosmic-like{}.ok".format(trinity_ok_token))])
+    pipeliner.add_commands(
+        [Command(cmdstr, "pred-cosmic-like{}.ok".format(trinity_ok_token))]
+    )
 
     return fusions_incl_cosmic_like_preds_file
 
@@ -2298,7 +2316,9 @@ def run_microhomology_analysis(
         )
     )
 
-    pipeliner.add_commands([Command(cmdstr, "append_microH_info{}.ok".format(trinity_ok_token))])
+    pipeliner.add_commands(
+        [Command(cmdstr, "append_microH_info{}.ok".format(trinity_ok_token))]
+    )
 
     if args_parsed.incl_microH_expr_brkpt_plots:
 
