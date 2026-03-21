@@ -1083,16 +1083,48 @@ class FusionInspector:
                 ]
             )
             if args_parsed.read_type == "long":
-                # Long-read runs currently lack dedicated junction/spanning retrieval
-                # SAMs, so provide empty evidence BAMs for the IGV report tracks.
-                for evidence_bam, ok_token in [
-                    (consolidated_junction_reads_bam, "prep_igv_junc_reads_bam.ok"),
-                    (consolidated_spanning_reads_bam, "prep_spanning_reads.ok"),
-                ]:
-                    cmdstr = "samtools view -H {} -b -o {}".format(
-                        aligner_bam_file, evidence_bam
-                    )
-                    pipeliner.add_commands([Command(cmdstr, ok_token)])
+                summary_junctions_reads_list_filename = (
+                    fusion_summary_file + ".fusion_junction_read_accs"
+                )
+                cmdstr = str(
+                    os.sep.join([UTILDIR, "column_extractions.pl"])
+                    + " "
+                    + fusion_summary_file
+                    + " LeftGene,RightGene,JunctionReads "
+                    + " > "
+                    + summary_junctions_reads_list_filename
+                )
+
+                pipeliner.add_commands(
+                    [Command(cmdstr, "prep_igv_extract_junc_reads.ok")]
+                )
+
+                cmdstr = str(
+                    UTILDIR
+                    + "/retrieve_fusion_junction_reads_by_accession.pl "
+                    + summary_junctions_reads_list_filename
+                    + " "
+                    + aligner_bam_file
+                    + " | samtools view -@ "
+                    + str(args_parsed.CPU)
+                    + " -bT "
+                    + mergedContig_fasta_filename
+                    + " - "
+                    + " | samtools sort -@ "
+                    + str(args_parsed.CPU)
+                    + " - -o "
+                    + consolidated_junction_reads_bam
+                )
+                cmdstr = 'bash -c "set -eof pipefail; {}"'.format(cmdstr)
+                pipeliner.add_commands([Command(cmdstr, "prep_igv_junc_reads_bam.ok")])
+
+                # Long-read support currently reports only JunctionReads, so keep the
+                # spanning track as an empty, valid BAM until distinct spanning
+                # evidence is available for extraction.
+                cmdstr = "samtools view -H {} -b -o {}".format(
+                    aligner_bam_file, consolidated_spanning_reads_bam
+                )
+                pipeliner.add_commands([Command(cmdstr, "prep_spanning_reads.ok")])
 
                 pipeliner.add_commands(
                     [
