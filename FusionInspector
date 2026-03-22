@@ -6,7 +6,7 @@ import argparse
 import subprocess
 import gzip
 
-VERSION = "2.11.2"
+VERSION = "2.11.3"
 
 if sys.version_info[0] < 3:
     raise Exception("This script requires Python 3")
