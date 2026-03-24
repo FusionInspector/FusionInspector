@@ -1,4 +1,4 @@
-## FusionInspector v2.11.1
+## FusionInspector v2.11.3
 - adapted long-read evidence capture to use ctat-LR-fusion-compatible support identification while preserving downstream FusionInspector characterization
 - for `--read_type long`, set `est_J` directly from long-read junction support and skip EM-based junction estimation
 - added LR-prefixed long-read utilities for SAM-to-GFF3 conversion, fusion support capture, and long-read evidence abundance filtering
