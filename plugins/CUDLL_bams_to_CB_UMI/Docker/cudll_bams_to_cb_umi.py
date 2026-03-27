@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 """
-Extract primary reads from two CUDLL BAM files and create a table of read names
-with their cell barcodes (CB) and UMIs (XM).
-Reads from the supplemental BAM take priority; reads with the same name in the
-main BAM are excluded.
+Extract primary reads from one or two CUDLL BAM files and create a table of read
+names with their cell barcodes (CB) and UMIs (XM).
+When provided, reads from the supplemental BAM take priority; reads with the
+same name in the main BAM are excluded.
 """
 
 import argparse
@@ -62,12 +62,18 @@ def write_cb_umi_record(outfile, read, cb_tag, umi_tag):
 
 def process_bams(main_bam, supp_bam, output_file, cb_tag, umi_tag):
     """
-    Process two BAM files and create a CB/UMI table.
-    Priority is given to reads from supp_bam.
+    Process one or two BAM files and create a CB/UMI table.
+    Priority is given to reads from supp_bam when provided.
     """
-    print(f"Extracting read names from supplemental BAM: {supp_bam}", file=sys.stderr)
-    supp_read_names = extract_read_names(supp_bam)
-    print(f"Found {len(supp_read_names)} unique read names in supplemental BAM", file=sys.stderr)
+    supp_read_names = set()
+    supp_count = 0
+
+    if supp_bam:
+        print(f"Extracting read names from supplemental BAM: {supp_bam}", file=sys.stderr)
+        supp_read_names = extract_read_names(supp_bam)
+        print(f"Found {len(supp_read_names)} unique read names in supplemental BAM", file=sys.stderr)
+    else:
+        print("No supplemental BAM provided; processing only the main BAM", file=sys.stderr)
 
     # Open output file
     opener = gzip.open if output_file.endswith('.gz') else open
@@ -75,38 +81,38 @@ def process_bams(main_bam, supp_bam, output_file, cb_tag, umi_tag):
         # Write header
         outfile.write(f"read_name\tcell_barcode\tUMI\n")
 
-        # First, write all primary reads from supplemental BAM
-        print(f"Writing reads from supplemental BAM...", file=sys.stderr)
-        supp_count = 0
-        supp_missing_cb = 0
-        supp_missing_umi = 0
-        start_time = time.time()
-        report_interval = 1000000  # Report every 1M reads
+        if supp_bam:
+            # First, write all primary reads from supplemental BAM
+            print("Writing reads from supplemental BAM...", file=sys.stderr)
+            supp_missing_cb = 0
+            supp_missing_umi = 0
+            start_time = time.time()
+            report_interval = 1000000  # Report every 1M reads
 
-        with pysam.AlignmentFile(supp_bam, "rb") as bam:
-            for read in bam:
-                if not read.is_secondary and not read.is_supplementary:
-                    write_cb_umi_record(outfile, read, cb_tag, umi_tag)
-                    supp_count += 1
-                    # Track missing tags
-                    if not read.has_tag(cb_tag):
-                        supp_missing_cb += 1
-                    if not read.has_tag(umi_tag):
-                        supp_missing_umi += 1
+            with pysam.AlignmentFile(supp_bam, "rb") as bam:
+                for read in bam:
+                    if not read.is_secondary and not read.is_supplementary:
+                        write_cb_umi_record(outfile, read, cb_tag, umi_tag)
+                        supp_count += 1
+                        # Track missing tags
+                        if not read.has_tag(cb_tag):
+                            supp_missing_cb += 1
+                        if not read.has_tag(umi_tag):
+                            supp_missing_umi += 1
 
-                    # Progress reporting
-                    if supp_count % report_interval == 0:
-                        elapsed = time.time() - start_time
-                        rate = supp_count / elapsed
-                        print(f"  Progress: {supp_count:,} reads written ({rate:,.0f} reads/sec)",
-                              file=sys.stderr, flush=True)
+                        # Progress reporting
+                        if supp_count % report_interval == 0:
+                            elapsed = time.time() - start_time
+                            rate = supp_count / elapsed
+                            print(f"  Progress: {supp_count:,} reads written ({rate:,.0f} reads/sec)",
+                                  file=sys.stderr, flush=True)
 
-        elapsed = time.time() - start_time
-        print(f"Wrote {supp_count:,} reads from supplemental BAM in {elapsed:.1f}s", file=sys.stderr)
-        if supp_missing_cb > 0:
-            print(f"  Warning: {supp_missing_cb} reads missing {cb_tag} tag", file=sys.stderr)
-        if supp_missing_umi > 0:
-            print(f"  Warning: {supp_missing_umi} reads missing {umi_tag} tag", file=sys.stderr)
+            elapsed = time.time() - start_time
+            print(f"Wrote {supp_count:,} reads from supplemental BAM in {elapsed:.1f}s", file=sys.stderr)
+            if supp_missing_cb > 0:
+                print(f"  Warning: {supp_missing_cb} reads missing {cb_tag} tag", file=sys.stderr)
+            if supp_missing_umi > 0:
+                print(f"  Warning: {supp_missing_umi} reads missing {umi_tag} tag", file=sys.stderr)
 
         # Then, write primary reads from main BAM that are NOT in supplemental BAM
         print(f"Writing non-overlapping reads from main BAM: {main_bam}", file=sys.stderr)
@@ -146,13 +152,14 @@ def process_bams(main_bam, supp_bam, output_file, cb_tag, umi_tag):
             print(f"  Warning: {main_missing_cb} reads missing {cb_tag} tag", file=sys.stderr)
         if main_missing_umi > 0:
             print(f"  Warning: {main_missing_umi} reads missing {umi_tag} tag", file=sys.stderr)
-        print(f"Excluded {excluded_count} reads from main BAM (present in supplemental)", file=sys.stderr)
+        if supp_bam:
+            print(f"Excluded {excluded_count} reads from main BAM (present in supplemental)", file=sys.stderr)
         print(f"Total reads written: {supp_count + main_count}", file=sys.stderr)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Extract primary reads from two CUDLL BAM files and create CB/UMI table"
+        description="Extract primary reads from one or two CUDLL BAM files and create CB/UMI table"
     )
     parser.add_argument(
         "--main-bam",
@@ -161,8 +168,7 @@ def main():
     )
     parser.add_argument(
         "--supp-bam",
-        required=True,
-        help="Supplemental CUDLL BAM file (takes priority)"
+        help="Optional supplemental CUDLL BAM file (takes priority when provided)"
     )
     parser.add_argument(
         "--output",
@@ -184,7 +190,7 @@ def main():
 
     print(f"Processing CUDLL BAM files...", file=sys.stderr)
     print(f"  Main BAM: {args.main_bam}", file=sys.stderr)
-    print(f"  Supp BAM: {args.supp_bam}", file=sys.stderr)
+    print(f"  Supp BAM: {args.supp_bam if args.supp_bam else 'none'}", file=sys.stderr)
     print(f"  Output: {args.output}", file=sys.stderr)
     print(f"  Cell Barcode Tag: {args.cb_tag}", file=sys.stderr)
     print(f"  UMI Tag: {args.umi_tag}", file=sys.stderr)

@@ -1,11 +1,11 @@
 # CUDLL BAMs to CB/UMI Table Converter
 
-This plugin processes two CUDLL BAM files and creates a tab-delimited table containing read names with their corresponding cell barcodes (CB) and UMIs.
+This plugin processes one or two CUDLL BAM files and creates a tab-delimited table containing read names with their corresponding cell barcodes (CB) and UMIs.
 
 ## Features
 
-- Extracts primary reads (excludes secondary and supplementary alignments) from two BAM files
-- Reads from the supplemental BAM take priority
+- Extracts primary reads (excludes secondary and supplementary alignments) from one or two BAM files
+- Reads from the supplemental BAM take priority when provided
 - Any read names in the main BAM that also appear in the supplemental BAM are excluded
 - Extracts cell barcode from CB tag (configurable)
 - Extracts UMI from XM tag (configurable)
@@ -26,9 +26,9 @@ Reads missing the CB or UMI tags will have "NA" in the corresponding column.
 ### Python Script (`Docker/cudll_bams_to_cb_umi.py`)
 
 The main processing script that:
-1. Reads the supplemental BAM and extracts all primary read names
-2. Writes all primary reads from the supplemental BAM with their CB/UMI tags to the output table
-3. Writes primary reads from the main BAM (that don't appear in the supplemental BAM) with their CB/UMI tags
+1. Optionally reads the supplemental BAM and extracts all primary read names
+2. Writes all primary reads from the supplemental BAM with their CB/UMI tags to the output table when provided
+3. Writes primary reads from the main BAM (excluding reads already present in the supplemental BAM, if provided) with their CB/UMI tags
 4. Reports statistics on the number of reads processed and missing tags
 
 ### Dockerfile (`Docker/Dockerfile`)
@@ -75,7 +75,6 @@ docker run --rm -v /path/to/data:/data \
   trinityctat/cudll-to-cb-umi:latest \
   cudll_bams_to_cb_umi.py \
     --main-bam /data/main.bam \
-    --supp-bam /data/supp.bam \
     --output /data/sample.cb_umi.tsv.gz \
     --cb-tag CB \
     --umi-tag XM
@@ -86,7 +85,6 @@ docker run --rm -v /path/to/data:/data \
 ```bash
 ./Docker/cudll_bams_to_cb_umi.py \
   --main-bam main.bam \
-  --supp-bam supp.bam \
   --output sample.cb_umi.tsv.gz \
   --cb-tag CB \
   --umi-tag XM
@@ -97,7 +95,7 @@ docker run --rm -v /path/to/data:/data \
 1. Upload the WDL file to Terra
 2. Configure inputs:
    - `cudll_main_bam`: Path to the main CUDLL BAM file
-   - `cudll_supp_bam`: Path to the supplemental CUDLL BAM file
+   - `cudll_supp_bam` (optional): Path to the supplemental CUDLL BAM file
    - `sample_name`: Sample identifier for output naming
    - `cb_tag` (optional): BAM tag for cell barcode (default: CB)
    - `umi_tag` (optional): BAM tag for UMI (default: XM)
@@ -118,7 +116,7 @@ docker run --rm -v /path/to/data:/data \
 ## Parameters
 
 - `--main-bam`: Main CUDLL BAM file (required)
-- `--supp-bam`: Supplemental CUDLL BAM file that takes priority (required)
+- `--supp-bam`: Supplemental CUDLL BAM file that takes priority (optional)
 - `--output`: Output file path, can be .gz compressed (required)
 - `--cb-tag`: BAM tag for cell barcode (default: CB)
 - `--umi-tag`: BAM tag for UMI (default: XM)
