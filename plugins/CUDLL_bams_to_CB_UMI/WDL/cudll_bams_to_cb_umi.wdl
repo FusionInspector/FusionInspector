@@ -28,6 +28,8 @@ workflow CUDLLBamsToCbUmi {
 
     output {
         File cb_umi_table = BamsToCbUmi.cb_umi_table
+        File barcode_umi_counts = BamsToCbUmi.barcode_umi_counts
+        File barcode_knee_plot_pdf = BamsToCbUmi.barcode_knee_plot_pdf
         File log_file = BamsToCbUmi.log_file
     }
 }
@@ -46,6 +48,8 @@ task BamsToCbUmi {
     }
 
     String output_table = "~{sample_name}.cb_umi.tsv.gz"
+    String barcode_umi_counts_file = "~{sample_name}.barcode_umi_counts.tsv"
+    String knee_plot_pdf_file = "~{sample_name}.barcode_knee_plot.pdf"
     String log_file_name = "~{sample_name}.cudll_cb_umi.log"
 
     command <<<
@@ -57,6 +61,8 @@ task BamsToCbUmi {
         echo "Main BAM: ~{main_bam}" | tee -a ~{log_file_name}
         echo "Supp BAM: ~{if defined(supp_bam) then supp_bam else "none"}" | tee -a ~{log_file_name}
         echo "Output: ~{output_table}" | tee -a ~{log_file_name}
+        echo "Barcode UMI counts: ~{barcode_umi_counts_file}" | tee -a ~{log_file_name}
+        echo "Knee plot PDF: ~{knee_plot_pdf_file}" | tee -a ~{log_file_name}
         echo "CB Tag: ~{cb_tag}" | tee -a ~{log_file_name}
         echo "UMI Tag: ~{umi_tag}" | tee -a ~{log_file_name}
         echo "---" | tee -a ~{log_file_name}
@@ -66,6 +72,8 @@ task BamsToCbUmi {
             --main-bam ~{main_bam} \
             ~{if defined(supp_bam) then "--supp-bam " + supp_bam else ""} \
             --output ~{output_table} \
+            --barcode-umi-counts ~{barcode_umi_counts_file} \
+            --knee-plot-pdf ~{knee_plot_pdf_file} \
             --cb-tag ~{cb_tag} \
             --umi-tag ~{umi_tag} \
             2>&1 | tee -a ~{log_file_name}
@@ -75,12 +83,16 @@ task BamsToCbUmi {
 
         # Report output file size and line count
         ls -lh ~{output_table} | tee -a ~{log_file_name}
+        ls -lh ~{barcode_umi_counts_file} | tee -a ~{log_file_name}
+        ls -lh ~{knee_plot_pdf_file} | tee -a ~{log_file_name}
         echo "Line count:" | tee -a ~{log_file_name}
         zcat ~{output_table} | wc -l | tee -a ~{log_file_name}
     >>>
 
     output {
         File cb_umi_table = output_table
+        File barcode_umi_counts = barcode_umi_counts_file
+        File barcode_knee_plot_pdf = knee_plot_pdf_file
         File log_file = log_file_name
     }
 
