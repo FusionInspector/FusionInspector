@@ -67,6 +67,7 @@ def process_bams(main_bam, supp_bam, output_file, cb_tag, umi_tag):
     """
     supp_read_names = set()
     supp_count = 0
+    report_interval = 1000000  # Report every 1M reads
 
     if supp_bam:
         print(f"Extracting read names from supplemental BAM: {supp_bam}", file=sys.stderr)
@@ -87,7 +88,6 @@ def process_bams(main_bam, supp_bam, output_file, cb_tag, umi_tag):
             supp_missing_cb = 0
             supp_missing_umi = 0
             start_time = time.time()
-            report_interval = 1000000  # Report every 1M reads
 
             with pysam.AlignmentFile(supp_bam, "rb") as bam:
                 for read in bam:
