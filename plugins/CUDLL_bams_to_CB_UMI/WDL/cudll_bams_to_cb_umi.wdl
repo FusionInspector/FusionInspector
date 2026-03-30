@@ -12,6 +12,7 @@ workflow CUDLLBamsToCbUmi {
         Int cpu = 4
         Int memory_gb = 16
         Int disk_gb = 100
+        Int preemptible = 2
     }
 
     call BamsToCbUmi {
@@ -25,7 +26,8 @@ workflow CUDLLBamsToCbUmi {
             docker = docker,
             cpu = cpu,
             memory_gb = memory_gb,
-            disk_gb = disk_gb
+            disk_gb = disk_gb,
+            preemptible = preemptible
     }
 
     output {
@@ -48,6 +50,7 @@ task BamsToCbUmi {
         Int cpu
         Int memory_gb
         Int disk_gb
+        Int preemptible
     }
 
     String output_table = "~{sample_name}.cb_umi.tsv.gz"
@@ -69,6 +72,7 @@ task BamsToCbUmi {
         echo "CB Tag: ~{cb_tag}" | tee -a ~{log_file_name}
         echo "UMI Tag: ~{umi_tag}" | tee -a ~{log_file_name}
         echo "Max knee plot points: ~{max_knee_plot_points}" | tee -a ~{log_file_name}
+        echo "Preemptible attempts: ~{preemptible}" | tee -a ~{log_file_name}
         echo "---" | tee -a ~{log_file_name}
 
         script_help="$(cudll_bams_to_cb_umi.py --help 2>&1 || true)"
@@ -275,6 +279,6 @@ PY
         cpu: cpu
         memory: "~{memory_gb} GB"
         disks: "local-disk ~{disk_gb} HDD"
-        preemptible: 2
+        preemptible: preemptible
     }
 }
