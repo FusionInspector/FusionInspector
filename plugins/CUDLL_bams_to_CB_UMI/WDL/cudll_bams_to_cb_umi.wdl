@@ -7,6 +7,7 @@ workflow CUDLLBamsToCbUmi {
         String sample_name
         String cb_tag = "CB"
         String umi_tag = "XM"
+        Int max_knee_plot_points = 5000
         String docker = "trinityctat/cudll-to-cb-umi"
         Int cpu = 4
         Int memory_gb = 16
@@ -20,6 +21,7 @@ workflow CUDLLBamsToCbUmi {
             sample_name = sample_name,
             cb_tag = cb_tag,
             umi_tag = umi_tag,
+            max_knee_plot_points = max_knee_plot_points,
             docker = docker,
             cpu = cpu,
             memory_gb = memory_gb,
@@ -41,6 +43,7 @@ task BamsToCbUmi {
         String sample_name
         String cb_tag
         String umi_tag
+        Int max_knee_plot_points
         String docker
         Int cpu
         Int memory_gb
@@ -65,6 +68,7 @@ task BamsToCbUmi {
         echo "Knee plot PDF: ~{knee_plot_pdf_file}" | tee -a ~{log_file_name}
         echo "CB Tag: ~{cb_tag}" | tee -a ~{log_file_name}
         echo "UMI Tag: ~{umi_tag}" | tee -a ~{log_file_name}
+        echo "Max knee plot points: ~{max_knee_plot_points}" | tee -a ~{log_file_name}
         echo "---" | tee -a ~{log_file_name}
 
         script_help="$(cudll_bams_to_cb_umi.py --help 2>&1 || true)"
@@ -90,7 +94,7 @@ task BamsToCbUmi {
                 --umi-tag ~{umi_tag} \
                 2>&1 | tee -a ~{log_file_name}
 
-            python3 - "~{output_table}" "~{barcode_umi_counts_file}" "~{knee_plot_pdf_file}" <<'PY' 2>&1 | tee -a ~{log_file_name}
+            python3 - "~{output_table}" "~{barcode_umi_counts_file}" "~{knee_plot_pdf_file}" "~{max_knee_plot_points}" <<'PY' 2>&1 | tee -a ~{log_file_name}
 import collections
 import gzip
 import math
@@ -107,7 +111,24 @@ def pdf_escape(text):
     return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
-def write_simple_pdf(pdf_path, barcode_counts):
+def select_plot_indices(num_points, max_points):
+    if num_points <= max_points:
+        return list(range(num_points))
+
+    max_log_rank = math.log10(num_points) if num_points > 1 else 1.0
+    selected = {0, num_points - 1}
+
+    # Sample ranks across log space so the knee shape remains visible.
+    for sample_idx in range(max_points):
+        frac = sample_idx / (max_points - 1)
+        rank = 10 ** (frac * max_log_rank)
+        index = min(num_points - 1, max(0, int(round(rank)) - 1))
+        selected.add(index)
+
+    return sorted(selected)
+
+
+def write_simple_pdf(pdf_path, barcode_counts, max_plot_points):
     width = 612
     height = 432
     left = 72
@@ -138,8 +159,11 @@ def write_simple_pdf(pdf_path, barcode_counts):
         min_log_count = math.log10(min_positive)
         max_log_count = math.log10(max_count) if max_count > min_positive else min_log_count + 1.0
 
+        plot_indices = select_plot_indices(len(counts_only), max_plot_points)
         points = []
-        for idx, count in enumerate(counts_only, start=1):
+        for index in plot_indices:
+            idx = index + 1
+            count = counts_only[index]
             x_frac = 0.0 if max_log_rank == min_log_rank else (math.log10(idx) - min_log_rank) / (max_log_rank - min_log_rank)
             y_frac = 0.5 if max_log_count == min_log_count else (math.log10(count) - min_log_count) / (max_log_count - min_log_count)
             x = left + x_frac * plot_width
@@ -196,7 +220,8 @@ def write_simple_pdf(pdf_path, barcode_counts):
         )
 
 
-table_path, counts_path, pdf_path = sys.argv[1:]
+table_path, counts_path, pdf_path, max_plot_points_raw = sys.argv[1:]
+max_plot_points = max(2, int(max_plot_points_raw))
 unique_umis = collections.defaultdict(set)
 with open_text(table_path) as handle:
     header = handle.readline().rstrip("\n")
@@ -221,7 +246,7 @@ with open(counts_path, "wt") as handle:
     for cell_barcode, umi_count in barcode_counts:
         handle.write(f"{cell_barcode}\t{umi_count}\n")
 
-write_simple_pdf(pdf_path, barcode_counts)
+write_simple_pdf(pdf_path, barcode_counts, max_plot_points)
 print(f"Wrote fallback barcode counts: {counts_path}")
 print(f"Wrote fallback knee plot PDF: {pdf_path}")
 PY
