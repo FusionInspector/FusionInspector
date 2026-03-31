@@ -7,16 +7,16 @@ import sys
 
 
 EXPECTED_CB_UMI_ROWS = [
-    ("shared1", "CELL_A", "UMI_7"),
-    ("shared2", "CELL_B", "UMI_3"),
-    ("supp_only1", "CELL_B", "UMI_8"),
-    ("supp_only2", "CELL_E", "UMI_10"),
     ("readA", "CELL_A", "UMI_1"),
     ("readB", "CELL_A", "UMI_1"),
     ("readC", "CELL_A", "UMI_2"),
     ("readD", "CELL_B", "UMI_3"),
     ("readE", "CELL_C", "NA"),
     ("readF", "NA", "UMI_4"),
+    ("shared1", "CELL_A", "UMI_7"),
+    ("shared2", "CELL_B", "UMI_3"),
+    ("supp_only1", "CELL_B", "UMI_8"),
+    ("supp_only2", "CELL_E", "UMI_10"),
 ]
 
 EXPECTED_BARCODE_COUNTS = [
@@ -47,7 +47,8 @@ def read_cb_umi_table(path):
 
 
 def read_barcode_counts(path):
-    with open(path) as handle:
+    opener = gzip.open if path.endswith(".gz") else open
+    with opener(path, "rt") as handle:
         reader = csv.reader(handle, delimiter="\t")
         rows = list(reader)
 
@@ -62,14 +63,22 @@ def read_barcode_counts(path):
 
 
 def main():
-    if len(sys.argv) != 4:
-        sys.exit(f"usage: {sys.argv[0]} <cb_umi.tsv.gz> <barcode_counts.tsv> <knee.pdf>")
+    if len(sys.argv) not in (2, 4):
+        sys.exit(
+            f"usage: {sys.argv[0]} <cb_umi.tsv.gz> [<barcode_counts.tsv> <knee.pdf>]"
+        )
 
-    cb_umi_path, barcode_counts_path, knee_pdf_path = sys.argv[1:]
+    cb_umi_path = sys.argv[1]
 
     cb_umi_rows = read_cb_umi_table(cb_umi_path)
     if cb_umi_rows != EXPECTED_CB_UMI_ROWS:
         fail(f"CB/UMI rows differ.\nExpected: {EXPECTED_CB_UMI_ROWS}\nObserved: {cb_umi_rows}")
+
+    if len(sys.argv) == 2:
+        print("Primary CB/UMI output validation passed.")
+        return
+
+    barcode_counts_path, knee_pdf_path = sys.argv[2:]
 
     barcode_counts = read_barcode_counts(barcode_counts_path)
     if barcode_counts != EXPECTED_BARCODE_COUNTS:

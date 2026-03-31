@@ -6,9 +6,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TMP_DIR="${PLUGIN_DIR}/testing/tmp"
 OUT_DIR="${PLUGIN_DIR}/testing/output"
+PRIMARY_ONLY_DIR="${PLUGIN_DIR}/testing/output_primary_only"
 
-rm -rf "${TMP_DIR}" "${OUT_DIR}"
-mkdir -p "${TMP_DIR}" "${OUT_DIR}"
+rm -rf "${TMP_DIR}" "${OUT_DIR}" "${PRIMARY_ONLY_DIR}"
+mkdir -p "${TMP_DIR}" "${OUT_DIR}" "${PRIMARY_ONLY_DIR}"
 
 python3 "${PLUGIN_DIR}/testing/bin/generate_simulated_bams.py" "${TMP_DIR}" >/dev/null
 
@@ -16,12 +17,22 @@ python3 "${PLUGIN_DIR}/Docker/cudll_bams_to_cb_umi.py" \
     --main-bam "${TMP_DIR}/sim.main.bam" \
     --supp-bam "${TMP_DIR}/sim.supp.bam" \
     --output "${OUT_DIR}/sim.cb_umi.tsv.gz" \
-    --barcode-umi-counts "${OUT_DIR}/sim.barcode_umi_counts.tsv" \
+    --barcode-umi-counts "${OUT_DIR}/sim.barcode_umi_counts.tsv.gz" \
     --knee-plot-pdf "${OUT_DIR}/sim.barcode_knee_plot.pdf" \
     --cb-tag CB \
     --umi-tag XM
 
 python3 "${PLUGIN_DIR}/testing/bin/validate_execution_test.py" \
     "${OUT_DIR}/sim.cb_umi.tsv.gz" \
-    "${OUT_DIR}/sim.barcode_umi_counts.tsv" \
+    "${OUT_DIR}/sim.barcode_umi_counts.tsv.gz" \
     "${OUT_DIR}/sim.barcode_knee_plot.pdf"
+
+python3 "${PLUGIN_DIR}/Docker/cudll_bams_to_cb_umi.py" \
+    --main-bam "${TMP_DIR}/sim.main.bam" \
+    --supp-bam "${TMP_DIR}/sim.supp.bam" \
+    --output "${PRIMARY_ONLY_DIR}/sim.cb_umi.tsv.gz" \
+    --cb-tag CB \
+    --umi-tag XM
+
+python3 "${PLUGIN_DIR}/testing/bin/validate_execution_test.py" \
+    "${PRIMARY_ONLY_DIR}/sim.cb_umi.tsv.gz"
