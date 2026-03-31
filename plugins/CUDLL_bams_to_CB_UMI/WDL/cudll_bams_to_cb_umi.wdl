@@ -14,9 +14,15 @@ workflow CUDLLBamsToCbUmi {
         String docker = "trinityctat/cudll-to-cb-umi"
         Int cpu = 4
         Int memory_gb = 16
-        Int disk_gb = 100
+        Int min_disk_gb = 100
+        Int extra_disk_gb = 50
+        Float disk_scale_factor = 6.0
         Int preemptible = 2
     }
+
+    Float total_input_bam_gb = size(cudll_main_bam, "GB") + (if defined(cudll_supp_bam) then size(cudll_supp_bam, "GB") else 0.0)
+    Int estimated_disk_gb = ceil(total_input_bam_gb * disk_scale_factor) + extra_disk_gb
+    Int requested_disk_gb = if estimated_disk_gb > min_disk_gb then estimated_disk_gb else min_disk_gb
 
     if (generate_summary_outputs) {
         call BamsToCbUmiFull {
@@ -32,7 +38,7 @@ workflow CUDLLBamsToCbUmi {
                 docker = docker,
                 cpu = cpu,
                 memory_gb = memory_gb,
-                disk_gb = disk_gb,
+                disk_gb = requested_disk_gb,
                 preemptible = preemptible
         }
     }
@@ -50,7 +56,7 @@ workflow CUDLLBamsToCbUmi {
                 docker = docker,
                 cpu = cpu,
                 memory_gb = memory_gb,
-                disk_gb = disk_gb,
+                disk_gb = requested_disk_gb,
                 preemptible = preemptible
         }
     }
@@ -101,6 +107,7 @@ task BamsToCbUmiFull {
         echo "Max knee plot points: ~{max_knee_plot_points}" | tee -a ~{log_file_name}
         echo "Sort threads: ~{sort_threads}" | tee -a ~{log_file_name}
         echo "Sort memory per thread: ~{sort_memory_per_thread}" | tee -a ~{log_file_name}
+        echo "Requested disk GB: ~{disk_gb}" | tee -a ~{log_file_name}
         echo "Preemptible attempts: ~{preemptible}" | tee -a ~{log_file_name}
         echo "---" | tee -a ~{log_file_name}
 
@@ -178,6 +185,7 @@ task BamsToCbUmiPrimaryOnly {
         echo "UMI Tag: ~{umi_tag}" | tee -a ~{log_file_name}
         echo "Sort threads: ~{sort_threads}" | tee -a ~{log_file_name}
         echo "Sort memory per thread: ~{sort_memory_per_thread}" | tee -a ~{log_file_name}
+        echo "Requested disk GB: ~{disk_gb}" | tee -a ~{log_file_name}
         echo "Preemptible attempts: ~{preemptible}" | tee -a ~{log_file_name}
         echo "---" | tee -a ~{log_file_name}
 
