@@ -140,8 +140,22 @@ To generate only the primary read-level CB/UMI table, omit `--barcode-umi-counts
    - `generate_summary_outputs` (optional): Set to `false` to emit only the primary CB/UMI table and log file
    - `sort_threads` (optional): Number of threads to use for each external sort (default: 1)
    - `sort_memory_per_thread` (optional): Approximate RAM budget per sort thread, such as `512M` or `2G` (default: `1G`)
+   - `min_disk_gb` (optional): Minimum disk request for the task (default: `100`)
+   - `extra_disk_gb` (optional): Fixed disk headroom added on top of the input-size-based estimate (default: `50`)
+   - `disk_scale_factor` (optional): Multiplier applied to the combined input BAM size in GB when estimating disk (default: `6.0`)
    - `docker` (optional): Docker image to use (default: `trinityctat/cudll-to-cb-umi:latest`)
 3. Launch the workflow
+
+The WDL estimates task disk as:
+
+```text
+requested_disk_gb = max(
+  min_disk_gb,
+  ceil((size(main_bam_gb) + size(supp_bam_gb_if_present)) * disk_scale_factor) + extra_disk_gb
+)
+```
+
+The multiplier is intentionally conservative because the workflow writes large temporary files for read-level sorting/deduplication and barcode/UMI aggregation.
 
 ## Execution Test
 
