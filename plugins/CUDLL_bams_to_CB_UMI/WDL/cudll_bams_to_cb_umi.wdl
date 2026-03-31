@@ -115,8 +115,8 @@ task BamsToCbUmi {
 
     output {
         File cb_umi_table = output_table
-        File? barcode_umi_counts = if generate_summary_outputs then barcode_umi_counts_file else None
-        File? barcode_knee_plot_pdf = if generate_summary_outputs then knee_plot_pdf_file else None
+        File? barcode_umi_counts = if generate_summary_outputs then barcode_umi_counts_file else null
+        File? barcode_knee_plot_pdf = if generate_summary_outputs then knee_plot_pdf_file else null
         File log_file = log_file_name
     }
 
