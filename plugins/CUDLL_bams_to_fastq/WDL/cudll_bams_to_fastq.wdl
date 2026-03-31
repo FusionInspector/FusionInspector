@@ -3,7 +3,7 @@ version 1.0
 workflow CUDLLBamsToFastq {
     input {
         File cudll_main_bam
-        File cudll_supp_bam
+        File? cudll_supp_bam
         String sample_name
         String cb_tag = "CB"
         String umi_tag = "XM"
@@ -35,7 +35,7 @@ workflow CUDLLBamsToFastq {
 task BamsToFastq {
     input {
         File main_bam
-        File supp_bam
+        File? supp_bam
         String sample_name
         String cb_tag
         String umi_tag
@@ -55,7 +55,7 @@ task BamsToFastq {
         echo "Starting CUDLL BAM to FASTQ conversion" | tee ~{log_file_name}
         echo "Sample: ~{sample_name}" | tee -a ~{log_file_name}
         echo "Main BAM: ~{main_bam}" | tee -a ~{log_file_name}
-        echo "Supp BAM: ~{supp_bam}" | tee -a ~{log_file_name}
+        echo "Supp BAM: ~{if defined(supp_bam) then supp_bam else 'NONE'}" | tee -a ~{log_file_name}
         echo "Output: ~{output_fastq}" | tee -a ~{log_file_name}
         echo "CB Tag: ~{cb_tag}" | tee -a ~{log_file_name}
         echo "UMI Tag: ~{umi_tag}" | tee -a ~{log_file_name}
@@ -64,7 +64,7 @@ task BamsToFastq {
         # Run the conversion script
         cudll_bams_to_fastq.py \
             --main-bam ~{main_bam} \
-            --supp-bam ~{supp_bam} \
+            ~{if defined(supp_bam) then "--supp-bam " + supp_bam else ""} \
             --output ~{output_fastq} \
             --cb-tag ~{cb_tag} \
             --umi-tag ~{umi_tag} \
