@@ -79,16 +79,20 @@ def parse_size_to_bytes(size_text):
     return value * SIZE_UNITS[unit]
 
 
-def build_sort_command(sort_exe, sort_threads, sort_memory_per_thread, extra_args):
+def build_sort_command(sort_exe, sort_threads, sort_memory_per_thread, extra_args, sort_tmpdir=None):
     total_memory_bytes = sort_threads * parse_size_to_bytes(sort_memory_per_thread)
-    return [
+    cmd = [
         sort_exe,
         "--parallel",
         str(sort_threads),
         "-S",
         str(total_memory_bytes),
-        *extra_args,
+        "--batch-size=16",
     ]
+    if sort_tmpdir:
+        cmd += ["-T", sort_tmpdir]
+    cmd += extra_args
+    return cmd
 
 
 def bytes_to_sort_size(size_bytes):
@@ -117,7 +121,7 @@ def reduce_sort_memory_per_thread(size_text, divisor=2, min_bytes=64 * 1024 ** 2
     return bytes_to_sort_size(reduced_bytes)
 
 
-def run_sort_command(sort_exe, sort_threads, sort_memory_per_thread, extra_args, description):
+def run_sort_command(sort_exe, sort_threads, sort_memory_per_thread, extra_args, description, sort_tmpdir=None):
     env = {**os.environ, "LC_ALL": "C"}
     attempted_memory = sort_memory_per_thread
 
@@ -127,6 +131,7 @@ def run_sort_command(sort_exe, sort_threads, sort_memory_per_thread, extra_args,
             sort_threads,
             attempted_memory,
             extra_args,
+            sort_tmpdir=sort_tmpdir,
         )
 
         try:
@@ -245,6 +250,7 @@ class BarcodeUmiAggregator:
                 self._sorted_path,
             ],
             "sorting barcode/UMI pairs",
+            sort_tmpdir=os.path.dirname(self._sorted_path),
         )
 
     def _write_summary_from_sorted_pairs(self):
@@ -289,6 +295,7 @@ class BarcodeUmiAggregator:
                     sorted_counts_path,
                 ],
                 "sorting barcode UMI counts",
+                sort_tmpdir=os.path.dirname(sorted_counts_path),
             )
 
             barcode_counts = []
@@ -406,6 +413,7 @@ def sort_combined_records(sort_exe, sort_threads, sort_memory_per_thread, combin
             sorted_path,
         ],
         "sorting combined read-level records by read name",
+        sort_tmpdir=os.path.dirname(sorted_path),
     )
 
     return sorted_path
