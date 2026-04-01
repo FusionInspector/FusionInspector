@@ -9,11 +9,11 @@ workflow CUDLLBamsToCbUmi {
         String umi_tag = "XM"
         Boolean generate_summary_outputs = true
         Int max_knee_plot_points = 5000
-        Int sort_threads = 1
-        String sort_memory_per_thread = "1G"
+        Int sort_threads = 2
+        String sort_memory_per_thread = "2G"
         String docker = "trinityctat/cudll-to-cb-umi"
-        Int cpu = 4
-        Int memory_gb = 16
+        Int cpu = 8
+        Int memory_gb = 32
         Int min_disk_gb = 100
         Int extra_disk_gb = 50
         Float disk_scale_factor = 6.0

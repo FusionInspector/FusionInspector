@@ -91,6 +91,85 @@ def build_sort_command(sort_exe, sort_threads, sort_memory_per_thread, extra_arg
     ]
 
 
+def bytes_to_sort_size(size_bytes):
+    if size_bytes < 1024:
+        return str(size_bytes)
+
+    for unit in ("K", "M", "G", "T"):
+        if size_bytes % 1024 != 0:
+            break
+        size_bytes //= 1024
+        if size_bytes < 1024 or unit == "T":
+            return f"{size_bytes}{unit}"
+
+    return str(size_bytes)
+
+
+def reduce_sort_memory_per_thread(size_text, divisor=2, min_bytes=64 * 1024 ** 2):
+    size_bytes = parse_size_to_bytes(size_text)
+    if size_bytes <= min_bytes:
+        return None
+
+    reduced_bytes = max(min_bytes, size_bytes // divisor)
+    if reduced_bytes >= size_bytes:
+        return None
+
+    return bytes_to_sort_size(reduced_bytes)
+
+
+def run_sort_command(sort_exe, sort_threads, sort_memory_per_thread, extra_args, description):
+    env = {**os.environ, "LC_ALL": "C"}
+    attempted_memory = sort_memory_per_thread
+
+    while True:
+        command = build_sort_command(
+            sort_exe,
+            sort_threads,
+            attempted_memory,
+            extra_args,
+        )
+
+        try:
+            subprocess.run(
+                command,
+                check=True,
+                env=env,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            return attempted_memory
+        except subprocess.CalledProcessError as exc:
+            # A SIGKILL from sort is typically an OOM kill on heavily loaded systems.
+            if exc.returncode != -9:
+                stderr_text = exc.stderr.strip() if exc.stderr else ""
+                message = (
+                    f"GNU sort failed while {description} with exit code {exc.returncode}. "
+                    f"Command: {' '.join(command)}"
+                )
+                if stderr_text:
+                    message += f"\nSort stderr: {stderr_text}"
+                raise RuntimeError(message) from exc
+
+            next_memory = reduce_sort_memory_per_thread(attempted_memory)
+            if next_memory is None:
+                stderr_text = exc.stderr.strip() if exc.stderr else ""
+                message = (
+                    f"GNU sort was killed by SIGKILL while {description} even after retrying down to "
+                    f"{attempted_memory} per thread. Command: {' '.join(command)}"
+                )
+                if stderr_text:
+                    message += f"\nSort stderr: {stderr_text}"
+                raise RuntimeError(message) from exc
+
+            print(
+                f"  Warning: GNU sort was killed by SIGKILL while {description} using "
+                f"{attempted_memory} per thread; retrying with {next_memory} per thread",
+                file=sys.stderr,
+                flush=True,
+            )
+            attempted_memory = next_memory
+
+
 class BarcodeUmiAggregator:
     """Spill valid barcode/UMI pairs to disk, sort externally, then summarize."""
 
@@ -151,24 +230,21 @@ class BarcodeUmiAggregator:
         sorted_fd, self._sorted_path = tempfile.mkstemp(prefix="barcode_umi_pairs_sorted_", suffix=".tsv")
         os.close(sorted_fd)
 
-        subprocess.run(
-            build_sort_command(
-                self._sort_exe,
-                self._sort_threads,
-                self._sort_memory_per_thread,
-                [
-                    "-u",
-                    "-t",
-                    "\t",
-                    "-k1,1",
-                    "-k2,2",
-                    self._pairs_path,
-                    "-o",
-                    self._sorted_path,
-                ],
-            ),
-            check=True,
-            env={**os.environ, "LC_ALL": "C"},
+        run_sort_command(
+            self._sort_exe,
+            self._sort_threads,
+            self._sort_memory_per_thread,
+            [
+                "-u",
+                "-t",
+                "\t",
+                "-k1,1",
+                "-k2,2",
+                self._pairs_path,
+                "-o",
+                self._sorted_path,
+            ],
+            "sorting barcode/UMI pairs",
         )
 
     def _write_summary_from_sorted_pairs(self):
@@ -199,23 +275,20 @@ class BarcodeUmiAggregator:
                 if current_barcode is not None:
                     counts_handle.write(f"{current_barcode}\t{current_count}\n")
 
-            subprocess.run(
-                build_sort_command(
-                    self._sort_exe,
-                    self._sort_threads,
-                    self._sort_memory_per_thread,
-                    [
-                        "-t",
-                        "\t",
-                        "-k2,2nr",
-                        "-k1,1",
-                        counts_path,
-                        "-o",
-                        sorted_counts_path,
-                    ],
-                ),
-                check=True,
-                env={**os.environ, "LC_ALL": "C"},
+            run_sort_command(
+                self._sort_exe,
+                self._sort_threads,
+                self._sort_memory_per_thread,
+                [
+                    "-t",
+                    "\t",
+                    "-k2,2nr",
+                    "-k1,1",
+                    counts_path,
+                    "-o",
+                    sorted_counts_path,
+                ],
+                "sorting barcode UMI counts",
             )
 
             barcode_counts = []
@@ -318,24 +391,21 @@ def sort_combined_records(sort_exe, sort_threads, sort_memory_per_thread, combin
     sorted_fd, sorted_path = tempfile.mkstemp(prefix="cb_umi_records_sorted_", suffix=".tsv")
     os.close(sorted_fd)
 
-    subprocess.run(
-        build_sort_command(
-            sort_exe,
-            sort_threads,
-            sort_memory_per_thread,
-            [
-                "-t",
-                "\t",
-                "-k1,1",
-                "-k2,2",
-                "-k3,3",
-                combined_path,
-                "-o",
-                sorted_path,
-            ],
-        ),
-        check=True,
-        env={**os.environ, "LC_ALL": "C"},
+    run_sort_command(
+        sort_exe,
+        sort_threads,
+        sort_memory_per_thread,
+        [
+            "-t",
+            "\t",
+            "-k1,1",
+            "-k2,2",
+            "-k3,3",
+            combined_path,
+            "-o",
+            sorted_path,
+        ],
+        "sorting combined read-level records by read name",
     )
 
     return sorted_path

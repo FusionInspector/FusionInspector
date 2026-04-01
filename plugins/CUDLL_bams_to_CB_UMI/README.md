@@ -34,6 +34,7 @@ cell_barcode    umi_count
 `umi_count` is the number of distinct UMIs observed for that barcode across the retained reads. Rows where the barcode or UMI tag is missing are excluded from this summary and from the knee plot.
 
 External sorting is performed with GNU `sort`. `--sort-threads` maps to `sort --parallel`, and `--sort-memory-per-thread` is multiplied by the thread count to derive the total `sort -S` memory budget for each sort invocation.
+If `sort` is killed by `SIGKILL` under memory pressure, the script now retries automatically with progressively smaller per-thread memory settings down to `64M`.
 
 ## Components
 
@@ -138,8 +139,8 @@ To generate only the primary read-level CB/UMI table, omit `--barcode-umi-counts
    - `cb_tag` (optional): BAM tag for cell barcode (default: CB)
    - `umi_tag` (optional): BAM tag for UMI (default: XM)
    - `generate_summary_outputs` (optional): Set to `false` to emit only the primary CB/UMI table and log file
-   - `sort_threads` (optional): Number of threads to use for each external sort (default: 1)
-   - `sort_memory_per_thread` (optional): Approximate RAM budget per sort thread, such as `512M` or `2G` (default: `1G`)
+   - `sort_threads` (optional): Number of threads to use for each external sort (default: `2`)
+   - `sort_memory_per_thread` (optional): Approximate RAM budget per sort thread, such as `512M` or `2G` (default: `2G`). If GNU `sort` is killed on large inputs, lowering this value can reduce peak memory pressure at the cost of more disk I/O.
    - `min_disk_gb` (optional): Minimum disk request for the task (default: `100`)
    - `extra_disk_gb` (optional): Fixed disk headroom added on top of the input-size-based estimate (default: `50`)
    - `disk_scale_factor` (optional): Multiplier applied to the combined input BAM size in GB when estimating disk (default: `6.0`)
@@ -156,6 +157,8 @@ requested_disk_gb = max(
 ```
 
 The multiplier is intentionally conservative because the workflow writes large temporary files for read-level sorting/deduplication and barcode/UMI aggregation.
+
+The Terra runtime defaults target a `32 GB` machine with `cpu=8`, `sort_threads=2`, and `sort_memory_per_thread=2G`.
 
 ## Execution Test
 
@@ -189,7 +192,7 @@ This generates synthetic BAMs, runs the plugin in both full-output and CB/UMI-on
 - `--barcode-umi-counts`: Output TSV for unique UMI counts per barcode (optional, but required if `--knee-plot-pdf` is provided)
 - `--knee-plot-pdf`: Output PDF for barcode knee plot (optional, but required if `--barcode-umi-counts` is provided)
 - `--max-knee-plot-points`: Maximum number of barcode ranks to render in the knee plot (default: 5000)
-- `--sort-threads`: Number of threads to use for each external sort invocation (default: 1)
-- `--sort-memory-per-thread`: Approximate RAM budget per sort thread, for example `512M` or `2G` (default: `1G`)
+- `--sort-threads`: Number of threads to use for each external sort invocation (default: `2`)
+- `--sort-memory-per-thread`: Approximate RAM budget per sort thread, for example `512M` or `2G` (default: `2G`). The script automatically retries with smaller budgets after a `SIGKILL`, but setting a lower value up front can still be useful on constrained Terra runtimes.
 - `--cb-tag`: BAM tag for cell barcode (default: CB)
 - `--umi-tag`: BAM tag for UMI (default: XM)
