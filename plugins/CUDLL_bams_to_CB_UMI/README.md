@@ -33,16 +33,19 @@ cell_barcode    umi_count
 
 `umi_count` is the number of distinct UMIs observed for that barcode across the retained reads. Rows where the barcode or UMI tag is missing are excluded from this summary and from the knee plot.
 
-External sorting is performed with GNU `sort`. `--sort-threads` maps to `sort --parallel`, and `--sort-memory-per-thread` is multiplied by the thread count to derive the total `sort -S` memory budget for each sort invocation.
-If `sort` is killed by `SIGKILL` under memory pressure, the script now retries automatically with progressively smaller per-thread memory settings down to `64M`.
+When only the main BAM is provided, reads are streamed directly to the output with no sorting step — read names are unique within a single BAM so no deduplication is needed.
+
+When a supplemental BAM is also provided, each BAM is written to its own temporary TSV and sorted independently, then the two sorted files are merged with `sort -m` (streaming merge, negligible memory) before deduplication. Sorting each BAM separately halves the data seen by each `sort` invocation compared to combining them first.
+
+`--sort-threads` maps to `sort --parallel`, and `--sort-memory-per-thread` is multiplied by the thread count to derive the total `sort -S` memory budget for each sort invocation. If `sort` is killed by `SIGKILL` under memory pressure, the script retries automatically with progressively smaller per-thread memory settings down to `64M`.
 
 ## Components
 
 ### Python Script (`Docker/cudll_bams_to_cb_umi.py`)
 
 The main processing script that:
-1. Writes primary reads from the main BAM and optional supplemental BAM into a combined temporary TSV
-2. Externally sorts those records by read name and emits one retained row per read name
+1. When only the main BAM is provided: streams primary reads directly to the output (no sort needed)
+2. When a supplemental BAM is also provided: writes each BAM to its own temporary TSV, sorts them independently, then merges with `sort -m` and deduplicates by read name
 3. Optionally writes valid barcode/UMI pairs to a temporary TSV, externally sorts them, and streams barcode-level unique UMI counts
 4. Optionally generates a PDF knee plot of barcode rank versus unique UMI count
 5. Reports statistics on the number of reads processed, deduplicated, and missing tags

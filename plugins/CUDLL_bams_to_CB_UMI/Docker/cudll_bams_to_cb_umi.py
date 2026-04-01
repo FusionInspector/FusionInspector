@@ -361,20 +361,22 @@ def get_cb_umi_fields(read, cb_tag, umi_tag):
     return read.query_name, cell_barcode, umi
 
 
-def append_primary_reads_to_combined_file(combined_handle, bam_path, cb_tag, umi_tag, label):
+def write_bam_to_temp_records(bam_path, cb_tag, umi_tag, label):
+    """Write primary reads from one BAM to a temp TSV; return (path, count)."""
+    fd, records_path = tempfile.mkstemp(prefix=f"cb_umi_records_{label}_", suffix=".tsv")
     primary_count = 0
-    report_interval = 1000000  # Report every 1M reads
+    report_interval = 1000000
     start_time = time.time()
 
     print(f"Reading primary reads from {label} BAM: {bam_path}", file=sys.stderr)
 
-    with pysam.AlignmentFile(bam_path, "rb") as bam:
+    with os.fdopen(fd, "wt") as handle, pysam.AlignmentFile(bam_path, "rb") as bam:
         for read in bam:
             if read.is_secondary or read.is_supplementary:
                 continue
 
             read_name, cell_barcode, umi = get_cb_umi_fields(read, cb_tag, umi_tag)
-            combined_handle.write(f"{read_name}\t{cell_barcode}\t{umi}\n")
+            handle.write(f"{read_name}\t{cell_barcode}\t{umi}\n")
             primary_count += 1
 
             if primary_count % report_interval == 0:
@@ -391,32 +393,86 @@ def append_primary_reads_to_combined_file(combined_handle, bam_path, cb_tag, umi
         f"Collected {primary_count:,} primary reads from {label} BAM in {elapsed:.1f}s",
         file=sys.stderr,
     )
-    return primary_count
+    return records_path, primary_count
 
 
-def sort_combined_records(sort_exe, sort_threads, sort_memory_per_thread, combined_path):
-    sorted_fd, sorted_path = tempfile.mkstemp(prefix="cb_umi_records_sorted_", suffix=".tsv")
+def sort_records_file(sort_exe, sort_threads, sort_memory_per_thread, records_path, label):
+    """Sort a records TSV by read name; return path to sorted file."""
+    sort_tmpdir = os.path.dirname(records_path)
+    sorted_fd, sorted_path = tempfile.mkstemp(
+        prefix=f"cb_umi_sorted_{label}_", suffix=".tsv", dir=sort_tmpdir
+    )
     os.close(sorted_fd)
 
     run_sort_command(
         sort_exe,
         sort_threads,
         sort_memory_per_thread,
-        [
-            "-t",
-            "\t",
-            "-k1,1",
-            "-k2,2",
-            "-k3,3",
-            combined_path,
-            "-o",
-            sorted_path,
-        ],
-        "sorting combined read-level records by read name",
-        sort_tmpdir=os.path.dirname(sorted_path),
+        ["-t", "\t", "-k1,1", "-k2,2", "-k3,3", records_path, "-o", sorted_path],
+        f"sorting {label} read-level records by read name",
+        sort_tmpdir=sort_tmpdir,
     )
 
     return sorted_path
+
+
+def merge_sorted_records_stream(sort_exe, sorted_paths):
+    """
+    Launch sort -m to merge two pre-sorted TSV files and return the Popen object.
+    sort -m is a streaming merge — it uses negligible memory regardless of file size.
+    The caller must consume proc.stdout, call proc.wait(), and check proc.returncode.
+    """
+    sort_tmpdir = os.path.dirname(sorted_paths[0])
+    env = {**os.environ, "LC_ALL": "C"}
+    cmd = [sort_exe, "-m", "-t", "\t", "-k1,1", "-k2,2", "-k3,3", "-T", sort_tmpdir] + sorted_paths
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True, env=env)
+
+
+def stream_main_bam_to_output(main_bam, output_file, cb_tag, umi_tag, aggregator):
+    """
+    Fast path for single-BAM case: stream directly from BAM to output without sort.
+    No deduplication is needed because read names are unique within a single BAM.
+    """
+    opener = gzip.open if output_file.endswith(".gz") else open
+    retained_count = 0
+    missing_cb_count = 0
+    missing_umi_count = 0
+    report_interval = 1000000
+    start_time = time.time()
+
+    print(f"Reading primary reads from main BAM: {main_bam}", file=sys.stderr)
+
+    with pysam.AlignmentFile(main_bam, "rb") as bam, opener(output_file, "wt") as outfile:
+        outfile.write("read_name\tcell_barcode\tUMI\n")
+        for read in bam:
+            if read.is_secondary or read.is_supplementary:
+                continue
+
+            read_name, cell_barcode, umi = get_cb_umi_fields(read, cb_tag, umi_tag)
+            outfile.write(f"{read_name}\t{cell_barcode}\t{umi}\n")
+            aggregator.add(cell_barcode, umi)
+            retained_count += 1
+
+            if cell_barcode == "NA":
+                missing_cb_count += 1
+            if umi == "NA":
+                missing_umi_count += 1
+
+            if retained_count % report_interval == 0:
+                elapsed = time.time() - start_time
+                rate = retained_count / elapsed
+                print(
+                    f"  Progress: {retained_count:,} primary reads written ({rate:,.0f} reads/sec)",
+                    file=sys.stderr,
+                    flush=True,
+                )
+
+    elapsed = time.time() - start_time
+    print(f"Collected and wrote {retained_count:,} primary reads in {elapsed:.1f}s", file=sys.stderr)
+    if missing_cb_count > 0:
+        print(f"  Warning: {missing_cb_count} reads missing {cb_tag} tag", file=sys.stderr)
+    if missing_umi_count > 0:
+        print(f"  Warning: {missing_umi_count} reads missing {umi_tag} tag", file=sys.stderr)
 
 
 def process_bams(
@@ -434,14 +490,13 @@ def process_bams(
     """
     Process one or two BAM files and create a CB/UMI table.
     When supp_bam is provided, records are merged and deduplicated by read name.
+    When only main_bam is provided, records are streamed directly without sorting.
     """
-    sort_exe = shutil.which("sort")
-    if sort_exe is None:
-        raise RuntimeError("GNU sort is required")
-
     if sort_threads < 1:
         raise ValueError("--sort-threads must be at least 1")
     parse_size_to_bytes(sort_memory_per_thread)
+
+    sort_exe = shutil.which("sort")
 
     aggregator = BarcodeUmiAggregator(
         summary_file,
@@ -452,88 +507,97 @@ def process_bams(
         sort_memory_per_thread=sort_memory_per_thread,
     )
 
-    combined_fd, combined_path = tempfile.mkstemp(prefix="cb_umi_records_", suffix=".tsv")
-    sorted_path = None
+    if not supp_bam:
+        # Single-BAM fast path: no read-name sort needed — read names are unique within one BAM.
+        # The aggregator still does its own sort on (barcode, umi) pairs for UMI counting.
+        print("No supplemental BAM provided; streaming main BAM directly (no read-name sort needed)", file=sys.stderr)
+        stream_main_bam_to_output(main_bam, output_file, cb_tag, umi_tag, aggregator)
+    else:
+        if sort_exe is None:
+            raise RuntimeError("GNU sort is required")
 
-    try:
-        with os.fdopen(combined_fd, "wt") as combined_handle:
-            if supp_bam:
-                append_primary_reads_to_combined_file(
-                    combined_handle,
-                    supp_bam,
-                    cb_tag,
-                    umi_tag,
-                    "supplemental",
-                )
-            else:
-                print("No supplemental BAM provided; processing only the main BAM", file=sys.stderr)
+        supp_raw_path = None
+        supp_sorted_path = None
+        main_raw_path = None
+        main_sorted_path = None
+        merge_proc = None
 
-            append_primary_reads_to_combined_file(
-                combined_handle,
-                main_bam,
-                cb_tag,
-                umi_tag,
-                "main",
-            )
+        try:
+            # Write and sort each BAM independently so each sort sees only half the data.
+            supp_raw_path, _ = write_bam_to_temp_records(supp_bam, cb_tag, umi_tag, "supplemental")
+            print("Sorting supplemental read-level records by read name", file=sys.stderr)
+            supp_sorted_path = sort_records_file(sort_exe, sort_threads, sort_memory_per_thread, supp_raw_path, "supplemental")
+            os.unlink(supp_raw_path)
+            supp_raw_path = None
 
-        print("Sorting combined read-level records by read name", file=sys.stderr)
-        sorted_path = sort_combined_records(
-            sort_exe,
-            sort_threads,
-            sort_memory_per_thread,
-            combined_path,
-        )
+            main_raw_path, _ = write_bam_to_temp_records(main_bam, cb_tag, umi_tag, "main")
+            print("Sorting main read-level records by read name", file=sys.stderr)
+            main_sorted_path = sort_records_file(sort_exe, sort_threads, sort_memory_per_thread, main_raw_path, "main")
+            os.unlink(main_raw_path)
+            main_raw_path = None
 
-        opener = gzip.open if output_file.endswith(".gz") else open
-        retained_count = 0
-        duplicate_count = 0
-        missing_cb_count = 0
-        missing_umi_count = 0
-        previous_read_name = None
-        start_time = time.time()
-        report_interval = 1000000  # Report every 1M retained reads
+            # Merge the two sorted streams with sort -m — streaming, no sort buffer needed.
+            print("Merging sorted records and deduplicating by read name", file=sys.stderr)
+            merge_proc = merge_sorted_records_stream(sort_exe, [supp_sorted_path, main_sorted_path])
 
-        with open(sorted_path, "rt") as sorted_handle, opener(output_file, "wt") as outfile:
-            outfile.write("read_name\tcell_barcode\tUMI\n")
+            opener = gzip.open if output_file.endswith(".gz") else open
+            retained_count = 0
+            duplicate_count = 0
+            missing_cb_count = 0
+            missing_umi_count = 0
+            previous_read_name = None
+            start_time = time.time()
+            report_interval = 1000000
 
-            for line in sorted_handle:
-                read_name, cell_barcode, umi = line.rstrip("\n").split("\t")
-                if read_name == previous_read_name:
-                    duplicate_count += 1
-                    continue
+            with opener(output_file, "wt") as outfile:
+                outfile.write("read_name\tcell_barcode\tUMI\n")
 
-                previous_read_name = read_name
-                outfile.write(f"{read_name}\t{cell_barcode}\t{umi}\n")
-                aggregator.add(cell_barcode, umi)
-                retained_count += 1
+                for line in merge_proc.stdout:
+                    read_name, cell_barcode, umi = line.rstrip("\n").split("\t")
+                    if read_name == previous_read_name:
+                        duplicate_count += 1
+                        continue
 
-                if cell_barcode == "NA":
-                    missing_cb_count += 1
-                if umi == "NA":
-                    missing_umi_count += 1
+                    previous_read_name = read_name
+                    outfile.write(f"{read_name}\t{cell_barcode}\t{umi}\n")
+                    aggregator.add(cell_barcode, umi)
+                    retained_count += 1
 
-                if retained_count % report_interval == 0:
-                    elapsed = time.time() - start_time
-                    rate = retained_count / elapsed
-                    print(
-                        f"  Progress: {retained_count:,} unique read names written ({rate:,.0f} reads/sec)",
-                        file=sys.stderr,
-                        flush=True,
-                    )
+                    if cell_barcode == "NA":
+                        missing_cb_count += 1
+                    if umi == "NA":
+                        missing_umi_count += 1
 
-        elapsed = time.time() - start_time
-        print(f"Wrote {retained_count:,} unique read-level records in {elapsed:.1f}s", file=sys.stderr)
-        if duplicate_count > 0:
-            print(f"Discarded {duplicate_count:,} duplicate records by read name", file=sys.stderr)
-        if missing_cb_count > 0:
-            print(f"  Warning: {missing_cb_count} retained reads missing {cb_tag} tag", file=sys.stderr)
-        if missing_umi_count > 0:
-            print(f"  Warning: {missing_umi_count} retained reads missing {umi_tag} tag", file=sys.stderr)
-    finally:
-        if os.path.exists(combined_path):
-            os.unlink(combined_path)
-        if sorted_path and os.path.exists(sorted_path):
-            os.unlink(sorted_path)
+                    if retained_count % report_interval == 0:
+                        elapsed = time.time() - start_time
+                        rate = retained_count / elapsed
+                        print(
+                            f"  Progress: {retained_count:,} unique read names written ({rate:,.0f} reads/sec)",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+
+            merge_proc.stdout.close()
+            merge_proc.wait()
+            if merge_proc.returncode != 0:
+                raise RuntimeError(f"sort -m failed with exit code {merge_proc.returncode}")
+            merge_proc = None
+
+            elapsed = time.time() - start_time
+            print(f"Wrote {retained_count:,} unique read-level records in {elapsed:.1f}s", file=sys.stderr)
+            if duplicate_count > 0:
+                print(f"Discarded {duplicate_count:,} duplicate records by read name", file=sys.stderr)
+            if missing_cb_count > 0:
+                print(f"  Warning: {missing_cb_count} retained reads missing {cb_tag} tag", file=sys.stderr)
+            if missing_umi_count > 0:
+                print(f"  Warning: {missing_umi_count} retained reads missing {umi_tag} tag", file=sys.stderr)
+        finally:
+            if merge_proc is not None:
+                merge_proc.stdout.close()
+                merge_proc.kill()
+            for path in (supp_raw_path, supp_sorted_path, main_raw_path, main_sorted_path):
+                if path and os.path.exists(path):
+                    os.unlink(path)
 
     if aggregator.enabled:
         print(f"Sorting barcode/UMI pairs for summary generation", file=sys.stderr)
