@@ -16,7 +16,7 @@ workflow CUDLLBamsToCbUmi {
         Int memory_gb = 32
         Int min_disk_gb = 100
         Int extra_disk_gb = 50
-        Float disk_scale_factor = 6.0
+        Float disk_scale_factor = 10.0
         Int preemptible = 2
     }
 
@@ -94,6 +94,11 @@ task BamsToCbUmiFull {
     command <<<
         set -e
         set -o pipefail
+
+        # Direct all temp files (Python tempfile + GNU sort merge files) to the
+        # WDL working directory, which is on the allocated local-disk, not the
+        # boot disk's /tmp.
+        export TMPDIR=$(pwd)
 
         echo "Starting CUDLL BAM to CB/UMI table conversion" | tee ~{log_file_name}
         echo "Sample: ~{sample_name}" | tee -a ~{log_file_name}
@@ -173,6 +178,11 @@ task BamsToCbUmiPrimaryOnly {
     command <<<
         set -e
         set -o pipefail
+
+        # Direct all temp files (Python tempfile + GNU sort merge files) to the
+        # WDL working directory, which is on the allocated local-disk, not the
+        # boot disk's /tmp.
+        export TMPDIR=$(pwd)
 
         echo "Starting CUDLL BAM to CB/UMI table conversion" | tee ~{log_file_name}
         echo "Sample: ~{sample_name}" | tee -a ~{log_file_name}
