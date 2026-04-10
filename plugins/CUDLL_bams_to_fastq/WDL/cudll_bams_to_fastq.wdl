@@ -10,7 +10,8 @@ workflow CUDLLBamsToFastq {
         String docker = "trinityctat/cudll-to-fastq"
         Int cpu = 4
         Int memory_gb = 16
-        Int disk_gb = 100
+        Float disk_scale_factor = 4.0  # BAM -> gzipped FASTQ expands ~3-4x; factor covers input + output + temp
+        Int disk_overhead_gb = 20      # base overhead for OS, tooling, logs
     }
 
     call BamsToFastq {
@@ -23,7 +24,8 @@ workflow CUDLLBamsToFastq {
             docker = docker,
             cpu = cpu,
             memory_gb = memory_gb,
-            disk_gb = disk_gb
+            disk_scale_factor = disk_scale_factor,
+            disk_overhead_gb = disk_overhead_gb
     }
 
     output {
@@ -42,8 +44,14 @@ task BamsToFastq {
         String docker
         Int cpu
         Int memory_gb
-        Int disk_gb
+        Float disk_scale_factor
+        Int disk_overhead_gb
     }
+
+    Int disk_gb = ceil(
+        (size(main_bam, "GB") + (if defined(supp_bam) then size(select_first([supp_bam]), "GB") else 0.0))
+        * disk_scale_factor
+    ) + disk_overhead_gb
 
     String output_fastq = "~{sample_name}.merged.fastq.gz"
     String log_file_name = "~{sample_name}.cudll_conversion.log"
