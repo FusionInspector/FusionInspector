@@ -95,6 +95,6 @@ task BamsToFastq {
         cpu: cpu
         memory: "~{memory_gb} GB"
         disks: "local-disk ~{disk_gb} HDD"
-        preemptible: 2
+        preemptible: 0
     }
 }
