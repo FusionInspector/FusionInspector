@@ -274,8 +274,8 @@ main: {
         }
         else {
             ## ** the FusionInspector default setting **
-            # Keep only alignments to fusion contigs (not genome alignments)
-            $cmd .= " --outSAMfilter KeepOnlyAddedReferences ";
+            # Keep alignments to fusion contigs, filter out genome-only alignments
+            $cmd .= " --outSAMfilter KeepAllAddedReferences ";
         }
     }
     
