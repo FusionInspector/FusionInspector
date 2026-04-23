@@ -34,6 +34,7 @@ main: {
             
             my $fusion_contig = "$geneA--$geneB";
             foreach my $read_name (split(/,/, $reads_list)) {
+                next if ($read_name eq "" || $read_name eq ".");
                 if ($read_name =~ /^\&[^\@]+\@/) {
                     $read_name =~ s/^\&[^\@]+\@//;
                 }
@@ -84,5 +85,4 @@ main: {
     
     exit(0);
 }
-
 

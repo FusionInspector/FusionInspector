@@ -60,6 +60,45 @@ RG_OBJ_FILE = os.path.join(MISCDIR, "data", "ranger.rg_obj.rds")
 
 
 class FusionInspector:
+    def build_retrieved_reads_bam_cmd(
+        self,
+        retrieve_script,
+        read_accs_file,
+        source_sam_files,
+        template_bam_file,
+        mergedContig_fasta_filename,
+        output_bam_file,
+        cpu,
+        read_type_label,
+    ):
+
+        tmp_sam_file = output_bam_file + ".tmp.sam"
+
+        cmdstr = str(
+            "samtools view -H {template_bam_file} -b -o {output_bam_file}; "
+            "rm -f {tmp_sam_file}; "
+            "{retrieve_script} {read_accs_file} {source_sam_files} > {tmp_sam_file}; "
+            "if [ -s {tmp_sam_file} ]; then "
+            "samtools view -@ {cpu} -bT {mergedContig_fasta_filename} {tmp_sam_file} "
+            "| samtools sort -@ {cpu} - -o {output_bam_file}; "
+            "else "
+            "echo 'Warning, no fusion {read_type_label} reads recovered; retaining empty BAM: {output_bam_file}' >&2; "
+            "fi; "
+            "rm -f {tmp_sam_file}"
+        ).format(
+            retrieve_script=retrieve_script,
+            read_accs_file=read_accs_file,
+            source_sam_files=source_sam_files,
+            template_bam_file=template_bam_file,
+            mergedContig_fasta_filename=mergedContig_fasta_filename,
+            output_bam_file=output_bam_file,
+            tmp_sam_file=tmp_sam_file,
+            cpu=cpu,
+            read_type_label=read_type_label,
+        )
+
+        return 'bash -c "set -eo pipefail; {}"'.format(cmdstr)
+
     def run(self):
 
         arg_parser = argparse.ArgumentParser(
@@ -1099,23 +1138,16 @@ class FusionInspector:
                     [Command(cmdstr, "prep_igv_extract_junc_reads.ok")]
                 )
 
-                cmdstr = str(
-                    UTILDIR
-                    + "/retrieve_fusion_junction_reads_by_accession.pl "
-                    + summary_junctions_reads_list_filename
-                    + " "
-                    + aligner_bam_file
-                    + " | samtools view -@ "
-                    + str(args_parsed.CPU)
-                    + " -bT "
-                    + mergedContig_fasta_filename
-                    + " - "
-                    + " | samtools sort -@ "
-                    + str(args_parsed.CPU)
-                    + " - -o "
-                    + consolidated_junction_reads_bam
+                cmdstr = self.build_retrieved_reads_bam_cmd(
+                    UTILDIR + "/retrieve_fusion_junction_reads_by_accession.pl",
+                    summary_junctions_reads_list_filename,
+                    aligner_bam_file,
+                    aligner_bam_file,
+                    mergedContig_fasta_filename,
+                    consolidated_junction_reads_bam,
+                    args_parsed.CPU,
+                    "junction",
                 )
-                cmdstr = 'bash -c "set -eof pipefail; {}"'.format(cmdstr)
                 pipeliner.add_commands([Command(cmdstr, "prep_igv_junc_reads_bam.ok")])
 
                 # Long-read support currently reports only JunctionReads, so keep the
@@ -1157,25 +1189,16 @@ class FusionInspector:
                     [Command(cmdstr, "prep_igv_extract_junc_reads.ok")]
                 )
 
-                ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
-
-                cmdstr = str(
-                    UTILDIR
-                    + "/retrieve_fusion_junction_reads_by_accession.pl "
-                    + summary_junctions_reads_list_filename
-                    + " "
-                    + ",".join(fusion_junction_sam_files_list)
-                    + " | samtools view -@ "
-                    + str(args_parsed.CPU)
-                    + " -bT "
-                    + mergedContig_fasta_filename
-                    + " - "
-                    + " | samtools sort -@ "
-                    + str(args_parsed.CPU)
-                    + " - -o "
-                    + consolidated_junction_reads_bam
+                cmdstr = self.build_retrieved_reads_bam_cmd(
+                    UTILDIR + "/retrieve_fusion_junction_reads_by_accession.pl",
+                    summary_junctions_reads_list_filename,
+                    ",".join(fusion_junction_sam_files_list),
+                    aligner_bam_file,
+                    mergedContig_fasta_filename,
+                    consolidated_junction_reads_bam,
+                    args_parsed.CPU,
+                    "junction",
                 )
-                cmdstr = 'bash -c "set -eof pipefail; {}"'.format(cmdstr)
 
                 pipeliner.add_commands([Command(cmdstr, "prep_igv_junc_reads_bam.ok")])
 

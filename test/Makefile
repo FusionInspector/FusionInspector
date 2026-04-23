@@ -8,7 +8,7 @@ test:
 	./runMe.pl --output_dir FusionInspector-outdir --left_fq ${left_fq} --right_fq ${right_fq} --vis
 
 
-all: test test_incl_brkpt_plots test_incl_cosmic_like_preds fusion_contigs_only incl_Trinity annotate coding_effect samples_file_PE no_shrink_introns multiple_read_sets single_reads single_reads_fc_only
+all: test test_incl_brkpt_plots test_incl_cosmic_like_preds fusion_contigs_only incl_Trinity annotate coding_effect samples_file_PE spanning_only_no_junction no_shrink_introns multiple_read_sets single_reads single_reads_fc_only
 
 
 
@@ -58,6 +58,22 @@ single_reads_fc_only:
 samples_file_PE:
 	./runMe.pl --output_dir FusionInspector-pe_samples --samples_file data/samples.txt --fusion_contigs_only --extract_fusion_reads_file FusionInspector-pe_samples/fusion_reads
 
+spanning_only_no_junction:
+	rm -rf FusionInspector-spanningOnlyNoJunction data/spanning_only_no_junction
+	mkdir -p data/spanning_only_no_junction
+	printf "%s\n" \
+		"&BT474f@HWI-EAS418:6:68:486:1723" \
+		"&BT474f@HWI-EAS418:3:100:772:1835" \
+		"&BT474f@HWI-EAS418:3:72:1391:1561" \
+		"&BT474f@HWI-EAS418:5:97:422:825" \
+		"&BT474f@HWI-EAS418:5:12:1606:926" \
+		"&BT474f@HWI-EAS418:3:55:232:441" \
+		> data/spanning_only_no_junction/spanning_only.read_names
+	perl extract_fusion_supporting_reads.pl --left data/BT474f_1.fq.gz --right data/BT474f_2.fq.gz --fusion CTD-2328D6.1--MT-CO1 --support_type S --read_names_file data/spanning_only_no_junction/spanning_only.read_names --out_prefix data/spanning_only_no_junction/CTD-2328D6.1--MT-CO1.spanning_only
+	printf "CTD-2328D6.1--MT-CO1\n" > data/spanning_only_no_junction/fusions.txt
+	../FusionInspector --fusions data/spanning_only_no_junction/fusions.txt --genome_lib ${CTAT_GENOME_LIB} --out_prefix finspector --output_dir FusionInspector-spanningOnlyNoJunction --left_fq data/spanning_only_no_junction/CTD-2328D6.1--MT-CO1.spanning_only_1.fq --right_fq data/spanning_only_no_junction/CTD-2328D6.1--MT-CO1.spanning_only_2.fq --fusion_contigs_only --vis --max_sensitivity --CPU 4
+	python3 validate_spanning_only_no_junction.py FusionInspector-spanningOnlyNoJunction CTD-2328D6.1--MT-CO1
+
 
 ######################
 ## single cell support
@@ -75,8 +91,7 @@ clean:
 	rm -rf ./FusionInspector-outdir
 	rm -rf ./FusionInspector-single_reads ./FusionInspector-single_reads-fc_only
 	rm -rf ./FusionInspector-pe_samples
+	rm -rf ./FusionInspector-spanningOnlyNoJunction ./data/spanning_only_no_junction
 	rm -rf ./FusionInspector-no_shrink_introns
 	rm -rf ./FusionInspector-by-docker*
 	rm -rf ./FusionInspector-multreadsets-outdir
-
-
