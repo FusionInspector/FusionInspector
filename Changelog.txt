@@ -1,3 +1,8 @@
+## FusionInspector v2.11.5
+- bugfix: create a valid empty junction_reads BAM when no fusion junction reads are recovered for IGV visualization, avoiding samtools failures on empty input streams.
+- added a spanning-only paired-end execution test covering fusions with spanning support but zero junction-read support.
+
+
 ## FusionInspector v2.11.4
 - bugfix: revert the v2.11.0 use of KeepOnlyAddedReferences to KeepAllAddedReferences - critical for the FAR computations and for predict cosmic to work properly
 
