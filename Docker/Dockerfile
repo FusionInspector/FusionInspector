@@ -208,8 +208,8 @@ RUN pip install --break-system-packages numpy
 
 # FusionInspector
 
-ENV FI_VERSION=2.11.3
-ENV FI_HASH=6dbee8d8b06106c858a4a29f5e4b65c409b79b9d
+ENV FI_VERSION=2.11.4
+ENV FI_HASH=a332e01fead5f0d336e8369767685dfd10a7fe85
 
 WORKDIR $SRC
 RUN git clone --recursive https://github.com/FusionInspector/FusionInspector.git && \
