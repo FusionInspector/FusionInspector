@@ -1,3 +1,7 @@
+## FusionInspector devel
+- bugfix: create a valid empty spanning_reads BAM when no fusion spanning reads are recovered for IGV visualization, avoiding samtools failures on empty input streams.
+
+
 ## FusionInspector v2.11.5
 - bugfix: create a valid empty junction_reads BAM when no fusion junction reads are recovered for IGV visualization, avoiding samtools failures on empty input streams.
 - added a spanning-only paired-end execution test covering fusions with spanning support but zero junction-read support.

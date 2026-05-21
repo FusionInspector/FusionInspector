@@ -1227,34 +1227,16 @@ class FusionInspector:
 
                 pipeliner.add_commands([Command(cmdstr, "span_reads_acc.ok")])
 
-                ## //TODO: Separate this into two steps: retrieve, then do bam conversion, to ensure retrieval works via exit code.
-
-                # hack for now to avoid errors in single-end mode.
-                # initialize an empty bam
-                cmdstr = str(
-                    "samtools view -H {} -b -o {}".format(
-                        aligner_bam_file, consolidated_spanning_reads_bam
-                    )
+                cmdstr = self.build_retrieved_reads_bam_cmd(
+                    UTILDIR + "/retrieve_fusion_spanning_reads_by_accession.pl",
+                    summary_spanning_reads_list_filename,
+                    ",".join(fusion_spanning_sam_files_list),
+                    aligner_bam_file,
+                    mergedContig_fasta_filename,
+                    consolidated_spanning_reads_bam,
+                    args_parsed.CPU,
+                    "spanning",
                 )
-                pipeliner.add_commands([Command(cmdstr, "init_spanning_reads_bam.ok")])
-
-                cmdstr = str(
-                    UTILDIR
-                    + "/retrieve_fusion_spanning_reads_by_accession.pl "
-                    + summary_spanning_reads_list_filename
-                    + " "
-                    + ",".join(fusion_spanning_sam_files_list)
-                    + " | samtools view -@ "
-                    + str(args_parsed.CPU)
-                    + " -bT "
-                    + mergedContig_fasta_filename
-                    + " - "
-                    + " | samtools sort -@ "
-                    + str(args_parsed.CPU)
-                    + " - -o "
-                    + consolidated_spanning_reads_bam
-                    + " || : "
-                )  # again, cant afford for this to fail due to lack of evidence reads.
 
                 pipeliner.add_commands([Command(cmdstr, "prep_spanning_reads.ok")])
 
