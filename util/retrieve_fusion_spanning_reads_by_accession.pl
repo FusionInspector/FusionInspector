@@ -44,12 +44,16 @@ main: {
         
     }
     
-    
+    my $printed_header = 0;
     my %reads_seen;
 
     foreach my $bam_file (split(/,/, $bam_file_listing) ) {
         
         my $sam_reader = new SAM_reader($bam_file);
+        if (! -s $bam_file and ! $printed_header) {
+            print "\@HD\tVN:1.6\tSO:unknown\n";
+            $printed_header = 1;
+        }
         while (my $sam_entry = $sam_reader->get_next()) {
             my $scaffold = $sam_entry->get_scaffold_name();
             
