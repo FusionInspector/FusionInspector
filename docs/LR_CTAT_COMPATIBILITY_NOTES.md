@@ -51,7 +51,7 @@ This mismatch was the main reason many long-read-supported fusions were being dr
 
 ### Supporting bug fix
 
-- `FusionFilter/util/promiscuity_filter.pl`
+- `FusionFilter/util/promiscuity_filter.pl` (zero-valued `sum_JS`; handled on FusionFilter `master`, see below)
 
 
 ## Current Long-Read Flow
@@ -239,13 +239,15 @@ File:
 
 Issue:
 
-- code used `or confess` on `sum_JS`
+- the FusionFilter version pinned at the time used `or confess` on `sum_JS`
 - rows with `sum_JS == 0` were treated as failure
 - this caused the long-read-compatible run to die during promiscuity filtering
 
 Fix:
 
-- changed the check to `unless defined $sum_support`
+- initially patched on the FusionFilter `bhaas-lr-compat` branch (`ca9f6be`) by changing the check to `unless defined $sum_support`
+- FusionFilter `master` already handled this case (`4d5e28f`): it prints a warning when `sum_JS` is not positive and continues
+- the FusionFilter submodule now tracks `master`, so the branch-specific patch is no longer used
 
 This is a general robustness fix, not just a long-read fix.
 
